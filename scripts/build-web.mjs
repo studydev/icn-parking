@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'web');
 const files = [
-  'index.html', 'operations.html', 'config.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
+  'index.html', 'operations.html', 'operating-cost-reference.png', 'config.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
   'shuttle.json', 'staticwebapp.config.json', 'robots.txt', 'sitemap.xml'
 ];
 

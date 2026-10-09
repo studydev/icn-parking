@@ -22,7 +22,7 @@
 |---|---|
 | [사용 설명서](docs/USAGE.md) | 로컬 실행, 실제 API 수집, 화면 사용법, 설정 |
 | [배포 설명서](docs/DEPLOYMENT.md) | Azure 신규 설치, 기존 리소스 연결, GitHub Actions·OIDC·Secrets |
-| [운영 비용 참고](docs/COSTS.md) | 제공된 비용 이미지의 실제·예측 금액, 서비스별 내역, 운영 점검 |
+| [운영 비용 참고](docs/COSTS.md) | 비용 참고 이미지, 실제·예측 금액, 월 약 4,500원 참고 예상, 운영 점검 |
 | [데이터 형식](docs/DATA.md) | 공개 JSON 스키마, 시간·누락·점유율 계산, 외부 접근 |
 | [기여 안내](CONTRIBUTING.md) | 브랜치·PR·테스트 및 배포 설정 취급 |
 | [라이선스](LICENSE) | MIT |

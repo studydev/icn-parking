@@ -28,7 +28,7 @@
         </div>
         <div class="notice">
           통화는 KRW(원)이며 이미지의 소수점까지 그대로 표시합니다. 차트에는 10월 3일~9일이 보이지만
-          연도와 정확한 조회 시작·종료일은 확인되지 않습니다. 이 금액을 월 요금이나 서비스 단가로 해석하지 마세요.
+          연도와 정확한 조회 시작·종료일은 확인되지 않습니다. 실제·차트 예측 표시값과 아래의 월 운영비 참고 예상을 구분해 주세요.
         </div>
         <dl class="ops-summary" aria-label="이미지의 비용 요약">
           <div>
@@ -48,6 +48,45 @@
           예측은 선택한 차트 범위의 전체 서비스에 대한 전망이며 확정 청구액이나 서비스별 견적이 아닙니다.
           실제 비용에 예측 비용을 더하지 않습니다. 현재 예산 설정 여부와 최종 청구액은 Azure에서 별도로 확인하세요.
         </p>
+      </section>
+
+      <section class="sec" aria-labelledby="monthly-cost-title">
+        <h2 class="ops-heading" id="monthly-cost-title">일별 비용으로 보는 월 운영비 예상</h2>
+        <dl class="ops-summary" aria-label="일별 비용을 기준으로 한 월 운영비 참고 예상">
+          <div>
+            <dt>이미지의 일별 실제 비용 수준</dt>
+            <dd>₩150 미만</dd>
+          </div>
+          <div class="ops-forecast">
+            <dt>월 운영비 참고 예상 · 30일 가정</dt>
+            <dd>약 ₩4,500</dd>
+          </div>
+        </dl>
+        <div class="notice">
+          이미지의 실제 일별 비용 막대는 150원 미만 수준입니다. 같은 사용 패턴이 이어진다고 가정하고
+          하루 150원을 참고 기준으로 잡으면 <strong>₩150 × 30일 = ₩4,500</strong>으로 예상할 수 있습니다.
+          31일 기준으로는 ₩4,650입니다.
+        </div>
+        <p class="ops-text">
+          월 약 4,500원은 이 이미지의 일별 비용을 바탕으로 한 참고 예상이지 확정 요금이나 비용 상한이 아닙니다.
+          실행량, 로그 유입, 저장·조회량과 트래픽이 달라지면 실제 비용도 달라집니다.
+          차트의 연녹색 Forecast cost는 예측 구간으로 실제 집계 비용과 구분합니다.
+          위의 ₩961.33은 차트 범위의 예측이며 월 예상 ₩4,500과는 다른 값입니다.
+        </p>
+      </section>
+
+      <section class="sec" aria-labelledby="cost-image-title">
+        <h2 class="ops-heading" id="cost-image-title">운영 비용 참고 이미지</h2>
+        <figure class="ops-figure">
+          <a href="operating-cost-reference.png" target="_blank" rel="noopener" aria-label="비용 참고 이미지 크게 보기">
+            <img src="operating-cost-reference.png" width="923" height="768" loading="lazy"
+              alt="Azure 비용 분석 참고 이미지. 실제 ₩831.80, 차트 예측 ₩961.33, 150원 미만의 일별 실제 비용 막대와 서비스별·지역별 비용 분포.">
+          </a>
+          <figcaption>
+            제공된 이미지를 직접 포함했습니다. 비용 숫자와 그래프는 유지하고 리소스 그룹명 표시만 가렸습니다.
+            이미지를 선택하면 큰 크기로 볼 수 있습니다.
+          </figcaption>
+        </figure>
       </section>
 
       <section class="sec" aria-labelledby="service-cost-title">
@@ -107,7 +146,7 @@
         <p class="ops-text">
           세금·할인·크레딧 적용 여부와 최종 청구 기간은 이미지로 확인되지 않습니다.
           새로운 참고 금액으로 갱신할 때는 조회 기간과 판독 근거를 함께 남기세요.
-          원본 이미지와 리소스 그룹명·구독 ID·운영 주소·인증정보는 이 페이지에 공개하지 않습니다.
+          참고 이미지의 리소스 그룹명 표시는 가렸으며 구독 ID·운영 주소·인증정보는 공개하지 않습니다.
         </p>
         <div class="ops-links">
           <a href="https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/cost-analysis-common-uses">Azure 비용 분석 안내</a>
