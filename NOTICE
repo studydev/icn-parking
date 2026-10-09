@@ -1,0 +1,21 @@
+This project's original source code and documentation are licensed under MIT.
+
+Public-data services, API responses, names, third-party schedules, and linked
+materials retain their original providers' terms. The MIT license does not
+grant rights to redistribute third-party data beyond those terms.
+
+Sources:
+- Incheon International Airport Corporation parking and passenger APIs,
+  provided through the Korean Public Data Portal (data.go.kr).
+- Korea Astronomy and Space Science Institute holiday API (data.go.kr).
+- Incheon International Airport Corporation shuttle guides and timetables
+  (airport.kr). Shuttle timetable data is a manually maintained reference
+  snapshot; verify schedules and reuse terms with the original provider.
+- Pretendard Variable font is loaded from an external CDN; it is not bundled.
+  The font is distributed by its authors under the SIL Open Font License.
+
+Airport maps in this repository are original schematic SVG drawings. Official
+map images are linked for reference, not copied or redistributed.
+
+This is an unofficial service, not an airport booking service or an official
+forecast. Synthetic demo data is for testing only, not live parking information.

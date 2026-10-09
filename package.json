@@ -1,0 +1,12 @@
+{
+  "name": "icn-parking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Open-source Incheon Airport parking collector and responsive dashboard",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "test": "node --test tests/*.test.cjs"
+  }
+}

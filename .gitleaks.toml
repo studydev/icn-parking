@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Azure built-in Key Vault Secrets User role ID is public, not a credential"
+condition = "AND"
+paths = ['''(^|/)infra/modules/access\.bicep$''']
+regexes = ['''4633458b-17de-408a-b874-0445c86b69e6''']
