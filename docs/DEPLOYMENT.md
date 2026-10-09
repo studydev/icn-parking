@@ -152,8 +152,17 @@ gh variable set DEPLOY_WEB_ENABLED --body true --repo OWNER/REPOSITORY
 
 ```text
 issuer:   https://token.actions.githubusercontent.com
-subject:  repo:OWNER/REPOSITORY:environment:production
+subject:  repo:OWNER@OWNER_ID/REPOSITORY@REPOSITORY_ID:environment:production
 audience: api://AzureADTokenExchange
+```
+
+새 저장소는 OIDC `sub`에 변경되지 않는 owner/repository ID를 포함할 수 있습니다.
+구형 설정에서는 `repo:OWNER/REPOSITORY:environment:production` 형태를 사용합니다.
+Azure federated credential의 subject는 **해당 저장소 토큰의 실제 subject와 정확히 같아야** 합니다.
+`azure/login` 로그의 `Federated token details → subject claim`으로 확인하세요. 실제 Azure 리소스 ID를 공개 문서에 붙이지 마세요.
+
+```bash
+gh api repos/OWNER/REPOSITORY --jq '{owner_id: .owner.id, repository_id: .id}'
 ```
 
 수집기 코드 배포에는 대상 Function App 범위의 `Website Contributor`만 부여합니다. 수집기 관리 ID의 Blob/Key Vault 접근 권한과 배포 주체의 코드 배포 권한은 별개입니다.
