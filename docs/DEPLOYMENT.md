@@ -2,6 +2,8 @@
 
 사용법과 화면 기능은 [USAGE.md](USAGE.md), 데이터 스키마는 [DATA.md](DATA.md)에 있습니다. 이 문서에는 실제 운영 리소스 정보가 아닌 변수명과 예시만 포함합니다.
 
+서비스별 비용 점검과 제공된 비용 이미지의 해석은 [운영 비용 참고](COSTS.md)에 있습니다. 웹에는 리소스 식별 정보가 없는 정적 [운영 비용 안내 페이지](../web/operations.html)가 함께 배포됩니다.
+
 ## 1. 구성과 배포 경계
 
 ```text
@@ -89,6 +91,7 @@ npm run build
 - 사이트 URL에 맞춘 canonical, robots, sitemap
 - 선택적 네이버/Bing 소유 확인 태그
 - 해당 데이터 Origin만 허용하는 CSP `connect-src`
+- `operations.html`: 이미지 기준 운영 비용 참고 페이지(실시간 청구 조회가 아니며 검색 색인 제외)
 
 설정이 없는 기본 빌드는 상대 `./data/`만 사용합니다. 실제 사이트 URL이 없으면 잘못된 sitemap을 배포하지 않도록 sitemap을 생략합니다. URL은 HTTPS이고 인증정보·쿼리(SAS 포함)·fragment가 없어야 합니다. 공개 웹 설정에 API 인증키나 비공개 저장소 주소를 넣지 마세요.
 
@@ -102,7 +105,7 @@ npm run build
 2. 테스트용 `web-preview` artifact는 운영 설정 없이 생성
 3. `main` 병합(push): 동일한 검증을 다시 통과한 후 활성화된 배포 수행
 4. `production` environment에서만 운영 배포 설정 사용
-5. 배포 후 웹·robots·sitemap·공개 데이터 응답 확인
+5. 배포 후 웹·운영 비용 페이지·robots·sitemap·공개 데이터 응답 확인
 
 Fork의 PR에는 운영 Secrets를 전달하지 않습니다. `pull_request_target`으로 외부 코드를 실행하지 않습니다. CI/CD actions는 수정되지 않는 commit SHA로 고정합니다.
 
@@ -202,4 +205,5 @@ node scripts/verify-deployment.mjs
 - 원천 갱신 지연은 배포 실패가 아니라 수집 품질 문제일 수 있습니다.
 - 검색 소유 확인은 배포된 태그로 해당 포털에서 완료하고 사이트맵을 제출하세요.
 - 화면이 이전 버전이면 브라우저 캐시를 새로고침하세요.
+- 주차 화면 하단의 **운영 비용 안내** 링크와 `/operations.html`을 확인하세요. 배포 검증은 비용 페이지가 저장소 원본과 일치하는지도 검사합니다.
 - 실제 API나 Azure 호출이 포함된 로그는 공개 이슈에 원문으로 첨부하지 마세요.

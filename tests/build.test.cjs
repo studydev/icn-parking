@@ -58,6 +58,37 @@ test('build leaves repository templates unchanged and does not copy runtime data
   assert.match(fs.readFileSync(path.join(root, 'web/sitemap.xml'), 'utf8'), /__SITE_URL__/);
 });
 
+test('build deploys an exact, static operating cost reference without private resource identifiers', async t => {
+  const out = await build(t);
+  const html = fs.readFileSync(path.join(out, 'operations.html'), 'utf8');
+  assert.equal(html, fs.readFileSync(path.join(root, 'web/operations.html'), 'utf8'));
+  assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /href="operations\.html">운영 비용 안내<\/a>/);
+  assert.match(html, /id="operating-costs"/);
+  assert.match(html, /name="robots" content="noindex,follow"/);
+  assert.match(html, /실제 비용 · Actual cost<\/dt>\s*<dd>₩831\.80<\/dd>/);
+  assert.match(html, /차트 예측 · Forecast: Chart view<\/dt>\s*<dd>₩961\.33<\/dd>/);
+  assert.match(html, /이미지의 예산 표시 · Budget<\/dt>\s*<dd>없음 <small>None<\/small><\/dd>/);
+  const rows = new Map([...html.matchAll(/<th scope="row">([^<]+)<\/th><td class="ops-amount">₩(\d+\.\d{2})<\/td>/g)]
+    .map(([, name, value]) => [name, Math.round(Number(value) * 100)]));
+  const services = [
+    ['Functions', 29409], ['Log Analytics', 24665], ['Storage', 23996],
+    ['Azure Monitor', 5086], ['Bandwidth', 14]
+  ];
+  for (const [service, cents] of services) assert.equal(rows.get(service), cents);
+  assert.equal(services.reduce((sum, [, cents]) => sum + cents, 0), 83170);
+  assert.equal(rows.get('판독 가능 항목 합계'), 83170);
+  assert.equal(rows.get('미배분 차액'), 10);
+  assert.equal(rows.get('이미지의 실제 총액'), 83180);
+  assert.equal(rows.get('KR Central'), 78080);
+  assert.equal(rows.get('Unknown'), 5086);
+  assert.equal(rows.get('AU East'), 14);
+  assert.equal(rows.get('KR Central') + rows.get('Unknown') + rows.get('AU East'), 83180);
+  assert.match(html, /연도와 정확한 조회 시작·종료일은 확인되지 않습니다/);
+  assert.match(html, /월 요금이나 서비스 단가로 해석하지 마세요/);
+  assert.match(html, /Key Vault와 Azure App Service도 있지만 개별 금액은 이미지에서 판독할 수 없습니다/);
+  assert.doesNotMatch(html, /<script\b|blob\.core\.windows\.net|azurestaticapps\.net|\/subscriptions\/|\brg-[a-z0-9-]+/i);
+});
+
 test('build refuses credentials, SAS/query strings, non-HTTPS URLs, and injected verification tokens', async t => {
   const { buildWeb } = await buildModule;
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'parking-invalid-build-'));

@@ -48,6 +48,29 @@ button{font-family:inherit}
 .empty{padding:14px 0;color:#8a9097;font-size:13px;line-height:1.6}
 .notice{font-size:13px;color:#3a3f45;background:#f6f8fa;padding:10px 12px;border-radius:4px;line-height:1.6}
 
+/* operations reference */
+.ops-header .top-in{padding-bottom:14px}
+.ops-header a{font-size:13px}
+.ops-main{max-width:960px}
+.ops-main p{margin:0}
+.ops-title{margin:0;font-size:24px;letter-spacing:-.02em}
+.ops-heading{margin:0;font-size:17px}
+.ops-summary{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}
+.ops-summary>div{padding:16px;border:1px solid #e6e8eb;border-radius:6px}
+.ops-summary>.ops-forecast{border-style:dashed;background:#f6f8fa}
+.ops-summary dt{font-size:12px;color:#5b6168}
+.ops-summary dd{margin:8px 0 0;font-size:28px;font-weight:700}
+.ops-summary small{font-size:13px;font-weight:400;color:#5b6168}
+.ops-text,.ops-list{font-size:13px;line-height:1.8;color:#3a3f45}
+.ops-table-wrap{max-width:100%;overflow-x:auto}
+.ops-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6}
+.ops-table caption{text-align:left;padding-bottom:10px;color:#5b6168;font-size:12px}
+.ops-table th,.ops-table td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid #e6e8eb}
+.ops-table thead,.ops-table tfoot{background:#f6f8fa}
+.ops-table .ops-amount{white-space:nowrap;text-align:right}
+.ops-list{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.ops-links{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px}
+
 /* weekly chart */
 .chart{display:flex;flex-direction:column;margin-left:44px}
 .legend{display:flex;flex-direction:column;gap:2px;padding-bottom:6px}
