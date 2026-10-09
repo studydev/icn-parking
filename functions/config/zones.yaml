@@ -1,0 +1,23 @@
+# 주차 구역 마스터. raw_names는 API `floor` 값(공백 무시 비교).
+# category: 단기 | 장기 | 타워 | 예약   (예약은 화면 기본 꺼짐, 터미널 합계 제외)
+# order는 같은 터미널 안의 표시 순서.
+zones:
+  - {id: t1-short-b1, terminal: T1, category: 단기, name: 단기 지하1층, order: 1, raw_names: [T1 단기주차장지하1층], active_from: 2026-10-01}
+  - {id: t1-short-b2, terminal: T1, category: 단기, name: 단기 지하2층, order: 2, raw_names: [T1 단기주차장지하2층], active_from: 2026-10-01}
+  - {id: t1-short-b3, terminal: T1, category: 단기, name: 단기 지하3층, order: 3, raw_names: [T1 단기주차장지하3층], active_from: 2026-10-01}
+  - {id: t1-short-gf, terminal: T1, category: 단기, name: 단기 지상층, order: 4, raw_names: [T1 단기주차장지상층], active_from: 2026-10-01}
+  - {id: t1-long-p1, terminal: T1, category: 장기, name: 장기 P1, order: 5, raw_names: [T1 장기 P1 주차장], active_from: 2026-10-01}
+  - {id: t1-long-p2, terminal: T1, category: 장기, name: 장기 P2, order: 6, raw_names: [T1 장기 P2 주차장], active_from: 2026-10-01}
+  - {id: t1-long-p3, terminal: T1, category: 장기, name: 장기 P3, order: 7, raw_names: [T1 장기 P3 주차장], active_from: 2026-10-01}
+  - {id: t1-tower-p1, terminal: T1, category: 타워, name: 주차타워 P1, order: 8, raw_names: [T1 장기 P1 주차타워], active_from: 2026-10-01}
+  - {id: t1-tower-p2, terminal: T1, category: 타워, name: 주차타워 P2, order: 9, raw_names: [T1 장기 P2 주차타워], active_from: 2026-10-01}
+  - {id: t1-resv-p5, terminal: T1, category: 예약, name: 예약 P5, order: 10, raw_names: [T1 P5 예약주차장], active_from: 2026-10-01}
+  - {id: t2-short-bm, terminal: T2, category: 단기, name: 단기 지하M층, order: 1, raw_names: [T2 단기주차장지하M층], active_from: 2026-10-01}
+  - {id: t2-short-1f, terminal: T2, category: 단기, name: 단기 지상1층, order: 2, raw_names: [T2 단기주차장지상1층], active_from: 2026-10-01}
+  - {id: t2-short-2f, terminal: T2, category: 단기, name: 단기 지상2층, order: 3, raw_names: [T2 단기주차장지상2층], active_from: 2026-10-01}
+  - {id: t2-short-3f, terminal: T2, category: 단기, name: 단기 지상3층, order: 4, raw_names: [T2 단기주차장지상3층], active_from: 2026-10-01}
+  - {id: t2-short-4f, terminal: T2, category: 단기, name: 단기 지상4층, order: 5, raw_names: [T2 단기주차장지상4층], active_from: 2026-10-01}
+  - {id: t2-long, terminal: T2, category: 장기, name: 장기주차장, order: 6, raw_names: [T2 장기 주차장], active_from: 2026-10-01}
+  - {id: t2-tower-p1, terminal: T2, category: 타워, name: 주차타워 P1, order: 7, raw_names: [T2 P1 장기주차타워], active_from: 2026-10-01}
+  - {id: t2-tower-p2, terminal: T2, category: 타워, name: 주차타워 P2, order: 8, raw_names: [T2 P2 장기주차타워], active_from: 2026-10-01}
+  - {id: t2-resv, terminal: T2, category: 예약, name: 예약주차장, order: 9, raw_names: [T2 예약 주차장], active_from: 2026-10-01}

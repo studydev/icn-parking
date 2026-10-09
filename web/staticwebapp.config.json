@@ -1,0 +1,18 @@
+{
+  "routes": [
+    { "route": "/robots.txt", "headers": { "cache-control": "no-cache, max-age=0, must-revalidate", "content-type": "text/plain; charset=utf-8" } },
+    { "route": "/sitemap.xml", "headers": { "cache-control": "no-cache, max-age=0, must-revalidate", "content-type": "application/xml; charset=utf-8" } },
+    { "route": "/config.js", "headers": { "cache-control": "no-cache" } },
+    { "route": "/*.{js,css}", "headers": { "cache-control": "public, max-age=300" } },
+    { "route": "/", "headers": { "cache-control": "public, max-age=300" } },
+    { "route": "/index.html", "headers": { "cache-control": "public, max-age=300" } }
+  ],
+  "globalHeaders": {
+    "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://*.blob.core.windows.net https://*.web.core.windows.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin"
+  },
+  "responseOverrides": {
+    "404": { "rewrite": "/index.html", "statusCode": 404 }
+  }
+}
