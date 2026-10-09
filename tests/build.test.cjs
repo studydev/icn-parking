@@ -58,6 +58,59 @@ test('build leaves repository templates unchanged and does not copy runtime data
   assert.match(fs.readFileSync(path.join(root, 'web/sitemap.xml'), 'utf8'), /__SITE_URL__/);
 });
 
+test('build deploys an exact, static operating cost reference without private resource identifiers', async t => {
+  const out = await build(t);
+  const html = fs.readFileSync(path.join(out, 'operations.html'), 'utf8');
+  assert.equal(html, fs.readFileSync(path.join(root, 'web/operations.html'), 'utf8'));
+  assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /href="operations\.html">운영 비용 안내<\/a>/);
+  assert.match(html, /id="operating-costs"/);
+  assert.match(html, /name="robots" content="noindex,follow"/);
+  assert.match(html, /실제 비용 · Actual cost<\/dt>\s*<dd>₩831\.80<\/dd>/);
+  assert.match(html, /차트 예측 · Forecast: Chart view<\/dt>\s*<dd>₩961\.33<\/dd>/);
+  assert.match(html, /이미지의 예산 표시 · Budget<\/dt>\s*<dd>없음 <small>None<\/small><\/dd>/);
+  const rows = new Map([...html.matchAll(/<th scope="row">([^<]+)<\/th><td class="ops-amount">₩(\d+\.\d{2})<\/td>/g)]
+    .map(([, name, value]) => [name, Math.round(Number(value) * 100)]));
+  const services = [
+    ['Functions', 29409], ['Log Analytics', 24665], ['Storage', 23996],
+    ['Azure Monitor', 5086], ['Bandwidth', 14]
+  ];
+  for (const [service, cents] of services) assert.equal(rows.get(service), cents);
+  assert.equal(services.reduce((sum, [, cents]) => sum + cents, 0), 83170);
+  assert.equal(rows.get('판독 가능 항목 합계'), 83170);
+  assert.equal(rows.get('미배분 차액'), 10);
+  assert.equal(rows.get('이미지의 실제 총액'), 83180);
+  assert.equal(rows.get('KR Central'), 78080);
+  assert.equal(rows.get('Unknown'), 5086);
+  assert.equal(rows.get('AU East'), 14);
+  assert.equal(rows.get('KR Central') + rows.get('Unknown') + rows.get('AU East'), 83180);
+  assert.match(html, /연도와 정확한 조회 시작·종료일은 확인되지 않습니다/);
+  assert.match(html, /실제·차트 예측 표시값과 아래의 월 운영비 참고 예상을 구분해 주세요/);
+  assert.match(html, /Key Vault와 Azure App Service도 있지만 개별 금액은 이미지에서 판독할 수 없습니다/);
+  assert.doesNotMatch(html, /<script\b|blob\.core\.windows\.net|azurestaticapps\.net|\/subscriptions\/|\brg-[a-z0-9-]+/i);
+});
+
+test('build includes the supplied cost image and a conditional KRW 4500 monthly estimate', async t => {
+  const out = await build(t);
+  const html = fs.readFileSync(path.join(out, 'operations.html'), 'utf8');
+  const image = fs.readFileSync(path.join(out, 'operating-cost-reference.png'));
+  assert.deepEqual(image, fs.readFileSync(path.join(root, 'web/operating-cost-reference.png')));
+  assert.deepEqual(image.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  assert.equal(image.readUInt32BE(16), 923);
+  assert.equal(image.readUInt32BE(20), 768);
+  assert.match(html, /<img src="operating-cost-reference\.png" width="923" height="768"/);
+  assert.match(html, /href="operating-cost-reference\.png" target="_blank" rel="noopener"/);
+  assert.match(html, /이미지의 일별 실제 비용 수준<\/dt>\s*<dd>₩150 미만<\/dd>/);
+  assert.match(html, /월 운영비 참고 예상 · 30일 가정<\/dt>\s*<dd>약 ₩4,500<\/dd>/);
+  assert.match(html, /₩150 × 30일 = ₩4,500/);
+  assert.match(html, /31일 기준으로는 ₩4,650/);
+  assert.match(html, /같은 사용 패턴이 이어진다고 가정/);
+  assert.match(html, /확정 요금이나 비용 상한이 아닙니다/);
+  assert.match(html, /리소스 그룹명 표시만 가렸습니다/);
+  const guide = fs.readFileSync(path.join(root, 'docs/COSTS.md'), 'utf8');
+  assert.match(guide, /!\[Azure 비용 분석 참고 이미지\]\(\.\.\/web\/operating-cost-reference\.png\)/);
+  assert.match(guide, /₩150 × 30일 = ₩4,500/);
+});
+
 test('build refuses credentials, SAS/query strings, non-HTTPS URLs, and injected verification tokens', async t => {
   const { buildWeb } = await buildModule;
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'parking-invalid-build-'));

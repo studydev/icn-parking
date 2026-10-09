@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 const siteValue = process.env.PUBLIC_SITE_URL;
 const dataValue = process.env.DATA_BASE_URL;
 if (!siteValue || !dataValue) {
@@ -14,7 +16,7 @@ function directory(value) {
   return url;
 }
 
-async function read(name, url, type) {
+async function read(name, url, type, binary = false) {
   url = new URL(url);
   url.searchParams.set('deployment-check', String(Date.now()));
   let response;
@@ -25,13 +27,20 @@ async function read(name, url, type) {
   }
   if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
   if (!(response.headers.get('content-type') || '').match(type)) throw new Error(`${name}: unexpected content type`);
-  return response.text();
+  return binary ? Buffer.from(await response.arrayBuffer()) : response.text();
 }
 
 async function verify() {
   const site = directory(siteValue), data = directory(dataValue);
   const index = await read('Website', site, /text\/html/i);
   if (!index.includes('id="view"')) throw new Error('Website: dashboard markup not found');
+  if (!index.includes('href="operations.html"')) throw new Error('Website: operating costs link not found');
+  const operations = await read('Operating costs', new URL('operations.html', site), /text\/html/i);
+  const expectedOperations = await readFile(new URL('../web/operations.html', import.meta.url), 'utf8');
+  if (operations !== expectedOperations) throw new Error('Operating costs: deployed reference does not match the source');
+  const costImage = await read('Cost reference image', new URL('operating-cost-reference.png', site), /image\/png/i, true);
+  const expectedImage = await readFile(new URL('../web/operating-cost-reference.png', import.meta.url));
+  if (!costImage.equals(expectedImage)) throw new Error('Cost reference image: deployed image does not match the source');
   const robots = await read('robots.txt', new URL('robots.txt', site), /text\/plain/i);
   if (!robots.includes(`Sitemap: ${new URL('sitemap.xml', site)}`)) throw new Error('robots.txt: sitemap URL mismatch');
   const sitemap = await read('sitemap.xml', new URL('sitemap.xml', site), /(?:text|application)\/xml/i);
@@ -61,7 +70,7 @@ try {
     }
   }
   if (failure) throw failure;
-  console.log('Deployment verified: website, crawler files, configuration, and public data are responding.');
+  console.log('Deployment verified: website, operating costs reference and image, crawler files, configuration, and public data are responding.');
 } catch (error) {
   console.error(`Deployment verification failed: ${error.message}`);
   process.exitCode = 1;
