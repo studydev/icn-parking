@@ -57,7 +57,7 @@ async function runtime(hash = '#week/T1', options = {}) {
   const days = {};
   for (let date = start; date <= today; date = addDays(date, 1)) days[date] = { T1: { max: 0.9 } };
   const files = {
-    'latest.json': { start, last_ok_at: new Date(clock.value).toISOString(), zones: zones.map(z => ({ ...z, p: documentOfDay(today).zones[z.id].p[0], c: 100 })) },
+    'latest.json': { start, last_ok_at: new Date(clock.value).toISOString(), zones: zones.map(z => ({ ...z, p: documentOfDay(today).zones[z.id].p[0], c: documentOfDay(today).zones[z.id].c[0] })) },
     'calendar.json': { start, days, holidays: options.holidays || {} }
   };
   const elements = new Map(['status', 'terms', 'tabs', 'foot-start', 'view', 'layout-toggle', 'overlay'].map(id => [id, { innerHTML: '', textContent: '', setAttribute(k, v) { this[k] = v; } }]));
@@ -237,6 +237,32 @@ test('mobile defaults to four T1/T2 short/long boxes with nine 20-minute predict
   assert.equal(data.current.capacity - data.current.occupied, 4, 'overflowing lot cannot subtract spaces available in the tower');
   assert.match(elements.get('tabs').innerHTML, /href="fees.html"/);
   assert.match(elements.get('tabs').innerHTML, /더 보기/);
+});
+
+test('mobile forecasts are nine left-to-right count-only heatmap cells in the existing occupancy palette', async () => {
+  const { run, elements } = await runtime('#week/T1', mobileFixture());
+  const html = elements.get('view').innerHTML;
+  const cells = [...html.matchAll(/class="quick-slot"[^>]*data-minutes="(\d+)"[^>]*data-occupancy="([^"]+)"[^>]*style="background:([^;]+);color:([^"]+)"[^>]*><b>(\d+)<\/b><\/div>/g)];
+  assert.equal(cells.length, 36);
+  assert.deepEqual(cells.slice(0, 9).map(cell => Number(cell[1])), [20, 40, 60, 80, 100, 120, 140, 160, 180]);
+  for (const cell of cells) {
+    assert.equal(cell[3], run(`occColor(${Number(cell[2])})`));
+    assert.equal(cell[4], run(`contrastText('${cell[3]}')`));
+  }
+  assert.doesNotMatch(html, /<time>|quick-slot-values/);
+  assert.match(html, /title="T1 단기 20분 후 .* 예상 가용 \d+대 점유율/);
+  const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
+  assert.match(css, /\.quick-slots\{display:grid;grid-template-columns:repeat\(9,minmax\(0,1fr\)\)/);
+});
+
+test('five-digit availability uses the compact count typography without changing the forecast values', async () => {
+  const { run, elements } = await runtime('#week/T1', {
+    ...SUNDAY, mobile: true, zones: [ZONES[0]],
+    dayDoc: date => ({ date, zones: { s1: { p: new Array(DAY).fill(6000), c: new Array(DAY).fill(20000) } } })
+  });
+  const forecast = JSON.parse(run("JSON.stringify(compactParking('T1','단기').cells)"));
+  assert(forecast.every(cell => cell.available >= 10000 && cell.available <= 20000));
+  assert.equal((elements.get('view').innerHTML.match(/<b class="wide-count">\d+<\/b>/g) || []).length, 9);
 });
 
 test('compact predictions ignore detailed filters and allow a reversible detailed mobile view', async () => {

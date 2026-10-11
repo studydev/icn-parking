@@ -695,13 +695,17 @@ function renderCompactParking() {
   const percent = value => (value * 100).toFixed(1).replace(/\.0$/, '') + '%';
   document.getElementById('view').innerHTML = `
     <section class="quick-parking" aria-label="T1 T2 앞으로 3시간 주차 예상">
-      <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>20분 간격 · 예상 가용 대수와 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
+      <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>숫자 = 가용 대수 · 배경색 = 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
+      <div class="quick-axis"><span>20분 후부터 · 왼쪽 → 오른쪽</span><span>3시간 후</span></div>
       ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
         <div class="quick-current"><span>현재${card.stale ? ' · 갱신 지연' : ''}</span>${card.current ? `<b>${num(card.current.capacity - card.current.occupied)}대 가능</b><span>점유 ${percent(card.current.occupied / card.current.capacity)}</span>` : '<b>현재값 확인 필요</b>'}</div>
-        <div class="quick-slots" role="list">${card.cells.map(cell => `<div class="quick-slot${cell.available == null ? ' unavailable' : ''}" role="listitem" aria-label="${card.term} ${card.gid} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}">
-          <time>${slotLabel(cell.slot)}${cell.date !== D.now.date ? '<small>내일</small>' : ''}</time><div class="quick-slot-values"><b>${cell.available == null ? '—' : num(cell.available) + '대'}</b><span>${cell.occupancy == null ? '예측 없음' : percent(cell.occupancy)}</span></div>
-        </div>`).join('')}</div>
+        <div class="quick-slots" role="list">${card.cells.map(cell => {
+          const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
+          const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
+          const description = `${card.term} ${card.gid} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}`;
+          return `<div class="quick-slot${cell.available == null ? ' unavailable' : ''}" role="listitem" data-minutes="${cell.minutes}" data-occupancy="${cell.occupancy ?? ''}" style="background:${background};color:${color}" title="${esc(description)}" aria-label="${esc(description)}"><b${cell.available >= 10000 ? ' class="wide-count"' : ''}>${cell.available == null ? '—' : cell.available}</b></div>`;
+        }).join('')}</div>
         ${card.failures.length ? `<p class="quick-warning" role="status">${card.failures.map(esc).join(' ')}</p>` : card.cells.some(cell => cell.limited) ? '<p class="quick-note">유사 조건의 표본이 적은 참고 예상입니다.</p>' : ''}
       </article>`).join('')}
       <p class="quick-note">IGoTo 참고 예상입니다. 점유율은 구역별 100% 상한이며, 가용 대수는 각 구역의 남은 면수 합계입니다. 현장 주차 가능 여부를 보장하지 않습니다.</p>
