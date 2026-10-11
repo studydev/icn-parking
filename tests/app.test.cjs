@@ -239,6 +239,30 @@ test('mobile defaults to four T1/T2 short/long boxes with nine 20-minute predict
   assert.match(elements.get('tabs').innerHTML, /더 보기/);
 });
 
+test('compact parking labels current remaining spaces for each terminal and category, including zero and missing counts', async () => {
+  const { run, elements } = await runtime('#week/T2', mobileFixture());
+  const cards = () => new Map([...elements.get('view').innerHTML.matchAll(/<article class="quick-card" data-term="([^"]+)" data-group="([^"]+)">([\s\S]*?)<\/article>/g)]
+    .map(([, term, group, html]) => [`${term}/${group}`, /<div class="quick-current">([\s\S]*?)<\/div>/.exec(html)[1]]));
+  run(`
+    D.latest.zones.find(zone => zone.id === 't2-s1').p = 30;
+    D.latest.zones.find(zone => zone.id === 't2-l1').p = 140;
+    D.latest.zones.find(zone => zone.id === 't2-t1').p = 55;
+    D.zones = {}; render();
+  `);
+  assert.match(elements.get('view').innerHTML, /<h1>간단 주차<\/h1>/);
+  for (const [key, available] of [['T1/단기', 20], ['T1/장기', 4], ['T2/단기', 70], ['T2/장기', 45]]) {
+    assert.match(cards().get(key), new RegExp(`<span>현재 남은 대수</span><b>${available}대</b>`));
+  }
+  run("D.latest.zones.find(zone => zone.id === 't2-t1').p = 100; D.zones = {}; render();");
+  assert.match(cards().get('T2/장기'), /<b>0대<\/b>/, 'overfull lots must not make another category negative');
+  run("D.latest.zones.find(zone => zone.id === 't2-t1').p = null; D.zones = {}; render();");
+  assert.match(cards().get('T2/장기'), /남은 대수 확인 필요/);
+  assert.doesNotMatch(cards().get('T2/장기'), /<b>\d+대<\/b>/, 'missing current data must not be displayed as zero');
+  assert.match(cards().get('T1/장기'), /<b>4대<\/b>/);
+  run('D.latest.stale = true; render();');
+  assert.match(cards().get('T1/장기'), /마지막 수집 남은 대수 · 갱신 지연/);
+});
+
 test('mobile forecasts are nine left-to-right count-only heatmap cells in the existing occupancy palette', async () => {
   const { run, elements } = await runtime('#week/T1', mobileFixture());
   const html = elements.get('view').innerHTML;

@@ -695,11 +695,11 @@ function renderCompactParking() {
   const percent = value => (value * 100).toFixed(1).replace(/\.0$/, '') + '%';
   document.getElementById('view').innerHTML = `
     <section class="quick-parking" aria-label="T1 T2 앞으로 3시간 주차 예상">
-      <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>숫자 = 가용 대수 · 배경색 = 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
+      <div class="quick-heading"><div><h1>간단 주차</h1><p>현재 남은 대수 · 앞으로 3시간 예상</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
       <div class="quick-axis"><span>20분 후부터 · 왼쪽 → 오른쪽</span><span>3시간 후</span></div>
       ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
-        <div class="quick-current"><span>현재${card.stale ? ' · 갱신 지연' : ''}</span>${card.current ? `<b>${num(card.current.capacity - card.current.occupied)}대 가능</b><span>점유 ${percent(card.current.occupied / card.current.capacity)}</span>` : '<b>현재값 확인 필요</b>'}</div>
+        <div class="quick-current"><span>${card.stale ? '마지막 수집 남은 대수 · 갱신 지연' : '현재 남은 대수'}</span>${card.current ? `<b>${num(card.current.capacity - card.current.occupied)}대</b><span>점유 ${percent(card.current.occupied / card.current.capacity)}</span>` : '<b>남은 대수 확인 필요</b>'}</div>
         <div class="quick-slots" role="list">${card.cells.map(cell => {
           const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
           const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
@@ -708,7 +708,7 @@ function renderCompactParking() {
         }).join('')}</div>
         ${card.failures.length ? `<p class="quick-warning" role="status">${card.failures.map(esc).join(' ')}</p>` : card.cells.some(cell => cell.limited) ? '<p class="quick-note">유사 조건의 표본이 적은 참고 예상입니다.</p>' : ''}
       </article>`).join('')}
-      <p class="quick-note">IGoTo 참고 예상입니다. 점유율은 구역별 100% 상한이며, 가용 대수는 각 구역의 남은 면수 합계입니다. 현장 주차 가능 여부를 보장하지 않습니다.</p>
+      <p class="quick-note">히트맵 숫자는 예상 남은 대수, 배경색은 점유율입니다. IGoTo 참고 예상이며 점유율은 구역별 100% 상한, 가용 대수는 각 구역의 남은 면수 합계입니다. 현장 주차 가능 여부를 보장하지 않습니다.</p>
       <a class="btn quick-fees-link" href="fees.html">주차요금 계산하기</a>
     </section>`;
 }
