@@ -120,7 +120,8 @@ function smoothVals(arr, a, b, r) {
 /* win: 이번 주 월요일 00:00 기준 슬롯(과거 주는 음수), rwin: 기간 시작일 기준 슬롯 */
 const savedAct = (() => { try { return JSON.parse(store.get('icn.categories') || 'null'); } catch (_) { return null; } })();
 const savedLayout = store.get('icn.layout');
-const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
+const savedFutureDays = Number(store.get('icn.forecastDays'));
+const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], futureDays: [3, 5, 7].includes(savedFutureDays) ? savedFutureDays : 3, igoto: store.get('icn.igoto') !== '0', rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
 const D = { latest: null, cal: null, days: new Map(), pending: new Map(), retry: new Map(), err: null, now: kstNow(), cache: new Map(), zones: {} };
 const layoutMode = () => S.layout || (window.matchMedia?.('(max-width: 700px)').matches ? 'mobile' : 'desktop');
 function applyLayout() {
@@ -245,8 +246,10 @@ function zSeries(zid, d0, nd, w, key) {
   if (D.cache.has(ck)) return D.cache.get(ck);
   const out = new Array(nd * DAY).fill(null);
   for (let k = 0; k < nd; k++) {
-    const d = zoneDay(zid, addDays(d0, k - 7 * w));
-    if (d) for (let i = 0; i < DAY; i++) out[k * DAY + i] = d[key][i];
+    const date = addDays(d0, k - 7 * w), d = zoneDay(zid, date);
+    if (d) for (let i = 0; i < DAY; i++) {
+      if (date < D.now.date || (date === D.now.date && i <= D.now.idx)) out[k * DAY + i] = d[key][i];
+    }
   }
   D.cache.set(ck, out);
   return out;
@@ -268,6 +271,17 @@ const weekStart = () => addDays(D.now.date, -((dowOf(D.now.date) + 6) % 7));
 const todayK = () => (dowOf(D.now.date) + 6) % 7;
 const NOWI = () => todayK() * DAY + D.now.idx;
 const holidays = () => (D.cal && D.cal.holidays) || {};
+const weekEnd = () => Math.max(WEEK, (todayK() + 1 + S.futureDays) * DAY);
+function igotoModel(z) {
+  const key = `igoto|${z.id}|${D.now.date}|${D.now.idx}`;
+  if (!D.cache.has(key)) D.cache.set(key, IGoTo.fit({ days: D.days, zoneId: z.id, category: z.category, now: D.now, holidays: D.cal?.holidays }));
+  return D.cache.get(key);
+}
+function forecastContexts(cfg) {
+  const key = `forecast-calendar|${cfg.d0}|${cfg.nd}`;
+  if (!D.cache.has(key)) D.cache.set(key, IGoTo.calendar(cfg.d0, addDays(cfg.d0, cfg.nd - 1), holidays()));
+  return D.cache.get(key);
+}
 
 function whyNull(date, i) {
   if (date > D.now.date || (date === D.now.date && i > D.now.idx)) return '아직 없음';
@@ -295,7 +309,7 @@ function rng() {
 }
 function weekCfg() {
   const n = S.weeks, off = 7 * (n - 1) * DAY;
-  return { kind: 'week', d0: addDays(weekStart(), -7 * (n - 1)), nd: 7 * n, off, win: [S.win[0] + off, S.win[1] + off], cmp: S.cmp };
+  return { kind: 'week', d0: addDays(weekStart(), -7 * (n - 1)), nd: 7 * (n - 1) + weekEnd() / DAY, off, win: [S.win[0] + off, S.win[1] + off], cmp: S.cmp };
 }
 function rangeCfg() {
   const [f, t] = rng(), nd = daysBetween(f, t) + 1, N = nd * DAY;
@@ -340,6 +354,7 @@ function groupChipsHtml(term) {
 function keysHtml(cfg) {
   return `<span class="key"><i></i>실측</span>${cfg.cmp ? `<span class="key"><i class="dash"></i>${esc(cmpLabel(cfg.cmp))}</span>` : ''}
     ${S.linkedForecast && cfg.cmp ? '<span class="key"><i class="linked"></i>연결 예측(오프셋)</span>' : ''}
+    ${S.igoto && cfg.kind === 'week' ? '<span class="key"><i class="igoto"></i>IGoTo 예측(휴일 고려)</span>' : ''}
     ${S.metric === 'occ' ? '<span class="key"><i class="ref"></i>만차 기준 100%</span>' : ''}<span class="key"><i class="bg off"></i>토·일·공휴일</span>`;
 }
 
@@ -350,63 +365,86 @@ function chartModel(cfg) {
   const ti = daysBetween(d0, D.now.date), nowG = ti >= 0 && ti < nd ? ti * DAY + D.now.idx : null;
   const cur = z => zSeries(z.id, d0, nd, 0, key), prev = z => zSeries(z.id, d0, nd, cmp, key);
   const fmt = v => v == null ? '—' : occ ? pct(v) : num(v) + '대';
+  const sr = span <= 48 ? 0 : Math.max(2, step * 2), forecasts = new Map(), forecastLines = [];
+  const forecastEnd = Math.min(nd * DAY, (ti + 1 + S.futureDays) * DAY);
+  if (cfg.kind === 'week' && nowG != null) {
+    for (const z of zones) {
+      if (S.linkedForecast && cmp) {
+        const actual = cur(z), baseline = prev(z);
+        let anchor = nowG;
+        while (anchor >= Math.max(0, nowG - 6) && actual[anchor] == null) anchor--;
+        if (anchor >= 0 && actual[anchor] != null && baseline[anchor] != null) {
+          const anchorValue = smoothVals(actual, anchor, anchor + 1, sr)[0] ?? actual[anchor];
+          const base = smoothVals(baseline, anchor, anchor + 1, sr)[0] ?? baseline[anchor];
+          const offset = anchorValue - base, values = new Array(nd * DAY).fill(null);
+          const capacity = D.latest.zones.find(x => x.id === z.id)?.c;
+          const ceiling = occ ? (S.over ? Infinity : 1) : capacity;
+          for (let j = anchor; j < forecastEnd; j++) if (baseline[j] != null) values[j] = clamp(baseline[j] + offset, 0, ceiling);
+          values[anchor] = anchorValue;
+          forecasts.set(`linked|${z.id}`, { values, anchor });
+          forecastLines.push({ z, model: 'linked', values, anchor, anchorValue, offset });
+        }
+      }
+      if (S.igoto) {
+        const model = igotoModel(z);
+        if (!model.ok) continue;
+        const anchor = daysBetween(d0, model.anchor.date) * DAY + model.anchor.idx;
+        const values = new Array(nd * DAY).fill(null);
+        const display = value => occ ? (S.over ? value : Math.min(1, value)) : Math.max(0, model.anchor.capacity * (1 - value));
+        for (let j = nowG; j < forecastEnd; j++) {
+          const prediction = IGoTo.predict(model, addDays(d0, Math.floor(j / DAY)), j % DAY);
+          if (prediction.value != null) values[j] = display(prediction.value);
+        }
+        if (anchor >= 0) values[anchor] = display(model.anchor.value);
+        forecasts.set(`igoto|${z.id}`, { values, anchor });
+        forecastLines.push({ z, model: 'igoto', values, anchor, anchorValue: display(model.anchor.value) });
+      }
+    }
+  }
   let mx = -Infinity;
   zones.forEach(z => (cmp ? [cur(z), prev(z)] : [cur(z)]).forEach(s => { for (let j = a; j < b; j++) { const v = s[j]; if (v != null && v > mx) mx = v; } }));
+  forecastLines.forEach(s => { for (let j = a; j < b; j++) { const v = s.values[j]; if (v != null && v > mx) mx = v; } });
   const hasData = isFinite(mx);
   let hi, yTicks;
   if (occ) { hi = occTop(mx); yTicks = ticks(0, hi, 0.2, pct); }
   else { hi = niceCeil((hasData ? mx : 1000) * 1.08); yTicks = ticks(0, hi, hi / 4, v => num(v)); }
   const yv = v => H * (1 - v / hi), xv = j => (j - a) / span * W, px = j => ((j - a) / span * 100).toFixed(2);
-  const sr = span <= 48 ? 0 : Math.max(2, step * 2);
   const mk = arr => { const sm = smoothVals(arr, a, b, sr), segs = []; let c = null; for (let j = a; j < b; j += step) { const v = sm[j - a]; if (v == null) { c = null; continue; } if (!c) segs.push(c = []); c.push([xv(j), yv(v)]); } return smoothPath(segs); };
   const mkFrom = (arr, from) => {
-    const start = Math.max(a, from), sm = smoothVals(arr, start, b, sr), points = [];
+    if (from >= b) return '';
+    const start = Math.max(a, from), sm = smoothVals(arr, start, b, sr), segments = [];
+    let points = null;
     for (let j = start; j < b; j += step) {
       const v = j === from ? arr[j] : sm[j - start];
-      if (v != null) points.push([xv(j), yv(v)]);
+      if (v == null) { points = null; continue; }
+      if (!points) segments.push(points = []);
+      points.push([xv(j), yv(v)]);
     }
-    return smoothPath(points.length ? [points] : []);
+    return smoothPath(segments);
   };
   const lines = [];
   if (cmp) zones.forEach(z => lines.push({ g: categoryGroup(z), z: z.id, name: z.name, d: mk(prev(z)), color: z.color, w: 1.4, dash: '4 3', op: CMP_OP, cmp: 1 }));
   zones.forEach(z => lines.push({ g: categoryGroup(z), z: z.id, name: z.name, d: mk(cur(z)), color: z.color, w: 2.2, dash: 'none', op: 1, cmp: 0 }));
-  if (S.linkedForecast && cmp && nowG != null && nowG >= a && nowG < b) {
-    for (const z of zones) {
-      const actual = cur(z), baseline = prev(z);
-      let anchor = nowG;
-      while (anchor >= Math.max(a, nowG - 6) && actual[anchor] == null) anchor--;
-      if (anchor < a || actual[anchor] == null || baseline[anchor] == null) continue;
-      const actualSmooth = smoothVals(actual, a, b, sr)[anchor - a];
-      const baselineSmooth = smoothVals(baseline, a, b, sr)[anchor - a];
-      const anchorValue = actualSmooth ?? actual[anchor];
-      const offset = anchorValue - (baselineSmooth ?? baseline[anchor]), projected = new Array(nd * DAY).fill(null);
-      const capacity = D.latest.zones.find(x => x.id === z.id)?.c || Infinity;
-      const ceiling = occ ? (S.over ? Infinity : 1) : capacity;
-      for (let j = anchor; j < b; j++) {
-        if (baseline[j] != null) projected[j] = clamp(baseline[j] + offset, 0, ceiling);
-      }
-      projected[anchor] = anchorValue;
-      lines.push({
-        g: categoryGroup(z), z: z.id, name: `${z.name} · 연결 예측`,
-        d: mkFrom(projected, anchor), color: z.color, w: 2.2, dash: '5 3',
-        op: 0.88, cmp: 0, forecast: true, offset, anchor, anchorValue
-      });
-    }
-  }
+  for (const { z, model, values, anchor, anchorValue, offset } of forecastLines) lines.push({
+    g: categoryGroup(z), z: z.id, name: `${z.name} · ${model === 'igoto' ? 'IGoTo 예측' : '연결 예측'}`,
+    d: mkFrom(values, anchor), color: z.color, w: 2.2, dash: model === 'igoto' ? '9 3 2 3' : '5 3',
+    op: 0.88, cmp: 0, forecast: true, model, offset, anchor, anchorValue
+  });
   const dots = [];
   if (span <= 48) zones.forEach(z => { const s = cur(z); for (let j = a; j < b; j++) if (s[j] != null) dots.push({ left: (xv(j) / 10).toFixed(2), top: (yv(s[j]) / 2).toFixed(2), c: z.color }); });
   const plotEl = document.getElementById('plot');
   const plotPx = plotEl && plotEl.clientWidth ? plotEl.clientWidth : Math.max(240, Math.min(window.innerWidth, 1280) - 110), dayPx = DAY / span * plotPx;
-  const vLines = [], dayLabels = [], bands = [];
+  const vLines = [], dayLabels = [], bands = [], contexts = S.igoto && cfg.kind === 'week' ? forecastContexts(cfg) : null;
   for (let k = Math.max(0, Math.floor(a / DAY)); k < Math.min(nd, Math.ceil(b / DAY)); k++) {
     const s0 = k * DAY, date = addDays(d0, k), dw = dowOf(date), isT = date === D.now.date, h = hol[date];
     if (s0 > a && s0 < b) vLines.push({ left: px(s0), c: dw === 1 && nd > 7 ? '#9aa3ad' : '#c9ced4' });
     const l = Math.max(a, s0), r = Math.min(b, s0 + DAY), w = (r - l) / span * plotPx;
     if (r <= l) continue;
-    bands.push({ left: px(l), width: ((r - l) / span * 100).toFixed(2), bg: dayBg(date, hol, k), today: isT });
+    const context = contexts?.get(date);
+    bands.push({ left: px(l), width: ((r - l) / span * 100).toFixed(2), bg: dayBg(date, hol, k), today: isT, bridge: context?.bridge });
     const base = `${DOW[dw]} ${md(date)}${isT && w > 90 ? ' 오늘' : ''}`, withH = h ? `${base} · ${h}` : base;
     const label = w > 78 ? (withH.length * 12 < w - 8 ? withH : base) : w > 34 ? md(date) : w > 13 ? String(+date.slice(8)) : dw === 1 ? md(date) : '';
-    if (label) dayLabels.push({ left: (((l + r) / 2 - a) / span * 100).toFixed(2), label, c: isT ? INK : isOffDay(date, hol) ? RISK : '#5b6168', w: isT ? 700 : 500 });
+    if (label) dayLabels.push({ left: (((l + r) / 2 - a) / span * 100).toFixed(2), label, title: context?.bridge ? `${mdw(date)} · 연결 휴가 후보 ${context.block.leave}일로 ${context.block.length}일 휴식 가능(공휴일 아님)` : withH, c: isT ? INK : isOffDay(date, hol) ? RISK : '#5b6168', w: isT ? 700 : 500 });
   }
   const tstep = span > 600 ? (dayPx >= 140 ? 144 : 0) : span > 200 ? 36 : span > 60 ? 12 : span > 24 ? 6 : 3;
   const xTicks = [];
@@ -415,19 +453,19 @@ function chartModel(cfg) {
     xTicks.push({ left: px(j), label: slotLabel(j % DAY) });
     if (span <= 600 && j % DAY !== 0 && j > a && j < b) vLines.push({ left: px(j), c: '#f0f2f4' });
   }
-  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, occ };
+  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, occ, forecasts };
 }
 
 function chartHtml(m) {
   const nowL = m.nowG != null && m.nowG >= m.a && m.nowG <= m.b ? ((m.nowG - m.a) / m.span * 100).toFixed(2) : null;
   const ref = m.occ ? ((1 - 1 / m.hi) * 100).toFixed(2) : null;
-  return `<div class="daylabels">${m.dayLabels.map(d => `<span style="left:${d.left}%;color:${d.c};font-weight:${d.w}">${esc(d.label)}</span>`).join('')}</div>
+  return `<div class="daylabels">${m.dayLabels.map(d => `<span title="${esc(d.title)}" style="left:${d.left}%;color:${d.c};font-weight:${d.w}">${esc(d.label)}</span>`).join('')}</div>
       <div class="plot" id="plot">
-        ${m.bands.map(d => `<div class="abs band" style="left:${d.left}%;width:${d.width}%;background:${d.bg}"></div>${d.today ? `<div class="abs todaybar" style="left:${d.left}%;width:${d.width}%"></div>` : ''}`).join('')}
+        ${m.bands.map(d => `<div class="abs band${d.bridge ? ' bridge' : ''}" style="left:${d.left}%;width:${d.width}%;background:${d.bg}"></div>${d.today ? `<div class="abs todaybar" style="left:${d.left}%;width:${d.width}%"></div>` : ''}`).join('')}
         ${m.yTicks.map(g => `<div class="abs grid" style="top:${g.top}%"></div><div class="abs ylab" style="top:${g.top}%">${g.label}</div>`).join('')}
         ${m.vLines.map(l => `<div class="abs vline" style="left:${l.left}%;border-color:${l.c}"></div>`).join('')}
         ${ref != null ? `<div class="abs refline" style="top:${ref}%"></div>${m.hi > 1 ? `<span class="abs reftag" style="top:${ref}%">만차 기준 100%</span>` : ''}` : ''}
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${m.lines.map(p => `<path data-g="${p.g}" data-z="${p.z}" data-op="${p.op}" data-cmp="${p.cmp}" data-forecast="${!!p.forecast}" d="${p.d}" style="stroke:${p.color};stroke-width:${p.w};stroke-dasharray:${p.dash};opacity:${p.op}"><title>${esc(p.name)}${p.forecast ? ` · 오프셋 ${pctp(p.offset)}` : p.cmp ? ` · ${CMPS[m.cfg.cmp]}` : ''}</title></path>`).join('')}</svg>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${m.lines.map(p => `<path data-g="${p.g}" data-z="${p.z}" data-op="${p.op}" data-cmp="${p.cmp}" data-forecast="${!!p.forecast}" data-model="${p.model || ''}" d="${p.d}" style="stroke:${p.color};stroke-width:${p.w};stroke-dasharray:${p.dash};opacity:${p.op}"><title>${esc(p.name)}${p.model === 'linked' ? ` · 오프셋 ${pctp(p.offset)}` : p.cmp ? ` · ${CMPS[m.cfg.cmp]}` : ''}</title></path>`).join('')}</svg>
         ${m.dots.map(o => `<div class="abs dotm" style="left:${o.left}%;top:${o.top}%;border-color:${o.c}"></div>`).join('')}
         ${nowL != null ? `<div class="abs nowline" style="left:${nowL}%"></div><span class="abs nowtag${nowL > 80 ? ' flip' : ''}" style="left:${nowL}%">지금 ${slotLabel(D.now.idx)}</span>` : ''}
         ${!m.on.length ? '<div class="abs emptymsg">주차장을 하나 이상 켜세요.</div>' : !m.hasData ? '<div class="abs emptymsg">이 구간에는 수집된 기록이 없습니다.</div>' : ''}
@@ -441,6 +479,19 @@ function overviewHtml(term, cfg) {
   const { d0, nd } = cfg, N = nd * DAY, key = occKey(), so = nd <= 7 ? 6 : nd <= 14 ? 12 : nd <= 31 ? 24 : 36, hol = holidays();
   const pts = w => { const out = []; for (let k = 0; k < nd; k++) { const t = grpDay(term, '합계', addDays(d0, k - 7 * w)); for (let i = 0; i < DAY; i += so) out.push([k * DAY + i, t ? t[key][i] : null]); } return out; };
   const series = cfg.kind === 'week' ? [[pts(1), '#a9bdd1', 1], [pts(0), INK, 1.25]] : [[pts(0), INK, 1.25]];
+  if (S.igoto && cfg.kind === 'week') {
+    const models = zonesFor(term, '합계').filter(z => z.c > 0).map(igotoModel);
+    if (models.length && models.every(model => model.ok)) {
+      const capacity = models.reduce((sum, model) => sum + model.anchor.capacity, 0), predicted = [];
+      const first = daysBetween(d0, D.now.date) * DAY + D.now.idx, end = Math.min(N, (daysBetween(d0, D.now.date) + 1 + S.futureDays) * DAY);
+      for (let j = first; j < end; j += so) {
+        const values = models.map(model => IGoTo.predict(model, addDays(d0, Math.floor(j / DAY)), j % DAY).value);
+        const occupied = values.every(value => value != null) ? values.reduce((sum, value, i) => sum + (S.over ? value : Math.min(1, value)) * models[i].anchor.capacity, 0) : null;
+        predicted.push([j, occupied == null ? null : occupied / capacity]);
+      }
+      series.push([predicted, ACC, 1.6, '9 3 2 3']);
+    }
+  }
   const hi = Math.max(1, ...series.flatMap(([p]) => p.map(x => x[1] ?? 0)));
   const path = p => { let d = '', pen = false; for (const [n, v] of p) { if (v == null) { pen = false; continue; } d += (pen ? 'L' : 'M') + (n / N * W).toFixed(1) + ',' + (H * (1 - (v - 0.2) / (hi - 0.2))).toFixed(1); pen = true; } return d; };
   const [a, b] = cfg.win;
@@ -450,7 +501,7 @@ function overviewHtml(term, cfg) {
     const l = nd <= 7 ? DOW[dw] : nd <= 45 ? (dw === 1 || k === 0 ? md(date) : '') : (date.endsWith('-01') || k === 0 ? `${+date.slice(5, 7)}월` : '');
     if (l) labels.push(`<span class="od" style="left:${(k / nd * 100).toFixed(3)}%${isOffDay(date, hol) ? ';color:' + RISK : ''}">${l}</span>`);
   }
-  return `${Array.from({ length: nd }, (_, k) => `<span class="ob" style="left:${(k / nd * 100).toFixed(3)}%;width:${(100 / nd).toFixed(3)}%;background:${dayBg(addDays(d0, k), hol, k)}"></span>`).join('')}<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${series.map(([p, c, w]) => `<path d="${path(p)}" style="stroke:${c};stroke-width:${w}"/>`).join('')}</svg>
+  return `${Array.from({ length: nd }, (_, k) => `<span class="ob" style="left:${(k / nd * 100).toFixed(3)}%;width:${(100 / nd).toFixed(3)}%;background:${dayBg(addDays(d0, k), hol, k)}"></span>`).join('')}<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${series.map(([p, c, w, dash]) => `<path d="${path(p)}" style="stroke:${c};stroke-width:${w}${dash ? ';stroke-dasharray:' + dash : ''}"/>`).join('')}</svg>
     <div class="win" style="left:${(a / N * 100).toFixed(2)}%;width:${((b - a) / N * 100).toFixed(2)}%"></div>${labels.join('')}`;
 }
 
@@ -462,18 +513,28 @@ function renderOverlay() {
   if (sel && Math.abs(sel[1] - sel[0]) > 0.005) html += `<div class="abs selbox" style="left:${(Math.min(...sel) * 100).toFixed(2)}%;width:${(Math.abs(sel[1] - sel[0]) * 100).toFixed(2)}%"></div>`;
   if (hf != null && !sel && m.on.length) {
     const hj = clamp(a + Math.round(hf * span), a, m.b - 1), date = addDays(m.cfg.d0, Math.floor(hj / DAY)), i = hj % DAY, hol = holidays()[date];
+    const future = m.nowG != null && hj > m.nowG;
+    const context = S.igoto && m.cfg.kind === 'week' ? forecastContexts(m.cfg).get(date) : null;
     const rows = m.zones.map(z => {
       const v = m.cur(z)[hj], c = cmp ? m.prev(z)[hj] : null;
-      return { c: z.color, label: z.name, val: v == null ? whyNull(date, i) : m.fmt(v), cmp: cmp ? m.fmt(c) : '', sort: v ?? c ?? -1 };
+      const predicted = ['igoto', 'linked'].map(model => ({ model, value: m.forecasts.get(`${model}|${z.id}`)?.values[hj] })).filter(p => p.value != null);
+      const val = future && predicted.length ? predicted.map(p => `<span>${p.model === 'igoto' ? 'IGoTo' : '연결'} ${m.fmt(p.value)}</span>`).join('') : v == null ? whyNull(date, i) : m.fmt(v);
+      return { c: z.color, label: z.name, val, future: future && predicted.length > 0, cmp: cmp ? m.fmt(c) : '', sort: v ?? predicted[0]?.value ?? c ?? -1 };
     }).sort((x, y) => y.sort - x.sort);
     const left = ((hj - a) / span * 100).toFixed(2);
     html += `<div class="abs hline" style="left:${left}%"></div>
       <div class="tip" style="left:${left}%;transform:${hf > 0.6 ? 'translateX(calc(-100% - 12px))' : 'translateX(12px)'}">
-        <div class="th"><b>${DOW[dowOf(date)]} ${md(date)} ${slotLabel(i)}${hol ? ' · ' + esc(hol) : ''}</b><span>실측${cmp ? ' · ' + CMPS[cmp] : ''}</span></div>
-        ${rows.map(r => `<div class="tr"><i style="border-color:${r.c}"></i><span class="n">${esc(r.label)}</span><span class="v">${r.val}</span><span class="c">${r.cmp}</span></div>`).join('')}
+        <div class="th"><b>${DOW[dowOf(date)]} ${md(date)} ${slotLabel(i)}${hol ? ' · ' + esc(hol) : ''}${context?.bridge ? ' · 연결 휴가 후보' : ''}</b><span>${future ? '참고 예측' : '실측'}${cmp ? ' · ' + CMPS[cmp] : ''}</span></div>
+        ${rows.map(r => `<div class="tr"><i style="border-color:${r.c}"></i><span class="n">${esc(r.label)}</span><span class="v${r.future ? ' predicted' : ''}">${r.val}</span><span class="c">${r.cmp}</span></div>`).join('')}
       </div>`;
   }
   el.innerHTML = html;
+  const tip = el.querySelector?.('.tip');
+  if (tip) {
+    const rect = tip.getBoundingClientRect();
+    const shift = rect.left < 8 ? 8 - rect.left : rect.right > window.innerWidth - 8 ? window.innerWidth - 8 - rect.right : 0;
+    if (shift) tip.style.left = `calc(${tip.style.left} + ${shift}px)`;
+  }
 }
 /* hover 강조는 DOM을 다시 그리지 않고 선의 스타일만 바꿉니다(iOS에서 첫 탭이 hover로 소모되지 않도록). */
 function applyFocus() {
@@ -530,13 +591,17 @@ function hitLine(fx, fy) {
   const j = clamp(m.a + Math.round(fx * m.span), m.a, m.b - 1);
   let best = null, bd = 14;
   m.zones.forEach(z => (m.cfg.cmp ? [m.cur(z), m.prev(z)] : [m.cur(z)]).forEach(s => { const v = s[j]; if (v != null) { const d = Math.abs(m.yv(v) - fy * H); if (d < bd) { bd = d; best = categoryGroup(z); } } }));
+  m.zones.forEach(z => ['igoto', 'linked'].forEach(model => {
+    const value = m.forecasts.get(`${model}|${z.id}`)?.values[j];
+    if (value != null && Math.abs(m.yv(value) - fy * H) < bd) { bd = Math.abs(m.yv(value) - fy * H); best = categoryGroup(z); }
+  }));
   if (best != null) setAct(S.term, { ...getAct(S.term), [best]: false });
   else renderOverlay();
 }
 function panWin(dir) {
   const cfg = chartCfg(), [x, y] = cfg.win, span = y - x, half = Math.round(span / 2);
   if (cfg.kind === 'week') {
-    const na = clamp(S.win[0] + dir * half, -7 * (MAXW - 1) * DAY, WEEK - span);
+    const na = clamp(S.win[0] + dir * half, -7 * (MAXW - 1) * DAY, weekEnd() - span);
     while (na < -7 * (S.weeks - 1) * DAY) S.weeks++;
     S.win = [na, na + span];
   } else {
@@ -579,10 +644,27 @@ function cmpLabel(cmp) {
   return `${CMPS[cmp]} ${md(s)}–${md(e)}${hs.length ? ' · ' + hs.join('·') + ' 포함' : ''}${pre}`;
 }
 
+function igotoNotice(term) {
+  if (!S.igoto) return '';
+  const models = selectedZones(term).map(z => ({ z, model: igotoModel(z) })), ready = models.filter(r => r.model.ok);
+  const unavailable = models.filter(r => !r.model.ok);
+  const futureErrors = [...new Set(ready.map(({ model }) => IGoTo.predict(model, addDays(D.now.date, S.futureDays), 144)).filter(prediction => prediction.value == null).map(prediction => prediction.why))];
+  const failed = [...new Set(neededDays())].filter(date => D.retry.has(date));
+  const evidence = ready.length ? ` · 구역별 최근 실측 ${Math.min(...ready.map(r => r.model.days))}~${Math.max(...ready.map(r => r.model.days))}일 학습` : '';
+  return `<div class="notice forecast-notice">
+    <b>IGoTo 예측 · 실험적 참고 예상</b>${evidence}<br>
+    공휴일·주말, 최대 3일의 연결 휴가 후보, 연휴 전날 오후와 종료 뒤 변화를 고려합니다. 실제 휴가 사용이나 만차 여부를 보장하지 않습니다.
+    ${ready.length ? '<span>일반 평일·연휴 직후와 4~7일 뒤 예측은 검증 표본이 부족합니다. 예약주차장 예측은 기존 연결 방식보다 오차가 클 수 있습니다.</span>' : ''}
+    ${unavailable.length ? `<span>${unavailable.map(({ z, model }) => `${esc(z.name)}: ${esc(model.why)}`).join(' · ')}</span>` : ''}
+    ${futureErrors.length ? `<span>${futureErrors.map(esc).join(' · ')}</span>` : ''}
+    ${failed.length ? `<span>예측용 기록 ${failed.length}일을 불러오지 못했습니다. 수신된 기록만 사용하며 다음 갱신 때 재시도합니다.</span>` : ''}
+  </div>`;
+}
+
 function renderWeek() {
   const term = S.term, cfg = weekCfg(), m = chartModel(cfg), tot = nowAgg(term, '합계'), age = latestAge(), stale = age > 15;
-  const [a, b] = S.win, tk = todayK() * DAY, n0 = clamp(NOWI() - 36, -7 * (S.weeks - 1) * DAY, WEEK - 72);
-  const spans = [1, 2, 3, 4].map(n => [n, n === 1 ? '이번 주' : `${n}주`, [-7 * (n - 1) * DAY, WEEK]]);
+  const [a, b] = S.win, tk = todayK() * DAY, n0 = clamp(NOWI() - 36, -7 * (S.weeks - 1) * DAY, weekEnd() - 72);
+  const spans = [1, 2, 3, 4].map(n => [n, n === 1 ? '이번 주' : `${n}주`, [-7 * (n - 1) * DAY, weekEnd()]]);
   const zooms = [['today', '오늘', [tk, tk + DAY]], ['now', '지금 ±3시간', [n0, n0 + 72]]];
   const btn = (act, v, l, on) => `<button data-a="${act}" data-v="${v}" class="${on ? 'on' : ''}" aria-pressed="${on}">${l}</button>`;
   const partial = tot.missing && tot.occ != null ? ` · ${tot.missing}개 구역 값 없음` : '';
@@ -598,13 +680,17 @@ function renderWeek() {
         <div class="seg" role="group" aria-label="기간">${spans.map(([n, l, r]) => btn('weeks', n, l, S.weeks === n && a === r[0] && b === r[1])).join('')}</div>
         <div class="seg" role="group" aria-label="확대">${zooms.map(([, l, r]) => btn('win', r.join(','), l, a === r[0] && b === r[1])).join('')}</div>
         <div class="pan"><button data-a="pan" data-v="-1" aria-label="이전 구간">◀</button><button data-a="pan" data-v="1" aria-label="다음 구간">▶</button></div>
+        <div class="forecast-horizon"><span>미래</span><div class="seg" role="group" aria-label="미래 예측 기간">${segHtml([[3, '3일'], [5, '5일'], [7, '7일']], S.futureDays, 'future')}</div></div>
       </div>
       <div class="control-metrics">
         <div class="seg cmp" role="group" aria-label="점선 비교">${segHtml(CMPS.map((l, w) => [w, l]), S.cmp, 'cmp')}</div>
         <label class="chk linked-toggle" title="비교 주차의 흐름을 현재 점유율/가용 대수에 맞춰 이어 그립니다"><input type="checkbox" data-a="linked" ${S.linkedForecast ? 'checked' : ''}${S.cmp ? '' : ' disabled'}><span>연결 예측</span></label>
+        <label class="chk igoto-toggle" title="실측에서 학습한 공휴일·주말·연결 휴가·연휴 전후 조건으로 예상합니다"><input type="checkbox" data-a="igoto" ${S.igoto ? 'checked' : ''}><span>IGoTo 예측</span></label>
         <div class="seg">${segHtml([['occ', '점유율'], ['avail', '가용 대수']], S.metric, 'metric')}</div>
         ${overToggle()}
       </div>
+      <p class="muted forecast-window">예측은 오늘 남은 시간과 내일부터 ${S.futureDays}일(${mdw(addDays(D.now.date, 1))}~${mdw(addDays(D.now.date, S.futureDays))})까지입니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
+      ${igotoNotice(term)}
     </div>
     <div class="chart">
       <div class="legend">
@@ -686,7 +772,7 @@ function forecastHtml() {
   return `<section class="sec lite">
     <div class="sec-head" style="align-items:flex-end">
       <div class="titles"><span class="t15">예상 점유율 · 지난 3시간 + 앞으로 6시간</span>
-        <span class="sub">과거는 구역별 실측입니다. 예상은 지난주 같은 요일(${md(bd)} ${DOW[dowOf(bd)]})의 시간대별 흐름에 현재와 지난주 같은 시각의 차이를 더했습니다.</span></div>
+        <span class="sub">기존 연결 방식의 6시간 참고 예상입니다(공휴일 미고려). 과거는 구역별 실측이며, 예상은 지난주 같은 요일(${md(bd)} ${DOW[dowOf(bd)]})의 흐름에 현재와 지난주 같은 시각의 차이를 더했습니다. 휴일을 고려한 IGoTo 예측은 위 그래프에서 확인하세요.</span></div>
       ${occupancyLegendHtml()}
     </div>
     ${!on.length ? '<span class="empty">위 카드에서 주차장을 하나 이상 켜세요.</span>' : `<div class="scroll-x"><div class="fc"><div class="fc-row hd"><span></span>${timelineHead}</div>${body}</div></div>`}
@@ -888,7 +974,8 @@ function renderAbout() {
   const firstToday = D.now.date === st && D.days.get(st) ? D.days.get(st).first : 0;
   const expect = D.now.idx - firstToday + 1;
   const blocks = [
-    ['무엇을 보여주나요', '인천국제공항공사가 공개하는 주차장별 주차 차량 수·총 주차면수를 5분마다 저장한 실측 기록입니다. 단기·장기(주차타워 포함)·예약주차장 단위로 묶어 보여주며, 지난 몇 주의 같은 요일·같은 시각 흐름과 비교하거나 원하는 기간의 변화를 직접 확인할 수 있습니다. ‘예상 점유율’은 지난주 같은 요일의 흐름에 지금과 지난주 같은 시각의 차이를 더한 단순 추정이며 공식 예측이 아닙니다.'],
+    ['무엇을 보여주나요', '인천국제공항공사가 공개하는 주차장별 주차 차량 수·총 주차면수를 5분마다 저장한 실측 기록입니다. 단기·장기(주차타워 포함)·예약주차장 단위로 묶어 보여주며, 지난 몇 주의 같은 요일·같은 시각 흐름과 비교하거나 원하는 기간의 변화를 직접 확인할 수 있습니다. 일요일에도 다음 주를 볼 수 있도록 미래 3일(기본)·5일·7일을 선택합니다.'],
+    ['두 가지 참고 예측', '연결 예측과 하단 6시간 예상은 과거 같은 요일·시각 흐름에 현재값 차이를 더한 기존 방식입니다. IGoTo 예측은 최근 실측의 시간대·공휴일·주말·연결 휴가 후보·연휴 전후 조건을 구역별로 학습하고 현재값 보정은 시간에 따라 줄입니다. IGoTo는 기본으로 켜지며 비교 주차와 독립적으로 선택합니다. 연결 휴가 후보는 실제 공휴일이나 확인된 휴가 사용이 아닙니다. 아직 한 연휴 자료로 검증한 실험적 예상이고 연휴 종료 뒤 평일·4~7일 거리·예약주차장은 특히 한계가 있습니다. 어느 예상도 공식 예측이나 실제 가용 면수·만차 여부의 보장이 아닙니다.'],
     ['데이터 출처', '인천국제공항공사 주차 정보(공공데이터포털). 제1터미널 단기주차장(지하1~3층·지상층), 장기주차장(P1~P3), 장기 주차타워(P1·P2), P5 예약주차장과 제2터미널 단기주차장(지하M층·지상1~4층), 장기주차장, 장기주차타워(P1·P2), 예약주차장 등 19개 구역의 주차 차량 수와 총 주차면수를 사용합니다. 공휴일 표시는 한국천문연구원 특일 정보(공공데이터포털)를 사용합니다.'],
     ['왜 직접 쌓나요', `API는 조회하는 순간의 현재값만 제공합니다. 그래서 ${st}부터 5분마다 호출해 저장하고 있으며, 수집 시작 이전 기록은 없습니다. 5분 간격 호출은 하루 288회로 개발 계정 한도(일 1,000회) 안에 들어갑니다.`],
     ['100%를 넘는 값', '장기주차장은 주차타워로 들어가는 길목이라 진입 대기 차량까지 집계되어 주차 대수가 면수를 넘을 때가 있습니다. 기본 화면은 구역마다 면수를 상한으로 계산해 100%에 맞추고, ‘100% 초과 표시’를 켜면 실제 값과 100% 기준선을 함께 보여줍니다. 가용 대수는 항상 0대 이상으로 계산합니다.'],
@@ -919,6 +1006,7 @@ function neededDays() {
     for (let k = 0; k < c.nd; k++) { const d = addDays(c.d0, k); out.push(d, addDays(d, -7)); if (S.cmp) out.push(addDays(d, -7 * S.cmp)); }
     for (let w = 1; w <= 4; w++) out.push(addDays(today, -7 * w), addDays(today, 1 - 7 * w));
     out.push(addDays(today, -1));
+    if (S.igoto) for (let k = 0; k < IGoTo.HISTORY_DAYS; k++) out.push(addDays(today, -k));
   } else if (S.tab === 'day') out.push(S.selDay || today);
   else if (S.tab === 'range') { const c = rangeCfg(); for (let k = 0; k < c.nd; k++) out.push(addDays(c.d0, k)); }
   return out;
@@ -937,7 +1025,13 @@ document.addEventListener('click', e => {
   if (a === 'sroute' || a === 'sstop' || a === 'sview') { if (typeof onShuttleAction === 'function') onShuttleAction(a, v, t); return; }
   if (a === 'term') { S.term = v; S.focus = null; S.hf = null; }
   else if (a === 'tab') { S.tab = v; S.hf = null; S.focus = null; }
-  else if (a === 'weeks') { const n = clamp(Number(v), 1, MAXW); S.weeks = n; S.win = [-7 * (n - 1) * DAY, WEEK]; winTouched = true; }
+  else if (a === 'weeks') { const n = clamp(Number(v), 1, MAXW); S.weeks = n; S.win = [-7 * (n - 1) * DAY, weekEnd()]; winTouched = true; }
+  else if (a === 'future') {
+    const days = Number(v);
+    if (![3, 5, 7].includes(days)) throw new Error('미래 예측 기간은 3·5·7일 중 선택해야 합니다');
+    S.futureDays = days; S.win = [-7 * (S.weeks - 1) * DAY, weekEnd()]; winTouched = true; S.hf = null;
+    store.set('icn.forecastDays', String(days));
+  }
   else if (a === 'win') { S.win = v.split(',').map(Number); winTouched = true; }
   else if (a === 'pan') { panWin(Number(v)); winTouched = true; }
   else if (a === 'rall') { S.rwin = null; }
@@ -945,6 +1039,7 @@ document.addEventListener('click', e => {
   else if (a === 'cmp') { S.cmp = Number(v); }
   else if (a === 'over') { S.over = !!t.checked; store.set('icn.over', S.over ? '1' : '0'); }
   else if (a === 'linked') { S.linkedForecast = !!t.checked; }
+  else if (a === 'igoto') { S.igoto = !!t.checked; store.set('icn.igoto', S.igoto ? '1' : '0'); }
   else if (a === 'layout') {
     S.layout = layoutMode() === 'mobile' ? 'desktop' : 'mobile';
     store.set('icn.layout', S.layout);
@@ -1006,8 +1101,14 @@ function readHash() {
 }
 
 async function refresh(first) {
-  const prevDate = D.now.date;
+  const prevDate = D.now.date, previousEnd = weekEnd(), previousWeek = weekStart();
   D.now = kstNow();
+  if (!winTouched && previousWeek !== weekStart()) S.win[0] = -7 * (S.weeks - 1) * DAY;
+  if (!winTouched || S.win[1] === previousEnd) S.win[1] = weekEnd();
+  if (S.win[1] > weekEnd()) {
+    const span = S.win[1] - S.win[0];
+    S.win[1] = weekEnd(); S.win[0] = Math.max(-7 * (S.weeks - 1) * DAY, S.win[1] - span);
+  }
   try {
     const [latest, cal] = await Promise.all([fetchJson('latest.json'), fetchJson('calendar.json').catch(() => null)]);
     D.latest = latest; D.cal = cal; D.err = null; D.zones = {};
@@ -1018,7 +1119,7 @@ async function refresh(first) {
     const ws = weekStart(), st = startDate();
     if (st > ws && st <= D.now.date) {
       const k = Math.round((Date.parse(st) - Date.parse(ws)) / DAY_MS);
-      S.win = [k * DAY, Math.max((todayK() + 1) * DAY, k * DAY + DAY)];
+      S.win = [k * DAY, weekEnd()];
     }
   }
   if (first) render();
