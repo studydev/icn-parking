@@ -12,12 +12,61 @@
   const select = (id, label, options = triOptions) => `<label>${label}<select id="${id}">${options.map(([code, text]) => `<option value="${code}">${esc(text)}</option>`).join('')}</select></label>`;
   const number = (id, label) => `<label>${label}<input id="${id}" type="number" min="0" step="1" placeholder="모름은 비워 두기"></label>`;
   const form = element('fee-form');
-  let hasResult = false;
-  const invalidate = () => {
+  const mobile = () => window.matchMedia('(max-width: 700px)').matches;
+  const applyLayout = () => document.body.classList.toggle('layout-mobile', mobile());
+  let hasResult = false, confirmedTimes = null;
+  const timeText = date => `${date.slice(0, 10)} ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date(Fees.parseKst(date)))} ${date.slice(11)} KST`;
+  function updateTimeReview() {
+    const review = element('fee-time-review');
+    try {
+      const period = Fees.duration(value('fee-entry'), value('fee-exit'));
+      review.innerHTML = `<div><span>입차</span><b>${esc(timeText(value('fee-entry')))}</b></div><div><span>출차</span><b>${esc(timeText(value('fee-exit')))}</b></div><div><span>이용시간</span><b>${period.days}일 ${period.hours}시간 ${period.remainingMinutes}분</b></div>`;
+    } catch (error) {
+      if (!(error instanceof Fees.InputError)) throw error;
+      review.textContent = error.message;
+    }
+    review.dataset.confirmed = String(!!confirmedTimes);
+  }
+  const invalidate = event => {
     element('fee-error').hidden = true;
     element('fee-example-note').hidden = true;
+    if (['fee-entry', 'fee-exit'].includes(event?.target.id)) {
+      confirmedTimes = null;
+      element('fee-submit').disabled = true;
+      element('fee-confirm-times').disabled = false;
+      element('fee-confirm-times').textContent = '입출차 시간 확인';
+      element('fee-time-status').textContent = '시간이 변경됐습니다. 다시 확인해 주세요.';
+      updateTimeReview();
+    }
     if (hasResult) element('fee-results').innerHTML = '<p class="fee-help" role="status">입력이 바뀌었습니다. 계산하기를 눌러 결과를 갱신해 주세요.</p>';
   };
+  function showError(error) {
+    console.error('Parking fee calculation failed:', error);
+    element('fee-results').innerHTML = '';
+    element('fee-error').textContent = error instanceof Fees.InputError ? error.message : '계산 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+    element('fee-error').hidden = false;
+    if (!(error instanceof Fees.InputError)) throw error;
+  }
+  function confirmTimes() {
+    try {
+      Fees.duration(value('fee-entry'), value('fee-exit'));
+      confirmedTimes = { entry: value('fee-entry'), exit: value('fee-exit') };
+      element('fee-submit').disabled = false;
+      element('fee-confirm-times').disabled = true;
+      element('fee-confirm-times').textContent = '시간 확인 완료';
+      element('fee-time-status').textContent = '입차·출차 시간 확인 완료';
+      element('fee-error').hidden = true;
+      updateTimeReview();
+      return true;
+    } catch (error) {
+      confirmedTimes = null;
+      element('fee-submit').disabled = true;
+      element('fee-confirm-times').disabled = false;
+      element('fee-time-status').textContent = '입차·출차 시간을 수정한 뒤 확인해 주세요.';
+      showError(error);
+      return false;
+    }
+  }
 
   element('fee-qualifications').innerHTML = Object.entries(Fees.qualifications).map(([code, rule]) => `
     <div class="fee-qualification">
@@ -33,6 +82,9 @@
     if (product.type === 'excluded') { box.innerHTML = '<p class="notice">케이엠파크 대상 상품으로 ICN 공식 주차요금에 자동 적용하지 않습니다.</p>'; return; }
     const threshold = product.type === 'classic' ? '50만원 / 상위 200만원' : product.type === 'oil' ? '30만원 / 상위 70만원' : '30만원';
     box.innerHTML = `
+      <p class="fee-help">카드 상세 조건을 입력하지 않아도 미적용/조건 충족 시 금액을 비교합니다. 실제 혜택은 카드사 확인이 필요합니다.</p>
+      <details class="fee-details" id="${key('details')}">
+      <summary>카드 상세 조건 확인(선택)</summary>
       <p class="fee-help"><a href="${esc(product.source)}" target="_blank" rel="noopener">${esc(product.name)} ${product.type === 'sfc' ? '비공식 조사 후보 출처' : '공식 상품 안내'}</a> · ${Fees.checkedAt} 확인${product.issuance ? ' · ' + esc(product.issuance) : ''}</p>
       <div class="fee-fields">
         ${number(key('approval'), '이 카드의 실제 승인액(비우면 정산액 전액)')}
@@ -52,7 +104,8 @@
         ${product.type === 'oil' ? select(key('merchant'), 'ICN 거래가 신한 주차장 업종인지') + number(key('eligible-used'), '이번 달 정비+주차 할인대상 이용액 사용분(원)') + select(key('other-issuer'), '다른 신한 할인 적용 거래', [['unknown', '모름'], ['no', '아님'], ['yes', '해당']]) : ''}
         ${product.type === 'sfc' ? number(key('day-used'), '오늘 후보 혜택 사용횟수') + number(key('year-used'), '올해 후보 혜택 사용횟수') : ''}
       </div>
-      <p class="fee-help">실적은 카드 총사용액이 아니라 카드사가 인정한 금액입니다. Deep Oil은 주유·LPG와 제외 항목을 빼고 본인·가족 이용을 합산합니다. 미확인 조건은 할인 미적용/조건 충족 시 결과로 나눕니다.</p>`;
+      <p class="fee-help">실적은 카드 총사용액이 아니라 카드사가 인정한 금액입니다. Deep Oil은 주유·LPG와 제외 항목을 빼고 본인·가족 이용을 합산합니다. 미확인 조건은 할인 미적용/조건 충족 시 결과로 나눕니다.</p>
+      </details>`;
   }
   function readCard(prefix) {
     const id = value(`fee-card-${prefix}`, 'none'), product = Fees.cards.find(card => card.id === id), key = name => `c-${prefix}-${name}`;
@@ -83,6 +136,9 @@
     if (cargo) terminal.value = 'cargo';
     else if (terminal.value === 'cargo') terminal.value = 'T1';
     terminal.disabled = cargo;
+    document.querySelectorAll('#fee-tabs [data-tab]').forEach(link => {
+      link.href = `./#${link.dataset.tab}/${cargo ? 'T1' : terminal.value}`;
+    });
     for (const id of ['fee-entry', 'fee-exit']) {
       const date = new Date(value(id) + ':00+09:00');
       element(id + '-day').textContent = Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', weekday: 'long' }).format(date) : '한국시간 · 날짜 입력 확인 필요';
@@ -94,6 +150,8 @@
     element('fee-quantity-label').firstChild.textContent = value('fee-vehicle') === 'bus' ? '버스 정원(명)' : '최대적재량(톤)';
     for (const code of Object.keys(Fees.qualifications)) element(`q-${code}-state`).disabled = !element(`q-${code}`).checked;
     element('fee-refund-fields').hidden = !qualifications().some(item => item.state === 'pending');
+    element('fee-quick-state-label').hidden = ['none', 'custom'].includes(value('fee-quick-discount'));
+    updateTimeReview();
   }
   function renderResults(result) {
     const box = element('fee-results');
@@ -105,9 +163,15 @@
     const primary = result.scenarios.filter(scenario => scenario.feeAssumption === reference);
     const rows = primary.length ? primary : result.scenarios;
     const duration = `${result.base.days || 0}일 ${Math.floor((result.base.minutes % 1440) / 60)}시간 ${result.base.minutes % 60}분`;
-    box.innerHTML = `<h2 class="ops-heading">계산 결과 · ${esc(duration)}</h2><p class="fee-help">${esc(result.base.status)} · 요금상 ${result.base.size === 'small' ? '소형' : '대형'} · ${esc(reference)}</p>
+    box.innerHTML = `<h2 class="ops-heading">계산 결과 · ${esc(duration)}</h2><p class="fee-confirmed-period">확인한 시간: ${esc(timeText(confirmedTimes.entry))} → ${esc(timeText(confirmedTimes.exit))}</p><p class="fee-help">${esc(result.base.status)} · 요금상 ${result.base.size === 'small' ? '소형' : '대형'} · ${esc(reference)}</p>
       ${rows.map((row, index) => `<article class="fee-result" data-card="${esc(row.card.product?.id || 'none')}">
         <h3>${esc(row.card.product?.name || '카드 혜택 미선택')}</h3><p class="fee-help">${esc(row.airport.label)} · 카드 판정: <b>${esc(row.card.status)}</b></p>
+        <dl class="fee-result-summary">
+          <div><dt>기본요금</dt><dd>${won(row.baseFee)}</dd></div>
+          <div><dt>정산 결제액</dt><dd>${won(row.airport.payment)}</dd></div>
+          <div class="fee-final"><dt>최종 부담 예상</dt><dd>${range(row.minBurden, row.maxBurden)}</dd></div>
+        </dl>
+        <details class="fee-details fee-breakdown"${mobile() ? '' : ' open'}><summary>감면·청구할인 계산 내역</summary>
         <dl class="fee-steps">
           <div><dt>감면 전 기본 주차요금</dt><dd>${won(row.baseFee)}</dd></div>
           <div><dt>공항 감면액 · ${row.airport.rate}% 하나 적용</dt><dd>−${won(row.airport.discount)}</dd></div>
@@ -117,6 +181,7 @@
           <div><dt>카드 청구할인 예상</dt><dd>${range(row.card.minDiscount, row.card.maxDiscount)}</dd></div>
           <div class="fee-final"><dt>청구할인 후 부담 예상</dt><dd>${range(row.minBurden, row.maxBurden)}</dd></div>
         </dl>
+        </details>
         ${row.airport.basis.length ? `<p class="fee-help">현장 적용 근거: ${row.airport.basis.map(esc).join(' · ')}${row.airport.otherQualifications.length ? ' · 나머지 자격은 합산하지 않습니다.' : ''}</p>` : ''}
         ${row.postRefund ? `<div class="notice"><b>사후 ${row.airport.targetRate}% 승인 시 추가 환불 ${won(row.postRefund.refundIfApproved)}</b><p>출차 후 30일 기준: ${esc(row.refundDeadline.replace('T', ' '))} KST까지 신청 여부를 확인하세요(토·일·공휴일 포함).</p><p>환불·혜택 조정 후 부담 예상: ${range(row.postRefund.minBurden, row.postRefund.maxBurden)}. 카드 혜택 환수 가능액: 최대 ${won(row.postRefund.possibleClawback)}.</p><p>${esc(row.postRefund.note)}</p></div>` : ''}
         <details class="fee-details"><summary>판정 근거·확인할 조건</summary><ul>${row.card.reasons.map(reason => `<li>${esc(reason)}</li>`).join('')}</ul>${row.card.product ? `<a href="${esc(row.card.product.source)}" target="_blank" rel="noopener">${row.card.product.type === 'sfc' ? '비공식 후보 자료' : '정확한 상품의 공식 안내'}</a>` : ''}</details>
@@ -125,22 +190,21 @@
   }
   function calculate() {
     element('fee-error').hidden = true;
-    const chosen = ['a', 'b'].map(readCard).filter(card => card.id !== 'none');
-    const request = {
-      location: value('fee-location'), terminal: value('fee-terminal'), entry: value('fee-entry'), exit: value('fee-exit'),
-      vehicle: { kind: value('fee-vehicle'), quantity: numeric('fee-quantity'), height: numeric('fee-height') },
-      qualifications: qualifications(), commercial: value('fee-commercial'), cards: chosen,
-      method: value('fee-method'), refundMethod: value('fee-refund-method'), benefitRetention: value('fee-retention')
-    };
     try {
+      if (!confirmedTimes || confirmedTimes.entry !== value('fee-entry') || confirmedTimes.exit !== value('fee-exit')) {
+        throw new Fees.InputError('입차·출차 시간을 먼저 확인해 주세요.');
+      }
+      const chosen = ['a', 'b'].map(readCard).filter(card => card.id !== 'none');
+      const request = {
+        location: value('fee-location'), terminal: value('fee-terminal'), entry: confirmedTimes.entry, exit: confirmedTimes.exit,
+        vehicle: { kind: value('fee-vehicle'), quantity: numeric('fee-quantity'), height: numeric('fee-height') },
+        qualifications: qualifications(), commercial: value('fee-commercial'), cards: chosen,
+        method: value('fee-method'), refundMethod: value('fee-refund-method'), benefitRetention: value('fee-retention')
+      };
       renderResults(Fees.calculate(request));
       hasResult = true;
     } catch (error) {
-      console.error('Parking fee calculation failed:', error);
-      element('fee-results').innerHTML = '';
-      element('fee-error').textContent = error instanceof Fees.InputError ? error.message : '계산 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
-      element('fee-error').hidden = false;
-      if (!(error instanceof Fees.InputError)) throw error;
+      showError(error);
     }
   }
   form.addEventListener('submit', event => { event.preventDefault(); calculate(); });
@@ -148,9 +212,25 @@
   form.addEventListener('change', event => {
     if (event.target.id === 'fee-card-a') renderCard('a');
     if (event.target.id === 'fee-card-b') renderCard('b');
+    if (event.target.id === 'fee-quick-discount' || event.target.id === 'fee-quick-state') {
+      const code = value('fee-quick-discount');
+      if (code === 'custom') {
+        element('fee-advanced-options').open = true;
+        element('fee-qualifications-panel').open = true;
+      } else {
+        if (event.target.id === 'fee-quick-discount') element('fee-quick-state').value = 'unknown';
+        for (const id of Object.keys(Fees.qualifications)) {
+          element(`q-${id}`).checked = id === code;
+          if (id === code) element(`q-${id}-state`).value = value('fee-quick-state', 'unknown');
+        }
+      }
+    } else if (event.target.id.startsWith('q-')) {
+      element('fee-quick-discount').value = 'custom';
+    }
     updateContext();
-    invalidate();
+    invalidate(event);
   });
+  element('fee-confirm-times').addEventListener('click', confirmTimes);
   element('fee-example').addEventListener('click', () => {
     element('fee-location').value = 'long';
     element('fee-entry').value = '2026-10-02T07:40';
@@ -161,6 +241,7 @@
     element('fee-method').value = 'offline';
     for (const code of Object.keys(Fees.qualifications)) element(`q-${code}`).checked = code === 'eco12';
     element('q-eco12-state').value = 'confirmed';
+    element('fee-quick-discount').value = 'eco12'; element('fee-quick-state').value = 'confirmed';
     element('fee-card-a').value = 'AAP1442'; element('fee-card-b').value = 'none';
     renderCard('a'); renderCard('b');
     for (const name of ['policy', 'parallel', 'scope', 'split']) element(`c-a-${name}`).value = 'yes';
@@ -168,7 +249,8 @@
     element('c-a-excluded').value = 'no'; element('c-a-spend').value = '300000';
     element('c-a-month-used').value = '0'; element('c-a-year-used').value = '0'; element('c-a-competing').value = '0';
     element('fee-example-note').hidden = false;
-    updateContext(); calculate();
+    updateContext();
+    if (confirmTimes()) calculate();
   });
   const start = new Date(Date.now() + 9 * 3600000);
   element('fee-entry').value = start.toISOString().slice(0, 16);
@@ -178,6 +260,12 @@
     if (tariff.largeCap) rows.push({ size: '대형', unit: tariff.largeUnitFee, cap: tariff.largeCap });
     return rows.map(row => `<tr><th>${tariff.name} ${row.size}</th><td>${tariff.free}분</td><td>${tariff.initialFee ? `기본 ${tariff.initialMinutes}분 ${won(tariff.initialFee)} / ` : ''}${tariff.unitMinutes === 60 ? '시간당' : `추가 ${tariff.unitMinutes}분`} ${won(row.unit)}</td><td>${won(row.cap)}</td></tr>`);
   }).join('')}</tbody></table>`;
+  element('occupancy-scale').innerHTML = ParkingOccupancy.scaleHtml;
+  applyLayout();
+  element('fee-information').open = !mobile();
+  window.addEventListener('resize', applyLayout);
+  const initialTerminal = new URLSearchParams(location.search).get('terminal');
+  if (initialTerminal && ['T1', 'T2'].includes(initialTerminal)) element('fee-terminal').value = initialTerminal;
   updateContext();
-  calculate();
+  if (initialTerminal && !['T1', 'T2'].includes(initialTerminal)) showError(new Fees.InputError('전달된 터미널을 확인할 수 없습니다. T1 또는 T2를 직접 선택해 주세요.'));
 })();

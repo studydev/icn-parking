@@ -20,6 +20,8 @@ test('KST parsing is strict and independent of browser timezone, including inval
   assert.throws(() => Fees.baseFees({ entry: '2026-10-12T10:00', exit: '2026-10-11T10:00' }), /출차/);
   assert.equal(Fees.baseFees({ location: 'long', entry: '2026-10-11T23:50', exit: '2026-10-12T00:20' }).scenarios[0].amount, 1000);
   assert.equal(basic('long', 0).scenarios[0].amount, 0);
+  assert.deepEqual(Fees.duration('2026-10-02T07:40', '2026-10-08T16:33'), { minutes: 9173, days: 6, hours: 8, remainingMinutes: 53 });
+  assert.throws(() => Fees.duration('2026-10-12T10:00', '2026-10-11T10:00'), Fees.InputError);
 });
 
 test('long-term small uses 24-hour blocks and remainder hours, not ceiling days', () => {

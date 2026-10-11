@@ -60,7 +60,7 @@ async function runtime(hash = '#week/T1', options = {}) {
     'latest.json': { start, last_ok_at: new Date(clock.value).toISOString(), zones: zones.map(z => ({ ...z, p: documentOfDay(today).zones[z.id].p[0], c: documentOfDay(today).zones[z.id].c[0] })) },
     'calendar.json': { start, days, holidays: options.holidays || {} }
   };
-  const elements = new Map(['status', 'terms', 'tabs', 'foot-start', 'view', 'layout-toggle', 'overlay'].map(id => [id, { innerHTML: '', textContent: '', setAttribute(k, v) { this[k] = v; } }]));
+  const elements = new Map(['status', 'terms', 'tabs', 'occupancy-scale', 'fee-link', 'foot-start', 'view', 'layout-toggle', 'overlay'].map(id => [id, { innerHTML: '', textContent: '', setAttribute(k, v) { this[k] = v; } }]));
   const listeners = {};
   const stored = new Map(options.stored || []), bodyClasses = new Set(), requested = [];
   const ctx = vm.createContext({
@@ -85,6 +85,7 @@ async function runtime(hash = '#week/T1', options = {}) {
       return { ok: !!body, status: body ? 200 : 404, json: async () => JSON.parse(JSON.stringify(body)) };
     }
   });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/occupancy.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/forecast.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8'), ctx);
   const run = code => vm.runInContext(code, ctx);
@@ -112,7 +113,7 @@ test('mobile navigation exposes all six menus with short labels and working tab 
   const labels = () => [...elements.get('tabs').innerHTML.matchAll(/<(?:button|a)[^>]*>([^<]+)<\/(?:button|a)>/g)].map(([, label]) => label);
   assert.deepEqual(labels(), ['주차 현황', '날짜별', '기간별', '터미널 이동', '안내', '주차요금']);
   assert.doesNotMatch(elements.get('tabs').innerHTML, /<details|<summary|더 보기|mobile-menu/);
-  assert.match(elements.get('tabs').innerHTML, /<a href="fees.html">주차요금<\/a>/);
+  assert.match(elements.get('tabs').innerHTML, /<a href="fees.html\?terminal=T1">주차요금<\/a>/);
   for (const id of ['day', 'range', 'access', 'about', 'week']) {
     listeners.click({ target: { closest: () => ({ dataset: { a: 'tab', v: id } }) } });
     await run('ensure()');
@@ -251,11 +252,12 @@ test('mobile lists individual T1/T2 short/long zones with nine predictions each,
   const { run, elements } = await runtime('#week/T2', mobileFixture());
   const html = elements.get('view').innerHTML;
   assert.equal(run('compactMobile()'), true);
-  assert.equal((html.match(/class="quick-card"/g) || []).length, 4);
-  assert.equal((html.match(/class="quick-zone"/g) || []).length, 6);
-  assert.equal((html.match(/class="quick-slot(?:\s|")/g) || []).length, 54);
+  assert.equal((html.match(/class="quick-card"/g) || []).length, 2);
+  assert.equal((html.match(/class="quick-zone"/g) || []).length, 3);
+  assert.equal((html.match(/class="quick-slot(?:\s|")/g) || []).length, 27);
   assert.doesNotMatch(html, /id="plot"|data-a="cmp"|data-a="weeks"|data-a="over"/);
-  assert.match(html, /T1 · 단기주차장/);
+  assert.doesNotMatch(html, /data-term="T1"/);
+  assert.match(html, /T2 · 단기주차장/);
   assert.match(html, /T2 · 장기주차장/);
   const data = JSON.parse(run("JSON.stringify(compactParking('T1', '장기'))"));
   assert.deepEqual(data.zones.map(row => row.zone.id), ['l1', 't1']);
@@ -265,7 +267,7 @@ test('mobile lists individual T1/T2 short/long zones with nine predictions each,
   }
   assert.equal(data.zones[0].current.available, 0, 'the overfull lot has no spaces');
   assert.equal(data.zones[1].current.available, 4, 'the tower retains its own remaining spaces');
-  assert.match(elements.get('tabs').innerHTML, /href="fees.html"/);
+  assert.match(elements.get('tabs').innerHTML, /href="fees.html\?terminal=T2"/);
   assert.doesNotMatch(elements.get('tabs').innerHTML, /더 보기/);
   assert.match(elements.get('tabs').innerHTML, /data-v="day"[^>]*>날짜별<\/button>/);
 });
@@ -274,13 +276,14 @@ test('mobile forecasts are nine left-to-right count-only heatmap cells in the ex
   const { run, elements } = await runtime('#week/T1', mobileFixture());
   const html = elements.get('view').innerHTML;
   const cells = [...html.matchAll(/class="quick-slot"[^>]*data-minutes="(\d+)"[^>]*data-occupancy="([^"]+)"[^>]*style="background:([^;]+);color:([^"]+)"[^>]*><b>(\d+)<\/b><\/div>/g)];
-  assert.equal(cells.length, 54);
+  assert.equal(cells.length, 27);
   assert.deepEqual(cells.slice(0, 9).map(cell => Number(cell[1])), [20, 40, 60, 80, 100, 120, 140, 160, 180]);
   for (const cell of cells) {
     assert.equal(cell[3], run(`occColor(${Number(cell[2])})`));
     assert.equal(cell[4], run(`contrastText('${cell[3]}')`));
   }
-  assert.doesNotMatch(html, /<time>|quick-slot-values/);
+  assert.equal((html.match(/<time /g) || []).length, 9);
+  assert.doesNotMatch(html, /quick-slot-values/);
   assert.match(html, /title="T1 단기 지하1층 20분 후 .* 예상 가용 \d+대 점유율/);
   assert.match(html, /title="T1 주차타워 P1 20분 후 .* 예상 가용 \d+대 점유율/);
   const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
@@ -300,8 +303,8 @@ test('five-digit availability uses the compact count typography without changing
 test('compact predictions ignore detailed filters and allow a reversible detailed mobile view', async () => {
   const { run, elements, listeners } = await runtime('#week/T1', mobileFixture());
   run("S.igoto = false; S.over = true; S.act = {단기:false,장기:false,예약:false}; render();");
-  assert.equal((elements.get('view').innerHTML.match(/class="quick-card"/g) || []).length, 4);
-  assert.equal((elements.get('view').innerHTML.match(/class="quick-zone"/g) || []).length, 6);
+  assert.equal((elements.get('view').innerHTML.match(/class="quick-card"/g) || []).length, 2);
+  assert.equal((elements.get('view').innerHTML.match(/class="quick-zone"/g) || []).length, 3);
   assert(run("compactParking('T2','단기').zones.every(row => row.cells.every(cell => cell.available != null))"));
   listeners.click({ target: { closest: () => ({ dataset: { a: 'detail', v: '1' } }) } });
   assert.equal(run('compactMobile()'), false);
@@ -318,7 +321,7 @@ test('per-zone forecasts cross midnight and missing observations do not hide oth
   assert.equal(data.zones[0].cells[0].date, '2026-10-12');
   assert.equal(data.zones[0].cells[0].slot, 3);
   assert.equal(data.zones[0].cells[8].slot, 35);
-  run("for (const doc of D.days.values()) if (doc) delete doc.zones['t2-t1']; D.cache.clear(); render();");
+  run("for (const doc of D.days.values()) if (doc) delete doc.zones['t2-t1']; D.cache.clear(); S.term = 'T2'; render();");
   assert(run("compactParking('T2','장기').zones.find(row => row.zone.id === 't2-t1').cells.every(cell => cell.available == null)"));
   assert(run("compactParking('T2','장기').zones.find(row => row.zone.id === 't2-l1').cells.every(cell => cell.available != null)"));
   assert(run("compactParking('T1','장기').zones.every(row => row.cells.every(cell => cell.available != null))"));
@@ -338,26 +341,31 @@ test('each zone labels its own current remaining spaces, including zero, missing
     D.latest.zones.find(zone => zone.id === 't2-t1').p = 55;
     D.zones = {}; render();
   `);
-  for (const [id, count] of [['s1', 20], ['l1', 0], ['t1', 4], ['t2-s1', 70], ['t2-l1', 0], ['t2-t1', 45]]) {
+  run("S.term = 'T1'; render();");
+  for (const [id, count] of [['s1', 20], ['l1', 0], ['t1', 4]]) {
     assert.match(rows().get(id), new RegExp(`<span>현재 남은 대수</span><b>${count}대</b>`));
   }
   assert.match(rows().get('l1'), /<h3>P1<\/h3>/);
   assert.match(rows().get('t1'), /<h3>타워 P1<\/h3>/);
+  run("S.term = 'T2'; render();");
+  for (const [id, count] of [['t2-s1', 70], ['t2-l1', 0], ['t2-t1', 45]]) {
+    assert.match(rows().get(id), new RegExp(`<span>현재 남은 대수</span><b>${count}대</b>`));
+  }
   run("D.latest.zones.find(zone => zone.id === 't2-t1').p = null; D.zones = {}; render();");
   assert.match(rows().get('t2-t1'), /남은 대수 확인 필요/);
   assert.equal((rows().get('t2-t1').match(/class="quick-slot unavailable"/g) || []).length, 9);
   assert(run("compactParking('T2','장기').zones.find(row => row.zone.id === 't2-l1').cells.every(cell => cell.available != null)"));
   run("D.latest.zones.find(zone => zone.id === 't2-t1').c = 0; D.zones = {}; render();");
   assert.match(rows().get('t2-t1'), /현재 운영 중단 구역/);
-  assert.equal(rows().size, 6, 'closed zones remain labelled rather than disappearing');
+  assert.equal(rows().size, 3, 'closed zones remain labelled rather than disappearing');
   run("D.latest.zones.find(zone => zone.id === 't2-t1').c = 200; D.latest.zones.find(zone => zone.id === 't2-t1').p = 55; D.zones = {}; render();");
   assert.match(rows().get('t2-t1'), /최신 면수와 예측 기준 면수가 달라/);
   assert.match(rows().get('t2-t1'), /<b>145대<\/b>/, 'current availability still uses the latest known capacity');
   run('D.latest.stale = true; render();');
-  assert.match(rows().get('t1'), /마지막 수집 · 갱신 지연/);
+  assert.match(rows().get('t2-t1'), /마지막 수집 · 갱신 지연/);
 });
 
-test('the full parking layout includes all 17 short/long/tower zones and excludes both reservation zones', async () => {
+test('terminal selection exposes its own short/long/tower zones without reservation zones or the other terminal', async () => {
   const definitions = [
     ['T1', '단기', ['지하1층', '지하2층', '지하3층', '지상층']],
     ['T1', '장기', ['P1', 'P2', 'P3']], ['T1', '타워', ['P1', 'P2']], ['T1', '예약', ['P5']],
@@ -367,7 +375,7 @@ test('the full parking layout includes all 17 short/long/tower zones and exclude
   const zones = definitions.flatMap(([terminal, category, names], group) => names.map((name, order) => ({
     id: `zone-${group}-${order}`, terminal, category, name: `${category === '타워' ? '주차타워' : category} ${name}`, order
   })));
-  const { run, elements } = await runtime('#week/T2', {
+  const { run, elements, listeners } = await runtime('#week/T2', {
     ...SUNDAY, mobile: true, zones,
     dayDoc: date => ({ date, zones: Object.fromEntries(zones.map((zone, index) => [zone.id, {
       p: new Array(DAY).fill(40 + index), c: new Array(DAY).fill(100)
@@ -375,14 +383,58 @@ test('the full parking layout includes all 17 short/long/tower zones and exclude
   });
   const groups = JSON.parse(run("JSON.stringify(['T1','T2'].flatMap(term => ['단기','장기'].map(gid => compactParking(term,gid))))"));
   assert.deepEqual(groups.map(group => group.zones.length), [4, 5, 5, 3]);
-  const shown = [...elements.get('view').innerHTML.matchAll(/class="quick-zone" data-zone="([^"]+)"/g)].map(([, id]) => id);
-  assert.deepEqual(shown, zones.filter(zone => zone.category !== '예약').map(zone => zone.id));
-  assert.equal(shown.length, 17);
-  assert.equal((elements.get('view').innerHTML.match(/class="quick-slot(?:\s|")/g) || []).length, 153);
+  const shown = () => [...elements.get('view').innerHTML.matchAll(/class="quick-zone" data-zone="([^"]+)"/g)].map(([, id]) => id);
+  assert.deepEqual(shown(), zones.filter(zone => zone.category !== '예약' && zone.terminal === 'T2').map(zone => zone.id));
+  assert.equal(shown().length, 8);
+  assert.equal((elements.get('view').innerHTML.match(/class="quick-slot(?:\s|")/g) || []).length, 72);
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'term', v: 'T1' } }) } });
+  await run('ensure()');
+  assert.deepEqual(shown(), zones.filter(zone => zone.category !== '예약' && zone.terminal === 'T1').map(zone => zone.id));
+  assert.equal(shown().length, 9);
+  assert.equal((elements.get('view').innerHTML.match(/class="quick-slot(?:\s|")/g) || []).length, 81);
+  assert.match(elements.get('terms').innerHTML, /data-v="T1" class="on" aria-pressed="true"/);
+  assert.match(run('location.hash'), /#week\/T1/);
+  assert.equal(elements.get('fee-link').href, 'fees.html?terminal=T1');
+  assert.match(elements.get('tabs').innerHTML, /href="fees.html\?terminal=T1"/);
   for (const group of groups) for (const row of group.zones) {
     assert.equal(row.current.available, 60 - zones.findIndex(zone => zone.id === row.zone.id));
     assert.equal(row.cells.length, 9);
   }
+});
+
+test('compact clock labels appear once above the heatmaps and match every forecast slot across midnight', async () => {
+  const { run, elements } = await runtime('#week/T1', mobileFixture());
+  const labels = () => [...elements.get('view').innerHTML.matchAll(/<time datetime="([^"]+)"[^>]*>([\s\S]*?)<\/time>/g)];
+  assert.deepEqual(labels().map(([, , text]) => text), ['11:20', '11:40', '12:00', '12:20', '12:40', '13:00', '13:20', '13:40', '14:00']);
+  assert(elements.get('view').innerHTML.indexOf('class="quick-times"') < elements.get('view').innerHTML.indexOf('class="quick-card"'));
+  assert.doesNotMatch(elements.get('view').innerHTML.slice(elements.get('view').innerHTML.indexOf('class="quick-card"')), /<time /);
+  run("D.now = {date: '2026-10-11', idx: 287}; D.cache.clear(); render();");
+  const times = labels();
+  assert.equal(times.length, 9);
+  assert.equal(times[0][1], '2026-10-12T00:15+09:00');
+  assert.match(times[0][2], /00:15<small>내일<\/small>/);
+  assert.equal(times[8][1], '2026-10-12T02:55+09:00');
+  const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
+  assert.doesNotMatch(css, /parking-compact #terms\{display:none/);
+});
+
+test('the header provides one shared occupancy scale on all tabs without duplicated content legends', async () => {
+  const { run, elements, listeners } = await runtime('#week/T1', mobileFixture());
+  const scale = elements.get('occupancy-scale').innerHTML;
+  assert.match(scale, /점유율 0%/);
+  assert.match(scale, /만차 도달\(98%\+\)/);
+  assert.match(scale, /#a3222e 100%/);
+  for (const id of ['week', 'day', 'range', 'access', 'about']) {
+    listeners.click({ target: { closest: () => ({ dataset: { a: 'tab', v: id } }) } });
+    await run('ensure()');
+    assert.equal(elements.get('occupancy-scale').innerHTML, scale);
+    assert.doesNotMatch(elements.get('view').innerHTML, /occ-gradient|occ-legend|occupancy-bar|만차 도달\(98%\+\)/);
+  }
+  run("S.tab = 'week'; S.mobileDetail = true; render();");
+  assert.doesNotMatch(elements.get('view').innerHTML, /occ-legend|occupancy-bar/);
+  const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
+  assert.equal((html.match(/id="occupancy-scale"/g) || []).length, 1);
+  assert(html.indexOf('id="occupancy-scale"') > html.indexOf('id="tabs"'));
 });
 
 test('forecast explanations and error notices remain at the very bottom, below both charts', async () => {

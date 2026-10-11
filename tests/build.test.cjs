@@ -26,7 +26,11 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   const fees = fs.readFileSync(path.join(out, 'fees.html'), 'utf8');
   assert.match(fees, /id="fee-form"/);
   assert.doesNotMatch(fees, /__SITE_URL__|rel="canonical"/);
-  for (const file of ['parking-fees.js', 'fees.js']) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), fs.readFileSync(path.join(root, 'web', file), 'utf8'));
+  for (const file of ['occupancy.js', 'parking-fees.js', 'fees.js']) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), fs.readFileSync(path.join(root, 'web', file), 'utf8'));
+  assert(html.indexOf('src="occupancy.js"') < html.indexOf('src="app.js"'));
+  assert(fees.indexOf('src="occupancy.js"') < fees.indexOf('src="fees.js"'));
+  assert.match(fees, /id="fee-confirm-times"/);
+  assert.match(fees, /id="fee-submit" disabled/);
   const context = { window: {} };
   vm.runInNewContext(fs.readFileSync(path.join(out, 'config.js'), 'utf8'), context);
   assert.equal(context.window.ICN_CONFIG.dataBase, './data/');
