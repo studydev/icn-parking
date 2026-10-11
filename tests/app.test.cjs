@@ -213,6 +213,27 @@ test('week controls put comparison first and connected forecast is a toggle', as
 const HOLIDAYS_2026 = { '2026-10-03': '개천절', '2026-10-05': '대체공휴일', '2026-10-09': '한글날' };
 const SUNDAY = { now: '2026-10-11T11:00:00+09:00', holidays: HOLIDAYS_2026 };
 
+test('forecast explanations and error notices remain at the very bottom, below both charts', async () => {
+  const { run, elements } = await runtime('#week/T1', SUNDAY);
+  const verifyPosition = () => {
+    const html = elements.get('view').innerHTML;
+    const notes = html.indexOf('class="sec lite forecast-notes"');
+    assert(notes > html.indexOf('id="plot"'));
+    assert(notes > html.indexOf('예상 점유율 · 지난 3시간 + 앞으로 6시간'));
+    assert(notes > html.lastIndexOf('class="fc-row"'));
+    assert(html.indexOf('class="muted forecast-window"') > notes);
+    assert.doesNotMatch(html.slice(0, notes), /forecast-notice|forecast-window|실험적 참고 예상/);
+    assert.match(html.slice(notes), /aria-label="예측 안내"/);
+    assert.match(html, /<\/section>\s*$/);
+    return html.slice(notes);
+  };
+  assert.match(verifyPosition(), /IGoTo 예측 · 실험적 참고 예상/);
+  run("D.cal.holidays = {}; D.cache.clear(); renderWeek();");
+  assert.match(verifyPosition(), /공휴일 달력이 없어/);
+  run('S.igoto = false; renderWeek();');
+  assert.doesNotMatch(verifyPosition(), /forecast-notice/);
+});
+
 test('Sunday defaults to three complete following dates and IGoTo works without a comparison week', async () => {
   const { run, elements, requested } = await runtime('#week/T1', SUNDAY);
   assert.equal(run('S.futureDays'), 3);
