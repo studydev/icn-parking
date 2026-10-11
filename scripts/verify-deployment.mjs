@@ -37,11 +37,17 @@ async function verify() {
   if (!index.includes('src="forecast.js"') || index.indexOf('src="forecast.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: parking forecast script is missing or loads after the dashboard');
   }
-  for (const file of ['forecast.js', 'app.js']) {
-    const deployed = await read(file, new URL(file, site), /javascript/i);
+  for (const file of ['forecast.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
+    const deployed = await read(file, new URL(file, site), file.endsWith('.css') ? /text\/css/i : /javascript/i);
     const expected = await readFile(new URL('../web/' + file, import.meta.url), 'utf8');
     if (deployed !== expected) throw new Error(`${file}: deployed forecast code does not match the source`);
   }
+  if (!index.includes('href="fees.html"')) throw new Error('Website: parking fee calculator link not found');
+  const fees = await read('Parking fee calculator', new URL('fees.html', site), /text\/html/i);
+  if (!fees.includes('id="fee-form"') || !fees.includes('id="fee-results"') || fees.indexOf('src="parking-fees.js"') < 0 || fees.indexOf('src="parking-fees.js"') > fees.indexOf('src="fees.js"')) {
+    throw new Error('Parking fee calculator: page or calculation scripts are missing');
+  }
+  if (!fees.includes(`rel="canonical" href="${new URL('fees.html', site).href}"`)) throw new Error('Parking fee calculator: canonical URL mismatch');
   if (!index.includes('href="operations.html"')) throw new Error('Website: operating costs link not found');
   const operations = await read('Operating costs', new URL('operations.html', site), /text\/html/i);
   const expectedOperations = await readFile(new URL('../web/operations.html', import.meta.url), 'utf8');
@@ -53,6 +59,7 @@ async function verify() {
   if (!robots.includes(`Sitemap: ${new URL('sitemap.xml', site)}`)) throw new Error('robots.txt: sitemap URL mismatch');
   const sitemap = await read('sitemap.xml', new URL('sitemap.xml', site), /(?:text|application)\/xml/i);
   if (!sitemap.includes(`<loc>${site.href}</loc>`)) throw new Error('sitemap.xml: canonical URL mismatch');
+  if (!sitemap.includes(`<loc>${new URL('fees.html', site).href}</loc>`)) throw new Error('sitemap.xml: fee page missing');
   const config = await read('config.js', new URL('config.js', site), /javascript/i);
   const match = /window\.ICN_CONFIG\s*=\s*(\{.*\});/.exec(config);
   if (!match || JSON.parse(match[1]).dataBase !== data.href) throw new Error('config.js: data URL mismatch');
@@ -78,7 +85,7 @@ try {
     }
   }
   if (failure) throw failure;
-  console.log('Deployment verified: website, parking forecast code, operating costs reference and image, crawler files, configuration, and public data are responding.');
+  console.log('Deployment verified: website, parking forecast code, fee calculator, operating costs reference and image, crawler files, configuration, and public data are responding.');
 } catch (error) {
   console.error(`Deployment verification failed: ${error.message}`);
   process.exitCode = 1;

@@ -6,6 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'web');
 const files = [
   'index.html', 'operations.html', 'operating-cost-reference.png', 'config.js', 'forecast.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
+  'fees.html', 'parking-fees.js', 'fees.js',
   'shuttle.json', 'staticwebapp.config.json', 'robots.txt', 'sitemap.xml'
 ];
 
@@ -53,15 +54,17 @@ export function buildWeb({
   for (const file of files) cpSync(join(source, file), join(target, file));
 
   writeFileSync(join(target, 'config.js'), `window.ICN_CONFIG = ${JSON.stringify({ dataBase })};\n`);
-  const metadata = [
-    site ? `  <link rel="canonical" href="${escapeAttribute(site)}">` : '',
-    naverToken ? `  <meta name="naver-site-verification" content="${naverToken}">` : '',
-    bingToken ? `  <meta name="msvalidate.01" content="${bingToken}">` : ''
-  ].filter(Boolean).join('\n');
-  const index = readFileSync(join(target, 'index.html'), 'utf8');
   const marker = '  <!-- Deployment metadata is injected by scripts/build-web.mjs. -->';
-  if (!index.includes(marker)) throw new Error('Deployment metadata marker is missing from index.html');
-  writeFileSync(join(target, 'index.html'), index.replace(marker, metadata));
+  for (const file of ['index.html', 'fees.html']) {
+    const metadata = [
+      site ? `  <link rel="canonical" href="${escapeAttribute(file === 'index.html' ? site : new URL(file, site).href)}">` : '',
+      naverToken ? `  <meta name="naver-site-verification" content="${naverToken}">` : '',
+      bingToken ? `  <meta name="msvalidate.01" content="${bingToken}">` : ''
+    ].filter(Boolean).join('\n');
+    const html = readFileSync(join(target, file), 'utf8');
+    if (!html.includes(marker)) throw new Error(`Deployment metadata marker is missing from ${file}`);
+    writeFileSync(join(target, file), html.replace(marker, metadata));
+  }
 
   if (site) {
     for (const file of ['robots.txt', 'sitemap.xml']) {

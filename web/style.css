@@ -17,6 +17,82 @@ button{font-family:inherit}
 .tabs{display:flex;gap:2px;overflow-x:auto;margin:0 -8px;scrollbar-width:none}
 .tabs button{flex:none;border:none;background:none;padding:10px 8px 11px;font-size:14px;cursor:pointer;color:#6b7178;font-weight:450;box-shadow:inset 0 -2px 0 transparent}
 .tabs button.on{color:#16181a;font-weight:650;box-shadow:inset 0 -2px 0 #16181a}
+.tabs a{flex:none;padding:10px 8px 11px;font-size:14px;text-decoration:none}
+.mobile-menu{position:relative;font-size:12px;color:#5b6168}
+.mobile-menu summary{cursor:pointer;list-style:none;padding:8px}
+.mobile-menu>div{position:absolute;right:0;top:100%;min-width:150px;padding:6px;background:#fff;border:1px solid #d9dce0;border-radius:6px;box-shadow:0 4px 12px #16181a16}
+.mobile-menu>div button{display:block;width:100%;text-align:left}
+
+/* Compact parking overview */
+.quick-parking{display:flex;flex-direction:column;gap:14px}
+.quick-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.quick-heading h1{margin:0;font-size:19px}
+.quick-heading p{margin:4px 0 0;font-size:12px;color:#5b6168}
+.quick-card{border:1px solid #dfe4e9;border-radius:10px;padding:14px;min-width:0}
+.quick-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.quick-card h2{margin:0;font-size:16px}
+.quick-card-head small{font-size:11px;color:#5b6168}
+.quick-current{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:10px 0 12px;font-size:12px;color:#5b6168}
+.quick-current b{font-size:17px;color:#16181a}
+.quick-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.quick-slot{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px;border-radius:5px;background:#f4f7fa;min-width:0}
+.quick-slot time{font-size:11px;color:#5b6168}
+.quick-slot time small{margin-left:3px;font-size:9px}
+.quick-slot b{font-size:14px;white-space:nowrap}
+.quick-slot span{font-size:11px;color:#5b6168}
+.quick-slot-values{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:2px 5px}
+.quick-slot.unavailable{background:#f6f6f6;color:#8a9097}
+.quick-warning,.quick-note{margin:10px 0 0;font-size:11px;line-height:1.6;color:#5b6168}
+.quick-warning{color:#a3222e}
+.quick-fees-link{text-align:center;text-decoration:none;padding:10px}
+
+/* Parking fee calculator */
+.fees-main{max-width:960px}
+.fees-intro h1{font-size:23px;margin:0 0 10px}
+.fees-intro p{margin:6px 0;font-size:13px;line-height:1.7;color:#5b6168}
+#fee-form{display:flex;flex-direction:column;gap:16px}
+.fee-fieldset{margin:0;padding:16px;border:1px solid #dfe4e9;border-radius:8px;min-width:0}
+.fee-fieldset legend{font-size:15px;font-weight:650;padding:0 5px}
+.fee-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.fee-fields label,.fee-card-select,.fee-state-label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#3a3f45;min-width:0}
+.fee-fields input,.fee-fields select,.fee-card-select select,.fee-state-label select{width:100%;min-width:0;min-height:38px;padding:7px 8px;border:1px solid #d9dce0;border-radius:5px;background:#fff;color:#16181a;font:inherit;font-size:13px}
+.fee-fields input:focus-visible,.fee-fields select:focus-visible,.fee-submit:focus-visible,.quick-heading button:focus-visible{outline:2px solid #3f6f9e;outline-offset:3px}
+.fee-details{margin-top:12px;font-size:12px;line-height:1.7}
+.fee-details summary{cursor:pointer;color:#16181a;font-weight:600;padding:4px 0}
+.fee-details .fee-fields{margin-top:12px}
+.fee-details p,.fee-help{font-size:12px;line-height:1.7;color:#5b6168}
+.fee-qualification{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.8fr);align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eef0f2}
+.fee-qualification>label:first-child{font-size:12px;line-height:1.5}
+.fee-qualification input{accent-color:#16181a}
+.fee-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.fee-submit{border:0;border-radius:6px;background:#16181a;color:#fff;padding:12px 18px;font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.fee-error{color:#a3222e}
+#fee-results{display:flex;flex-direction:column;gap:14px}
+.fee-result{border:1px solid #dfe4e9;border-radius:8px;padding:16px}
+.fee-result h3{margin:0;font-size:16px}
+.fee-steps{display:flex;flex-direction:column;margin:12px 0;gap:8px}
+.fee-steps>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px}
+.fee-steps dt{color:#5b6168}
+.fee-steps dd{margin:0;text-align:right;white-space:nowrap}
+.fee-steps .fee-settlement,.fee-steps .fee-final{border-top:1px solid #e6e8eb;padding-top:10px;font-weight:700}
+.fee-steps .fee-final{font-size:15px}
+.fee-final dt{color:#16181a}
+.fee-result .notice{margin-top:12px}
+.fee-result .notice p{margin:6px 0 0}
+.fees-page [hidden]{display:none!important}
+@media(max-width:600px){
+  .fees-main{padding:16px 12px 32px;gap:20px}
+  .fees-page .top-in{padding:12px}
+  .fees-page .brand-title{font-size:16px}
+  .fees-page .ops-header a:last-child{font-size:11px}
+  .fee-fieldset,.fee-result{padding:12px}
+  .fee-fields{grid-template-columns:minmax(0,1fr);gap:10px}
+  .fee-qualification{grid-template-columns:minmax(0,1fr);gap:6px}
+  .fee-steps>div{font-size:12px}
+  .fee-steps .fee-final{font-size:14px;flex-wrap:wrap}
+  .fee-steps dd{white-space:normal}
+  .fee-actions>button{flex:1}
+}
 
 /* segmented control */
 .seg{display:inline-flex;border:1px solid #d9dce0;border-radius:6px;padding:2px;gap:2px}
@@ -435,6 +511,11 @@ body.layout-mobile #terms{justify-self:end}
 body.layout-mobile #terms button{padding:5px 8px;font-size:11px}
 body.layout-mobile .tabs{width:100%;margin:0;gap:0;overflow:visible}
 body.layout-mobile .tabs button{flex:1 1 0;min-width:0;padding:8px 3px 9px;font-size:11px;letter-spacing:-.04em}
+body.layout-mobile .tabs>a,body.layout-mobile .tabs>.mobile-menu{flex:1 1 0;text-align:center;font-size:12px;padding:0}
+body.layout-mobile .tabs>a{padding:8px 3px 9px}
+body.parking-compact #terms{display:none}
+body.parking-compact .top-right{grid-template-columns:minmax(0,1fr)}
+body.parking-compact .status{font-size:10px}
 body.layout-mobile .main{width:100%;padding:14px 12px 32px;gap:18px}
 body.layout-mobile #view{gap:20px}
 body.layout-mobile .sec{gap:10px;padding-top:10px}

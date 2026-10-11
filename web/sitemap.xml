@@ -3,4 +3,7 @@
   <url>
     <loc>__SITE_URL__</loc>
   </url>
+  <url>
+    <loc>__SITE_URL__fees.html</loc>
+  </url>
 </urlset>

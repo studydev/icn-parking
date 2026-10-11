@@ -16,7 +16,7 @@ test('search discovery source contains only deployment-neutral templates', () =>
   assert.match(robots, /^User-agent: \*\nAllow: \//);
   assert.match(robots, /^Sitemap: __SITE_URL__sitemap\.xml$/m);
   assert.match(sitemap, /xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/);
-  assert.deepEqual([...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1]), ['__SITE_URL__']);
+  assert.deepEqual([...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1]), ['__SITE_URL__', '__SITE_URL__fees.html']);
   const config = JSON.parse(fs.readFileSync(path.join(web, 'staticwebapp.config.json'), 'utf8'));
   for (const [route, type] of [['/robots.txt', 'text/plain; charset=utf-8'], ['/sitemap.xml', 'application/xml; charset=utf-8']]) {
     const rule = config.routes.find(r => r.route === route);
@@ -65,7 +65,7 @@ async function runtime(hash = '#week/T1', options = {}) {
   const stored = new Map(options.stored || []), bodyClasses = new Set(), requested = [];
   const ctx = vm.createContext({
     console, Date: ClockDate, Math, JSON, Promise, Map, Set, Array, Object, Number, String, isNaN, Infinity,
-    window: { innerWidth: 1280, addEventListener: () => {}, matchMedia: () => ({ matches: false }) },
+    window: { innerWidth: options.mobile ? 375 : 1280, addEventListener: () => {}, matchMedia: () => ({ matches: !!options.mobile }) },
     location: { hash },
     history: { replaceState: (a, b, h) => { ctx.location.hash = h; } },
     localStorage: { getItem: k => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) },
@@ -212,6 +212,61 @@ test('week controls put comparison first and connected forecast is a toggle', as
 
 const HOLIDAYS_2026 = { '2026-10-03': '개천절', '2026-10-05': '대체공휴일', '2026-10-09': '한글날' };
 const SUNDAY = { now: '2026-10-11T11:00:00+09:00', holidays: HOLIDAYS_2026 };
+
+const mobileFixture = () => ({
+  ...SUNDAY, mobile: true,
+  zones: [...ZONES, ...ZONES.map(zone => ({ ...zone, terminal: 'T2', id: 't2-' + zone.id }))],
+  dayDoc: (date, today) => {
+    const doc = dayDoc(date, date === today);
+    return { ...doc, zones: { ...doc.zones, ...Object.fromEntries(Object.entries(doc.zones).map(([id, zone]) => ['t2-' + id, zone])) } };
+  }
+});
+
+test('mobile defaults to four T1/T2 short/long boxes with nine 20-minute predictions, without advanced filters', async () => {
+  const { run, elements } = await runtime('#week/T2', mobileFixture());
+  const html = elements.get('view').innerHTML;
+  assert.equal(run('compactMobile()'), true);
+  assert.equal((html.match(/class="quick-card"/g) || []).length, 4);
+  assert.equal((html.match(/class="quick-slot(?:\s|")/g) || []).length, 36);
+  assert.doesNotMatch(html, /id="plot"|data-a="cmp"|data-a="weeks"|data-a="over"/);
+  assert.match(html, /T1 · 단기주차장/);
+  assert.match(html, /T2 · 장기주차장/);
+  const data = JSON.parse(run("JSON.stringify(compactParking('T1', '장기'))"));
+  assert.deepEqual(data.cells.map(cell => cell.minutes), [20, 40, 60, 80, 100, 120, 140, 160, 180]);
+  assert(data.cells.every(cell => Number.isFinite(cell.occupancy) && cell.occupancy <= 1 && Number.isInteger(cell.available) && cell.available >= 0));
+  assert.equal(data.current.capacity - data.current.occupied, 4, 'overflowing lot cannot subtract spaces available in the tower');
+  assert.match(elements.get('tabs').innerHTML, /href="fees.html"/);
+  assert.match(elements.get('tabs').innerHTML, /더 보기/);
+});
+
+test('compact predictions ignore detailed filters and allow a reversible detailed mobile view', async () => {
+  const { run, elements, listeners } = await runtime('#week/T1', mobileFixture());
+  run("S.igoto = false; S.over = true; S.act = {단기:false,장기:false,예약:false}; render();");
+  assert.equal((elements.get('view').innerHTML.match(/class="quick-card"/g) || []).length, 4);
+  assert(run("compactParking('T2','단기').cells.every(cell => cell.available != null)"));
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'detail', v: '1' } }) } });
+  assert.equal(run('compactMobile()'), false);
+  assert.match(elements.get('view').innerHTML, /id="plot"/);
+  assert.match(elements.get('view').innerHTML, /data-a="detail" data-v="0"/);
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'detail', v: '0' } }) } });
+  assert.equal(run('compactMobile()'), true);
+  assert.equal(run('S.igoto'), false, 'the simplified view must not overwrite detailed forecast preferences');
+});
+
+test('compact forecasts cross midnight and do not show partial group estimates or stale-data success', async () => {
+  const { run, elements } = await runtime('#week/T1', { ...mobileFixture(), now: '2026-10-11T23:55:00+09:00' });
+  const data = JSON.parse(run("JSON.stringify(compactParking('T1','단기'))"));
+  assert.equal(data.cells[0].date, '2026-10-12');
+  assert.equal(data.cells[0].slot, 3);
+  assert.equal(data.cells[8].slot, 35);
+  run("for (const doc of D.days.values()) if (doc) delete doc.zones['t2-t1']; D.cache.clear(); render();");
+  assert(run("compactParking('T2','장기').cells.every(cell => cell.available == null)"));
+  assert(run("compactParking('T1','장기').cells.every(cell => cell.available != null)"));
+  assert.match(elements.get('view').innerHTML, /실측이 없어/);
+  run('D.latest.stale = true; render();');
+  assert(run("compactParking('T1','단기').cells.every(cell => cell.available == null)"));
+  assert.match(elements.get('view').innerHTML, /수집이 지연되어/);
+});
 
 test('forecast explanations and error notices remain at the very bottom, below both charts', async () => {
   const { run, elements } = await runtime('#week/T1', SUNDAY);
