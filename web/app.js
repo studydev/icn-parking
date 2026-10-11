@@ -121,13 +121,15 @@ function smoothVals(arr, a, b, r) {
 const savedAct = (() => { try { return JSON.parse(store.get('icn.categories') || 'null'); } catch (_) { return null; } })();
 const savedLayout = store.get('icn.layout');
 const savedFutureDays = Number(store.get('icn.forecastDays'));
-const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], futureDays: [3, 5, 7].includes(savedFutureDays) ? savedFutureDays : 3, igoto: store.get('icn.igoto') !== '0', rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
+const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], mobileDetail: false, futureDays: [3, 5, 7].includes(savedFutureDays) ? savedFutureDays : 3, igoto: store.get('icn.igoto') !== '0', rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
 const D = { latest: null, cal: null, days: new Map(), pending: new Map(), retry: new Map(), err: null, now: kstNow(), cache: new Map(), zones: {} };
 const layoutMode = () => S.layout || (window.matchMedia?.('(max-width: 700px)').matches ? 'mobile' : 'desktop');
+const compactMobile = () => layoutMode() === 'mobile' && S.tab === 'week' && !S.mobileDetail;
 function applyLayout() {
   const mode = layoutMode(), body = document.body;
   body?.classList?.toggle('layout-mobile', mode === 'mobile');
   body?.classList?.toggle('layout-desktop', mode === 'desktop');
+  body?.classList?.toggle('parking-compact', compactMobile());
   const button = document.getElementById('layout-toggle');
   if (button) {
     button.textContent = mode === 'mobile' ? '데스크톱 보기' : '모바일 보기';
@@ -338,8 +340,10 @@ function renderHeader() {
   st.innerHTML = `<span class="dot" style="background:${color}"></span><span>${esc(text)}</span>`;
   document.getElementById('terms').innerHTML = [['T1', 'T1 제1터미널'], ['T2', 'T2 제2터미널']]
     .map(([id, l]) => `<button data-a="term" data-v="${id}" class="${id === S.term ? 'on' : ''}" aria-pressed="${id === S.term}">${l}</button>`).join('');
-  document.getElementById('tabs').innerHTML = TABS
-    .map(([id, l]) => `<button data-a="tab" data-v="${id}" class="${id === S.tab ? 'on' : ''}" aria-current="${id === S.tab ? 'page' : 'false'}">${l}</button>`).join('');
+  const tabButton = ([id, label]) => `<button data-a="tab" data-v="${id}" class="${id === S.tab ? 'on' : ''}" aria-current="${id === S.tab ? 'page' : 'false'}">${label}</button>`;
+  document.getElementById('tabs').innerHTML = layoutMode() === 'mobile'
+    ? `${tabButton(['week', '주차 현황'])}<a href="fees.html">주차요금</a><details class="mobile-menu"><summary>더 보기</summary><div>${TABS.slice(1).map(tabButton).join('')}</div></details>`
+    : `${TABS.map(tabButton).join('')}<a href="fees.html">주차요금</a>`;
   const s = startDate();
   document.getElementById('foot-start').textContent = `${s}부터 5분 간격 수집`;
 }
@@ -661,6 +665,54 @@ function igotoNotice(term) {
   </div>`;
 }
 
+function compactParking(term, gid) {
+  const zones = zonesFor(term, gid).filter(zone => zone.c !== 0);
+  const present = zones.filter(zone => Number.isFinite(zone.p) && zone.p >= 0 && Number.isFinite(zone.c) && zone.c > 0);
+  const current = zones.length && present.length === zones.length ? {
+    capacity: present.reduce((sum, zone) => sum + zone.c, 0),
+    occupied: present.reduce((sum, zone) => sum + Math.min(zone.p, zone.c), 0)
+  } : null;
+  const models = zones.map(igotoModel);
+  const stale = !!D.err || D.latest?.stale || latestAge() > 15;
+  const failures = stale ? ['수집이 지연되어 미래 예상을 잠시 표시하지 않습니다.'] : models.filter(model => !model.ok).map(model => model.why);
+  if (!zones.length) failures.push('운영 중인 구역이 없습니다.');
+  if (models.some((model, i) => model.ok && model.anchor.capacity !== zones[i].c)) failures.push('최신 면수와 예측 기준 면수가 달라 확인이 필요합니다.');
+  const cells = Array.from({ length: 9 }, (_, index) => {
+    const minutes = (index + 1) * 20, at = slotRange(D.now.date, D.now.idx + minutes / 5);
+    if (failures.length) return { ...at, minutes, occupancy: null, available: null };
+    const predictions = models.map(model => IGoTo.predict(model, at.date, at.slot));
+    const failed = predictions.find(prediction => prediction.value == null);
+    if (failed) { failures.push(failed.why); return { ...at, minutes, occupancy: null, available: null }; }
+    const capacity = models.reduce((sum, model) => sum + model.anchor.capacity, 0);
+    const occupied = predictions.reduce((sum, prediction, i) => sum + Math.min(prediction.value, 1) * models[i].anchor.capacity, 0);
+    return { ...at, minutes, occupancy: occupied / capacity, available: Math.round(capacity - occupied), limited: predictions.some(prediction => prediction.limited) };
+  });
+  return { term, gid, current, cells, failures: [...new Set(failures)], stale };
+}
+
+function renderCompactParking() {
+  const cards = ['T1', 'T2'].flatMap(term => ['단기', '장기'].map(gid => compactParking(term, gid)));
+  const percent = value => (value * 100).toFixed(1).replace(/\.0$/, '') + '%';
+  document.getElementById('view').innerHTML = `
+    <section class="quick-parking" aria-label="T1 T2 앞으로 3시간 주차 예상">
+      <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>숫자 = 가용 대수 · 배경색 = 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
+      <div class="quick-axis"><span>20분 후부터 · 왼쪽 → 오른쪽</span><span>3시간 후</span></div>
+      ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
+        <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
+        <div class="quick-current"><span>현재${card.stale ? ' · 갱신 지연' : ''}</span>${card.current ? `<b>${num(card.current.capacity - card.current.occupied)}대 가능</b><span>점유 ${percent(card.current.occupied / card.current.capacity)}</span>` : '<b>현재값 확인 필요</b>'}</div>
+        <div class="quick-slots" role="list">${card.cells.map(cell => {
+          const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
+          const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
+          const description = `${card.term} ${card.gid} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}`;
+          return `<div class="quick-slot${cell.available == null ? ' unavailable' : ''}" role="listitem" data-minutes="${cell.minutes}" data-occupancy="${cell.occupancy ?? ''}" style="background:${background};color:${color}" title="${esc(description)}" aria-label="${esc(description)}"><b${cell.available >= 10000 ? ' class="wide-count"' : ''}>${cell.available == null ? '—' : cell.available}</b></div>`;
+        }).join('')}</div>
+        ${card.failures.length ? `<p class="quick-warning" role="status">${card.failures.map(esc).join(' ')}</p>` : card.cells.some(cell => cell.limited) ? '<p class="quick-note">유사 조건의 표본이 적은 참고 예상입니다.</p>' : ''}
+      </article>`).join('')}
+      <p class="quick-note">IGoTo 참고 예상입니다. 점유율은 구역별 100% 상한이며, 가용 대수는 각 구역의 남은 면수 합계입니다. 현장 주차 가능 여부를 보장하지 않습니다.</p>
+      <a class="btn quick-fees-link" href="fees.html">주차요금 계산하기</a>
+    </section>`;
+}
+
 function renderWeek() {
   const term = S.term, cfg = weekCfg(), m = chartModel(cfg), tot = nowAgg(term, '합계'), age = latestAge(), stale = age > 15;
   const [a, b] = S.win, tk = todayK() * DAY, n0 = clamp(NOWI() - 36, -7 * (S.weeks - 1) * DAY, weekEnd() - 72);
@@ -675,6 +727,7 @@ function renderWeek() {
         <span class="sub">${mdw(cfg.d0)} → ${mdw(addDays(cfg.d0, cfg.nd - 1))} · 구역별 5분 실측 그래프 · 드래그로 구간 확대 · 카테고리 카드나 선을 눌러 켜기/끄기</span></div>
       <div class="total"><span class="lbl">${term} 합계 지금 (예약 제외${partial})</span><span class="val">가용 ${tot.occ == null ? '—' : num(tot.avail) + '대'} · 점유율 ${tot.occ == null ? '—' : pct(tot.occ)}</span></div>
     </div>
+    ${layoutMode() === 'mobile' ? '<button class="btn" data-a="detail" data-v="0">간단 주차 예상으로 돌아가기</button>' : ''}
     <div class="controls">
       <div>
         <div class="seg" role="group" aria-label="기간">${spans.map(([n, l, r]) => btn('weeks', n, l, S.weeks === n && a === r[0] && b === r[1])).join('')}</div>
@@ -994,7 +1047,7 @@ function render() {
   const v = document.getElementById('view');
   if (!D.latest) { v.innerHTML = D.err ? `<div class="notice">데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (${esc(D.err)})</div>` : '<div class="empty">불러오는 중…</div>'; return; }
   WM = null;
-  if (S.tab === 'week') renderWeek();
+  if (S.tab === 'week') compactMobile() ? renderCompactParking() : renderWeek();
   else if (S.tab === 'day') renderDay();
   else if (S.tab === 'range') renderRange();
   else if (S.tab === 'access') renderAccess();
@@ -1004,6 +1057,10 @@ function render() {
 function neededDays() {
   const today = D.now.date, out = [];
   if (S.tab === 'week') {
+    if (compactMobile()) {
+      for (let k = 0; k < IGoTo.HISTORY_DAYS; k++) out.push(addDays(today, -k));
+      return out;
+    }
     const c = weekCfg();
     for (let k = 0; k < c.nd; k++) { const d = addDays(c.d0, k); out.push(d, addDays(d, -7)); if (S.cmp) out.push(addDays(d, -7 * S.cmp)); }
     for (let w = 1; w <= 4; w++) out.push(addDays(today, -7 * w), addDays(today, 1 - 7 * w));
@@ -1026,7 +1083,8 @@ document.addEventListener('click', e => {
   const a = t.dataset.a, v = t.dataset.v;
   if (a === 'sroute' || a === 'sstop' || a === 'sview') { if (typeof onShuttleAction === 'function') onShuttleAction(a, v, t); return; }
   if (a === 'term') { S.term = v; S.focus = null; S.hf = null; }
-  else if (a === 'tab') { S.tab = v; S.hf = null; S.focus = null; }
+  else if (a === 'tab') { S.tab = v; S.hf = null; S.focus = null; if (v === 'week') S.mobileDetail = false; }
+  else if (a === 'detail') { S.mobileDetail = v === '1'; S.hf = null; }
   else if (a === 'weeks') { const n = clamp(Number(v), 1, MAXW); S.weeks = n; S.win = [-7 * (n - 1) * DAY, weekEnd()]; winTouched = true; }
   else if (a === 'future') {
     const days = Number(v);
@@ -1046,6 +1104,7 @@ document.addEventListener('click', e => {
     S.layout = layoutMode() === 'mobile' ? 'desktop' : 'mobile';
     store.set('icn.layout', S.layout);
     render();
+    ensure();
     return;
   }
   else if (a === 'all') { setAct(S.term, Object.fromEntries(groupsOf(S.term).map(g => [g.id, v === '1']))); return; }
@@ -1167,6 +1226,6 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeT);
   resizeT = setTimeout(() => {
     applyLayout();
-    if ((S.tab === 'week' || S.tab === 'range') && D.latest && !document.activeElement?.matches('input,select')) render();
+    if ((S.tab === 'week' || S.tab === 'range') && D.latest && !document.activeElement?.matches('input,select')) { render(); ensure(); }
   }, 150);
 });

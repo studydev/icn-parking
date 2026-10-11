@@ -23,6 +23,10 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   assert.equal(fs.readFileSync(path.join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
   const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
   assert.doesNotMatch(html, /naver-site-verification|msvalidate\.01|__SITE_URL__|rel="canonical"/);
+  const fees = fs.readFileSync(path.join(out, 'fees.html'), 'utf8');
+  assert.match(fees, /id="fee-form"/);
+  assert.doesNotMatch(fees, /__SITE_URL__|rel="canonical"/);
+  for (const file of ['parking-fees.js', 'fees.js']) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), fs.readFileSync(path.join(root, 'web', file), 'utf8'));
   const context = { window: {} };
   vm.runInNewContext(fs.readFileSync(path.join(out, 'config.js'), 'utf8'), context);
   assert.equal(context.window.ICN_CONFIG.dataBase, './data/');
@@ -42,6 +46,8 @@ test('configured build injects search metadata, crawler files, data settings, an
   assert.match(html, /rel="canonical" href="https:\/\/parking\.example\.org\/"/);
   assert.match(html, /name="naver-site-verification" content="example-naver-token"/);
   assert.match(html, /name="msvalidate\.01" content="example-bing-token"/);
+  assert.match(fs.readFileSync(path.join(out, 'fees.html'), 'utf8'), /rel="canonical" href="https:\/\/parking\.example\.org\/fees\.html"/);
+  assert.match(fs.readFileSync(path.join(out, 'sitemap.xml'), 'utf8'), /<loc>https:\/\/parking\.example\.org\/fees\.html<\/loc>/);
   assert.match(fs.readFileSync(path.join(out, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/parking\.example\.org\/sitemap\.xml/);
   assert.match(fs.readFileSync(path.join(out, 'sitemap.xml'), 'utf8'), /<loc>https:\/\/parking\.example\.org\/<\/loc>/);
   const config = JSON.parse(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8'));
