@@ -26,6 +26,8 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   const context = { window: {} };
   vm.runInNewContext(fs.readFileSync(path.join(out, 'config.js'), 'utf8'), context);
   assert.equal(context.window.ICN_CONFIG.dataBase, './data/');
+  assert.equal(fs.readFileSync(path.join(out, 'forecast.js'), 'utf8'), fs.readFileSync(path.join(root, 'web/forecast.js'), 'utf8'));
+  assert(html.indexOf('src="forecast.js"') < html.indexOf('src="app.js"'), 'forecast model must load before the dashboard');
   assert.doesNotMatch(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8'), /blob\.core\.windows\.net/);
 });
 

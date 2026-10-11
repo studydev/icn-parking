@@ -1,0 +1,769 @@
+{
+  "model": "IGoTo calendar ridge v1",
+  "from": "2026-10-01",
+  "to": "2026-10-11",
+  "snapshotLastOkAt": "2026-10-11T02:05:00Z",
+  "origins": 42,
+  "skippedModels": 99,
+  "limitedSamples": 60381,
+  "protocol": "KST origins every 6h; fit only at/before origin; evaluate hourly targets 1–168h ahead available at snapshot cutoff; raw p/c; identical samples for each paired comparison; overlapping origins are not independent",
+  "snapshotDayHashes": {
+    "2026-10-01": "2cb3a4f4c173139b0331fd8261cd207d1f5b1d1a351a985fb851f90cdbfa05ea",
+    "2026-10-02": "43bde05e416dc3340c7cc7fe33de308b9fdac05fa7689fd6688070b201d78586",
+    "2026-10-03": "a6111feb33c4541e466265af26e0339630dee76ecb8d46f20256b9649f5c29a2",
+    "2026-10-04": "96391f8804bc463f22505efc7ec24cea50a8d930f1f3d3093b89a7646127338e",
+    "2026-10-05": "76a1618b3906d1cbbd45ffc006049e8918902f925242fb2372729b939705c1d6",
+    "2026-10-06": "96cc80070bafd9ffb62fd8624d1a28098b2d7018acac450ffb4b3accf08d6000",
+    "2026-10-07": "d38bc492c107387382766a49465ad2ddfef6044a496c2a967bcb99d7612899c1",
+    "2026-10-08": "902bf4a4a5f9709a2185e90ff98bf18f493f94da87456774b7a71a6bc2da5f62",
+    "2026-10-09": "7b2f1b7265eda072c15d69dc3aca8e289e8048e44f873354df58fbb80d9e9d5b",
+    "2026-10-10": "1e3812407bbc32249009c7e5e2a3a8aa340eaf1396ff58e9489b2e86e71743cc",
+    "2026-10-11": "0fcfb3d0070357bef01e469a28f49570efcda7d47ad6124611874b62ce4cdcc4"
+  },
+  "overall": {
+    "all": {
+      "igoto": {
+        "samples": 74328,
+        "maePp": 7.384,
+        "rmsePp": 11.725,
+        "nearFullPrecision": 0.766,
+        "nearFullRecall": 0.711
+      },
+      "persistence": {
+        "samples": 74328,
+        "maePp": 14.859,
+        "rmsePp": 20.485,
+        "nearFullPrecision": 0.451,
+        "nearFullRecall": 0.497
+      }
+    },
+    "common": {
+      "igoto": {
+        "samples": 9975,
+        "maePp": 4.525,
+        "rmsePp": 7.149,
+        "nearFullPrecision": 0.869,
+        "nearFullRecall": 0.818
+      },
+      "linked": {
+        "samples": 9975,
+        "maePp": 11.352,
+        "rmsePp": 16.214,
+        "nearFullPrecision": 0.642,
+        "nearFullRecall": 0.927
+      },
+      "previousWeek": {
+        "samples": 9975,
+        "maePp": 9.119,
+        "rmsePp": 12.817,
+        "nearFullPrecision": 0.735,
+        "nearFullRecall": 0.79
+      },
+      "persistence": {
+        "samples": 9975,
+        "maePp": 11.491,
+        "rmsePp": 16.078,
+        "nearFullPrecision": 0.66,
+        "nearFullRecall": 0.561
+      }
+    }
+  },
+  "byGroup": {
+    "T1/단기": {
+      "igoto": {
+        "samples": 15680,
+        "maePp": 8.569,
+        "rmsePp": 12.614,
+        "nearFullPrecision": 0.546,
+        "nearFullRecall": 0.491
+      },
+      "persistence": {
+        "samples": 15680,
+        "maePp": 19.259,
+        "rmsePp": 23.904,
+        "nearFullPrecision": 0.17,
+        "nearFullRecall": 0.222
+      },
+      "commonIgoto": {
+        "samples": 2132,
+        "maePp": 4.701,
+        "rmsePp": 6.127,
+        "nearFullPrecision": 0.605,
+        "nearFullRecall": 0.603
+      },
+      "linked": {
+        "samples": 2132,
+        "maePp": 14.015,
+        "rmsePp": 18.172,
+        "nearFullPrecision": 0.366,
+        "nearFullRecall": 0.93
+      }
+    },
+    "T1/장기·타워": {
+      "igoto": {
+        "samples": 19600,
+        "maePp": 6.006,
+        "rmsePp": 11.565,
+        "nearFullPrecision": 0.775,
+        "nearFullRecall": 0.804
+      },
+      "persistence": {
+        "samples": 19600,
+        "maePp": 12.445,
+        "rmsePp": 19.416,
+        "nearFullPrecision": 0.558,
+        "nearFullRecall": 0.602
+      },
+      "commonIgoto": {
+        "samples": 2665,
+        "maePp": 2.647,
+        "rmsePp": 4.053,
+        "nearFullPrecision": 0.914,
+        "nearFullRecall": 0.903
+      },
+      "linked": {
+        "samples": 2665,
+        "maePp": 10.145,
+        "rmsePp": 16.961,
+        "nearFullPrecision": 0.827,
+        "nearFullRecall": 0.967
+      }
+    },
+    "T1/예약": {
+      "igoto": {
+        "samples": 3920,
+        "maePp": 9.471,
+        "rmsePp": 10.867,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "persistence": {
+        "samples": 3920,
+        "maePp": 10.154,
+        "rmsePp": 12.522,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "commonIgoto": {
+        "samples": 533,
+        "maePp": 9.773,
+        "rmsePp": 10.748,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 533,
+        "maePp": 9.586,
+        "rmsePp": 11.909,
+        "nearFullPrecision": 0,
+        "nearFullRecall": null
+      }
+    },
+    "T2/단기": {
+      "igoto": {
+        "samples": 19600,
+        "maePp": 7.833,
+        "rmsePp": 12.013,
+        "nearFullPrecision": 0.724,
+        "nearFullRecall": 0.57
+      },
+      "persistence": {
+        "samples": 19600,
+        "maePp": 18.528,
+        "rmsePp": 24.191,
+        "nearFullPrecision": 0.227,
+        "nearFullRecall": 0.255
+      },
+      "commonIgoto": {
+        "samples": 2665,
+        "maePp": 4.494,
+        "rmsePp": 5.974,
+        "nearFullPrecision": 0.792,
+        "nearFullRecall": 0.691
+      },
+      "linked": {
+        "samples": 2665,
+        "maePp": 11.395,
+        "rmsePp": 16.136,
+        "nearFullPrecision": 0.58,
+        "nearFullRecall": 0.792
+      }
+    },
+    "T2/장기·타워": {
+      "igoto": {
+        "samples": 11760,
+        "maePp": 5.523,
+        "rmsePp": 7.77,
+        "nearFullPrecision": 0.901,
+        "nearFullRecall": 0.726
+      },
+      "persistence": {
+        "samples": 11760,
+        "maePp": 9.383,
+        "rmsePp": 11.619,
+        "nearFullPrecision": 0.597,
+        "nearFullRecall": 0.624
+      },
+      "commonIgoto": {
+        "samples": 1599,
+        "maePp": 2.022,
+        "rmsePp": 2.485,
+        "nearFullPrecision": 0.984,
+        "nearFullRecall": 0.861
+      },
+      "linked": {
+        "samples": 1599,
+        "maePp": 8.462,
+        "rmsePp": 10.677,
+        "nearFullPrecision": 0.619,
+        "nearFullRecall": 0.996
+      }
+    },
+    "T2/예약": {
+      "igoto": {
+        "samples": 3768,
+        "maePp": 10.914,
+        "rmsePp": 17.09,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "persistence": {
+        "samples": 3768,
+        "maePp": 12.005,
+        "rmsePp": 17.612,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "commonIgoto": {
+        "samples": 381,
+        "maePp": 20.067,
+        "rmsePp": 23.999,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 381,
+        "maePp": 19.189,
+        "rmsePp": 22.903,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    }
+  },
+  "byTargetDate": {
+    "2026-10-02": {
+      "igoto": {
+        "samples": 627,
+        "maePp": 8.61,
+        "rmsePp": 14.017,
+        "nearFullPrecision": 1,
+        "nearFullRecall": 0.653
+      },
+      "persistence": {
+        "samples": 627,
+        "maePp": 9.339,
+        "rmsePp": 14.903,
+        "nearFullPrecision": 0.844,
+        "nearFullRecall": 0.7
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-03": {
+      "igoto": {
+        "samples": 2432,
+        "maePp": 16.439,
+        "rmsePp": 23.559,
+        "nearFullPrecision": 0.948,
+        "nearFullRecall": 0.38
+      },
+      "persistence": {
+        "samples": 2432,
+        "maePp": 13.792,
+        "rmsePp": 20.043,
+        "nearFullPrecision": 0.858,
+        "nearFullRecall": 0.5
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-04": {
+      "igoto": {
+        "samples": 4256,
+        "maePp": 14.259,
+        "rmsePp": 21.883,
+        "nearFullPrecision": 0.893,
+        "nearFullRecall": 0.476
+      },
+      "persistence": {
+        "samples": 4256,
+        "maePp": 12.336,
+        "rmsePp": 18,
+        "nearFullPrecision": 0.772,
+        "nearFullRecall": 0.561
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-05": {
+      "igoto": {
+        "samples": 6080,
+        "maePp": 10.48,
+        "rmsePp": 15.43,
+        "nearFullPrecision": 0.311,
+        "nearFullRecall": 0.671
+      },
+      "persistence": {
+        "samples": 6080,
+        "maePp": 11.926,
+        "rmsePp": 16.031,
+        "nearFullPrecision": 0.272,
+        "nearFullRecall": 0.742
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-06": {
+      "igoto": {
+        "samples": 7904,
+        "maePp": 7.968,
+        "rmsePp": 10.597,
+        "nearFullPrecision": 0.203,
+        "nearFullRecall": 0.783
+      },
+      "persistence": {
+        "samples": 7904,
+        "maePp": 17.601,
+        "rmsePp": 23.326,
+        "nearFullPrecision": 0.058,
+        "nearFullRecall": 0.708
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-07": {
+      "igoto": {
+        "samples": 9728,
+        "maePp": 6.307,
+        "rmsePp": 8.455,
+        "nearFullPrecision": 0.62,
+        "nearFullRecall": 0.808
+      },
+      "persistence": {
+        "samples": 9728,
+        "maePp": 17.41,
+        "rmsePp": 24.129,
+        "nearFullPrecision": 0.167,
+        "nearFullRecall": 0.638
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "2026-10-08": {
+      "igoto": {
+        "samples": 11552,
+        "maePp": 6.096,
+        "rmsePp": 8.428,
+        "nearFullPrecision": 0.907,
+        "nearFullRecall": 0.643
+      },
+      "persistence": {
+        "samples": 11552,
+        "maePp": 14.138,
+        "rmsePp": 19.7,
+        "nearFullPrecision": 0.362,
+        "nearFullRecall": 0.614
+      },
+      "commonIgoto": {
+        "samples": 627,
+        "maePp": 4.552,
+        "rmsePp": 6.613,
+        "nearFullPrecision": 0.98,
+        "nearFullRecall": 0.797
+      },
+      "linked": {
+        "samples": 627,
+        "maePp": 4.541,
+        "rmsePp": 7.583,
+        "nearFullPrecision": 0.816,
+        "nearFullRecall": 0.902
+      }
+    },
+    "2026-10-09": {
+      "igoto": {
+        "samples": 12733,
+        "maePp": 6.674,
+        "rmsePp": 10.936,
+        "nearFullPrecision": 0.843,
+        "nearFullRecall": 0.773
+      },
+      "persistence": {
+        "samples": 12733,
+        "maePp": 14.845,
+        "rmsePp": 20,
+        "nearFullPrecision": 0.684,
+        "nearFullRecall": 0.442
+      },
+      "commonIgoto": {
+        "samples": 2416,
+        "maePp": 4.958,
+        "rmsePp": 7.911,
+        "nearFullPrecision": 0.853,
+        "nearFullRecall": 0.805
+      },
+      "linked": {
+        "samples": 2416,
+        "maePp": 8.028,
+        "rmsePp": 11.978,
+        "nearFullPrecision": 0.8,
+        "nearFullRecall": 0.85
+      }
+    },
+    "2026-10-10": {
+      "igoto": {
+        "samples": 12680,
+        "maePp": 5.44,
+        "rmsePp": 8.706,
+        "nearFullPrecision": 0.932,
+        "nearFullRecall": 0.785
+      },
+      "persistence": {
+        "samples": 12680,
+        "maePp": 15.404,
+        "rmsePp": 21.035,
+        "nearFullPrecision": 0.703,
+        "nearFullRecall": 0.407
+      },
+      "commonIgoto": {
+        "samples": 4168,
+        "maePp": 4.567,
+        "rmsePp": 7.286,
+        "nearFullPrecision": 0.957,
+        "nearFullRecall": 0.793
+      },
+      "linked": {
+        "samples": 4168,
+        "maePp": 12.269,
+        "rmsePp": 16.858,
+        "nearFullPrecision": 0.708,
+        "nearFullRecall": 0.958
+      }
+    },
+    "2026-10-11": {
+      "igoto": {
+        "samples": 6336,
+        "maePp": 4.784,
+        "rmsePp": 7.666,
+        "nearFullPrecision": 0.666,
+        "nearFullRecall": 0.942
+      },
+      "persistence": {
+        "samples": 6336,
+        "maePp": 13.234,
+        "rmsePp": 17.679,
+        "nearFullPrecision": 0.414,
+        "nearFullRecall": 0.552
+      },
+      "commonIgoto": {
+        "samples": 2764,
+        "maePp": 4.078,
+        "rmsePp": 6.307,
+        "nearFullPrecision": 0.683,
+        "nearFullRecall": 0.932
+      },
+      "linked": {
+        "samples": 2764,
+        "maePp": 14.42,
+        "rmsePp": 19.537,
+        "nearFullPrecision": 0.381,
+        "nearFullRecall": 0.955
+      }
+    }
+  },
+  "byLead": {
+    "1–24h": {
+      "igoto": {
+        "samples": 16016,
+        "maePp": 6.079,
+        "rmsePp": 9.722,
+        "nearFullPrecision": 0.779,
+        "nearFullRecall": 0.722
+      },
+      "persistence": {
+        "samples": 16016,
+        "maePp": 9.736,
+        "rmsePp": 13.677,
+        "nearFullPrecision": 0.633,
+        "nearFullRecall": 0.652
+      },
+      "commonIgoto": {
+        "samples": 5072,
+        "maePp": 4.148,
+        "rmsePp": 6.316,
+        "nearFullPrecision": 0.866,
+        "nearFullRecall": 0.827
+      },
+      "linked": {
+        "samples": 5072,
+        "maePp": 6.901,
+        "rmsePp": 10.348,
+        "nearFullPrecision": 0.744,
+        "nearFullRecall": 0.925
+      }
+    },
+    "25–72h": {
+      "igoto": {
+        "samples": 26696,
+        "maePp": 8.625,
+        "rmsePp": 13.813,
+        "nearFullPrecision": 0.701,
+        "nearFullRecall": 0.605
+      },
+      "persistence": {
+        "samples": 26696,
+        "maePp": 16.874,
+        "rmsePp": 22.721,
+        "nearFullPrecision": 0.369,
+        "nearFullRecall": 0.378
+      },
+      "commonIgoto": {
+        "samples": 4808,
+        "maePp": 4.904,
+        "rmsePp": 7.898,
+        "nearFullPrecision": 0.876,
+        "nearFullRecall": 0.806
+      },
+      "linked": {
+        "samples": 4808,
+        "maePp": 15.877,
+        "rmsePp": 20.549,
+        "nearFullPrecision": 0.569,
+        "nearFullRecall": 0.927
+      }
+    },
+    "73–168h": {
+      "igoto": {
+        "samples": 31616,
+        "maePp": 6.996,
+        "rmsePp": 10.687,
+        "nearFullPrecision": 0.804,
+        "nearFullRecall": 0.79
+      },
+      "persistence": {
+        "samples": 31616,
+        "maePp": 15.753,
+        "rmsePp": 21.35,
+        "nearFullPrecision": 0.422,
+        "nearFullRecall": 0.508
+      },
+      "commonIgoto": {
+        "samples": 95,
+        "maePp": 5.504,
+        "rmsePp": 8.921,
+        "nearFullPrecision": 0.667,
+        "nearFullRecall": 0.968
+      },
+      "linked": {
+        "samples": 95,
+        "maePp": 19.994,
+        "rmsePp": 22.675,
+        "nearFullPrecision": 0.419,
+        "nearFullRecall": 1
+      }
+    }
+  },
+  "byCondition": {
+    "평일": {
+      "igoto": {
+        "samples": 95,
+        "maePp": 6.654,
+        "rmsePp": 10.563,
+        "nearFullPrecision": 1,
+        "nearFullRecall": 0.76
+      },
+      "persistence": {
+        "samples": 95,
+        "maePp": 7.919,
+        "rmsePp": 11.191,
+        "nearFullPrecision": 1,
+        "nearFullRecall": 0.6
+      },
+      "commonIgoto": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      },
+      "linked": {
+        "samples": 0,
+        "maePp": null,
+        "rmsePp": null,
+        "nearFullPrecision": null,
+        "nearFullRecall": null
+      }
+    },
+    "연휴 전날 오후": {
+      "igoto": {
+        "samples": 6536,
+        "maePp": 6.473,
+        "rmsePp": 9.375,
+        "nearFullPrecision": 0.977,
+        "nearFullRecall": 0.632
+      },
+      "persistence": {
+        "samples": 6536,
+        "maePp": 11.965,
+        "rmsePp": 16.384,
+        "nearFullPrecision": 0.509,
+        "nearFullRecall": 0.618
+      },
+      "commonIgoto": {
+        "samples": 532,
+        "maePp": 4.626,
+        "rmsePp": 6.655,
+        "nearFullPrecision": 0.976,
+        "nearFullRecall": 0.776
+      },
+      "linked": {
+        "samples": 532,
+        "maePp": 4.668,
+        "rmsePp": 7.773,
+        "nearFullPrecision": 0.812,
+        "nearFullRecall": 0.888
+      }
+    },
+    "공휴일 연휴": {
+      "igoto": {
+        "samples": 44517,
+        "maePp": 7.832,
+        "rmsePp": 13.145,
+        "nearFullPrecision": 0.792,
+        "nearFullRecall": 0.714
+      },
+      "persistence": {
+        "samples": 44517,
+        "maePp": 14.079,
+        "rmsePp": 19.312,
+        "nearFullPrecision": 0.6,
+        "nearFullRecall": 0.474
+      },
+      "commonIgoto": {
+        "samples": 9348,
+        "maePp": 4.524,
+        "rmsePp": 7.184,
+        "nearFullPrecision": 0.865,
+        "nearFullRecall": 0.818
+      },
+      "linked": {
+        "samples": 9348,
+        "maePp": 11.809,
+        "rmsePp": 16.633,
+        "nearFullPrecision": 0.638,
+        "nearFullRecall": 0.927
+      }
+    },
+    "연결 휴가 후보": {
+      "igoto": {
+        "samples": 23180,
+        "maePp": 6.782,
+        "rmsePp": 9.152,
+        "nearFullPrecision": 0.496,
+        "nearFullRecall": 0.754
+      },
+      "persistence": {
+        "samples": 23180,
+        "maePp": 17.201,
+        "rmsePp": 23.517,
+        "nearFullPrecision": 0.138,
+        "nearFullRecall": 0.646
+      },
+      "commonIgoto": {
+        "samples": 95,
+        "maePp": 4.134,
+        "rmsePp": 6.372,
+        "nearFullPrecision": 1,
+        "nearFullRecall": 0.938
+      },
+      "linked": {
+        "samples": 95,
+        "maePp": 3.828,
+        "rmsePp": 6.411,
+        "nearFullPrecision": 0.842,
+        "nearFullRecall": 1
+      }
+    }
+  }
+}

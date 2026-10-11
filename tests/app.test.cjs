@@ -45,19 +45,26 @@ function dayDoc(date, today) {
   return { v: 1, date, zones: Object.fromEntries(ZONES.map(z => [z.id, { p: fill(p[z.id]), c: cap }])) };
 }
 
-async function runtime(hash = '#week/T1') {
-  const today = ymd(kst()), start = addDays(today, -35);
+async function runtime(hash = '#week/T1', options = {}) {
+  const clock = { value: options.now ? Date.parse(options.now) : Date.now() };
+  class ClockDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [clock.value])); }
+    static now() { return clock.value; }
+  }
+  const today = ymd(new Date(clock.value + 9 * 3600e3)), start = options.start || addDays(today, -35);
+  const zones = options.zones || ZONES;
+  const documentOfDay = date => options.dayDoc ? options.dayDoc(date, today) : dayDoc(date, date === today);
   const days = {};
-  for (let k = 0; k <= 35; k++) days[addDays(start, k)] = { T1: { max: 0.9 } };
+  for (let date = start; date <= today; date = addDays(date, 1)) days[date] = { T1: { max: 0.9 } };
   const files = {
-    'latest.json': { start, last_ok_at: new Date().toISOString(), zones: ZONES.map(z => ({ ...z, p: dayDoc(today, true).zones[z.id].p[0], c: 100 })) },
-    'calendar.json': { start, days, holidays: {} }
+    'latest.json': { start, last_ok_at: new Date(clock.value).toISOString(), zones: zones.map(z => ({ ...z, p: documentOfDay(today).zones[z.id].p[0], c: 100 })) },
+    'calendar.json': { start, days, holidays: options.holidays || {} }
   };
-  const elements = new Map(['status', 'terms', 'tabs', 'foot-start', 'view', 'layout-toggle'].map(id => [id, { innerHTML: '', textContent: '', setAttribute(k, v) { this[k] = v; } }]));
+  const elements = new Map(['status', 'terms', 'tabs', 'foot-start', 'view', 'layout-toggle', 'overlay'].map(id => [id, { innerHTML: '', textContent: '', setAttribute(k, v) { this[k] = v; } }]));
   const listeners = {};
-  const stored = new Map(), bodyClasses = new Set();
+  const stored = new Map(options.stored || []), bodyClasses = new Set(), requested = [];
   const ctx = vm.createContext({
-    console, Date, Math, JSON, Promise, Map, Set, Array, Object, Number, String, isNaN, Infinity,
+    console, Date: ClockDate, Math, JSON, Promise, Map, Set, Array, Object, Number, String, isNaN, Infinity,
     window: { innerWidth: 1280, addEventListener: () => {}, matchMedia: () => ({ matches: false }) },
     location: { hash },
     history: { replaceState: (a, b, h) => { ctx.location.hash = h; } },
@@ -72,16 +79,18 @@ async function runtime(hash = '#week/T1') {
     },
     fetch: async url => {
       const name = url.replace('./data/', '');
+      requested.push(name);
       const m = /^days\/(\d{4}-\d{2}-\d{2})\.json$/.exec(name);
-      const body = m ? dayDoc(m[1], m[1] === today) : files[name];
+      const body = m ? documentOfDay(m[1]) : files[name];
       return { ok: !!body, status: body ? 200 : 404, json: async () => JSON.parse(JSON.stringify(body)) };
     }
   });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/forecast.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8'), ctx);
   const run = code => vm.runInContext(code, ctx);
   for (let i = 0; i < 20 && run('D.pending.size || !D.latest'); i++) await new Promise(r => setImmediate(r));
   await run('ensure()');
-  return { run, elements, listeners, today, stored, bodyClasses };
+  return { run, elements, listeners, today, stored, bodyClasses, clock, requested };
 }
 
 test('mobile/desktop layout toggle updates the shell and persists the choice', async () => {
@@ -201,6 +210,133 @@ test('week controls put comparison first and connected forecast is a toggle', as
   assert.match(elements.get('view').innerHTML, /<span class="zc-p"[^>]*>가용 20대<\/span>/);
 });
 
+const HOLIDAYS_2026 = { '2026-10-03': '개천절', '2026-10-05': '대체공휴일', '2026-10-09': '한글날' };
+const SUNDAY = { now: '2026-10-11T11:00:00+09:00', holidays: HOLIDAYS_2026 };
+
+test('Sunday defaults to three complete following dates and IGoTo works without a comparison week', async () => {
+  const { run, elements, requested } = await runtime('#week/T1', SUNDAY);
+  assert.equal(run('S.futureDays'), 3);
+  assert.equal(run('S.igoto'), true);
+  assert.equal(run('weekCfg().nd'), 10);
+  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-14');
+  run('S.cmp = 0; renderWeek()');
+  const forecast = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|s1').values)"));
+  assert.equal(forecast.slice(7 * DAY, 10 * DAY).length, 3 * DAY);
+  assert(forecast.slice(7 * DAY, 10 * DAY).every(value => Number.isFinite(value)));
+  assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
+  assert.match(elements.get('view').innerHTML, /data-a="igoto"/);
+  assert.match(elements.get('view').innerHTML, /내일부터 3일/);
+  assert(requested.filter(name => name.startsWith('days/')).every(name => name.slice(5, 15) <= '2026-10-11'), 'future day records must never be fetched');
+  assert.equal(run("neededDays().filter(date => date <= D.now.date && date >= addDays(D.now.date, -27)).length") >= 28, true);
+});
+
+test('seven-day selection spans the next week, stays capped, and persists across a reload', async () => {
+  const { run, listeners, stored } = await runtime('#week/T1', SUNDAY);
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '7' } }) } });
+  await run('ensure()');
+  assert.equal(run('S.futureDays'), 7);
+  assert.equal(run('weekCfg().nd'), 14);
+  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-18');
+  const values = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|l1').values)"));
+  assert(values.slice(7 * DAY, 14 * DAY).every(value => Number.isFinite(value) && value <= 1));
+  assert.equal(stored.get('icn.forecastDays'), '7');
+  assert.throws(() => listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '8' } }) } }), /3·5·7/);
+  const again = await runtime('#week/T1', { ...SUNDAY, stored: [...stored] });
+  assert.equal(again.run('S.futureDays'), 7);
+  assert.equal(again.run('weekCfg().nd'), 14);
+});
+
+test('IGoTo future-only zoom, tooltip, overview, category hit and overflow/availability retain useful predictions', async () => {
+  const { run, elements } = await runtime('#week/T1', SUNDAY);
+  run('S.cmp = 0; S.win = [7 * DAY, 10 * DAY]; renderWeek(); S.hf = .2; renderOverlay();');
+  assert.equal(run('WM.hasData'), true);
+  assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
+  assert.match(elements.get('view').innerHTML, /IGoTo 예측/);
+  assert.match(elements.get('overlay').innerHTML, /참고 예측/);
+  assert.match(elements.get('overlay').innerHTML, /IGoTo \d+%/);
+  run("hitLine(.2, WM.yv(WM.forecasts.get('igoto|s1').values[WM.a + Math.round(.2 * WM.span)]) / H);");
+  assert.equal(run("S.act['단기']"), false, 'clicking a future forecast line toggles its category');
+  assert.match(run("overviewHtml('T1', weekCfg())"), /stroke-dasharray:9 3 2 3/);
+  assert.doesNotThrow(() => run('S.win = [0, 144]; renderWeek()'), 'historical zoom must not allocate a negative-sized forecast segment');
+  run('S.win = [0, weekEnd()]; S.over = true; D.cache.clear(); renderWeek();');
+  assert(run("WM.forecasts.get('igoto|l1').values[WM.nowG]") > 1);
+  assert(run('WM.hi') > 1, 'axis must include overflowing forecast values');
+  run("S.metric = 'avail'; renderWeek();");
+  const available = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|l1').values.filter(value => value != null))"));
+  assert(available.every(value => value >= 0 && value <= 100 && Number.isFinite(value)));
+});
+
+test('forecast drawing ends at the selected horizon, even when the weekly frame is longer', async () => {
+  const { run } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-12T11:00:00+09:00' });
+  const values = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|s1').values)"));
+  assert.equal(run('weekCfg().nd'), 7);
+  assert(values.slice(DAY, 4 * DAY).every(value => value != null));
+  assert(values.slice(4 * DAY).every(value => value == null));
+});
+
+test('calendar/observations errors are visible and disabling IGoTo leaves linked forecasts unchanged', async () => {
+  const { run, elements, listeners, stored } = await runtime('#week/T1', SUNDAY);
+  run("D.cal.holidays = {}; D.cache.clear(); S.linkedForecast = true; renderWeek();");
+  assert.equal(run("WM.lines.filter(line => line.model === 'igoto').length"), 0);
+  assert.equal(run("WM.lines.filter(line => line.model === 'linked' && line.d).length"), 3);
+  assert.match(elements.get('view').innerHTML, /공휴일 달력이 없어/);
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'igoto' }, checked: false }) } });
+  assert.equal(run('S.igoto'), false);
+  assert.equal(stored.get('icn.igoto'), '0');
+  assert.equal(run("chartModel(weekCfg()).lines.filter(line => line.model === 'igoto').length"), 0);
+});
+
+test('midnight into Monday resizes the extended week without forgetting future-day preference', async () => {
+  const { run, listeners, clock } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-11T23:55:00+09:00' });
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '7' } }) } });
+  await run('ensure()');
+  assert.equal(run('weekCfg().nd'), 14);
+  clock.value = Date.parse('2026-10-12T00:05:00+09:00');
+  await run('refresh(false)');
+  assert.equal(run('S.futureDays'), 7);
+  assert.equal(run('weekCfg().nd'), 8);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(weekCfg().win)')), [0, 8 * DAY]);
+  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-19');
+});
+
+test('a first-week collection trim does not hide the first future days after Monday rollover', async () => {
+  const { run, clock } = await runtime('#week/T1', { ...SUNDAY, start: '2026-10-08' });
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [3 * DAY, 10 * DAY]);
+  clock.value = Date.parse('2026-10-12T00:05:00+09:00');
+  await run('refresh(false)');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [0, 7 * DAY]);
+});
+
+test('T2 has its own complete forecast paths and failure notices identify missing history', async () => {
+  const zones = ZONES.map(zone => ({ ...zone, terminal: 'T2', id: 't2-' + zone.id }));
+  const t2Day = (date, today) => {
+    const doc = dayDoc(date, date === today);
+    return { ...doc, zones: Object.fromEntries(Object.entries(doc.zones).map(([id, zone]) => ['t2-' + id, zone])) };
+  };
+  const { run, elements } = await runtime('#week/T2', { ...SUNDAY, zones, dayDoc: t2Day });
+  assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
+  assert.equal(run("WM.forecasts.get('igoto|t2-l1').values.slice(7 * DAY).filter(value => value != null).length"), 3 * DAY);
+  run("D.retry.set(addDays(D.now.date, -1), Date.now()); renderWeek();");
+  assert.match(elements.get('view').innerHTML, /예측용 기록 1일을 불러오지 못했습니다/);
+});
+
+test('data guide distinguishes the existing six-hour forecast from the holiday-aware model and its limits', async () => {
+  const { run, elements } = await runtime();
+  run('renderAbout()');
+  assert.match(elements.get('view').innerHTML, /IGoTo 예측/);
+  assert.match(elements.get('view').innerHTML, /미래 3일\(기본\)·5일·7일/);
+  assert.match(elements.get('view').innerHTML, /하단 6시간 예상/);
+  assert.match(elements.get('view').innerHTML, /연결 휴가 후보는 실제 공휴일/);
+});
+
+test('future tooltip is clamped to the viewport instead of overflowing a narrow mobile page', async () => {
+  const { run, elements } = await runtime('#week/T1', SUNDAY);
+  const tip = { style: { left: '54%' }, getBoundingClientRect: () => ({ left: 190, right: 430 }) };
+  elements.get('overlay').querySelector = () => tip;
+  run('window.innerWidth = 320; S.hf = .54; renderOverlay()');
+  assert.equal(tip.style.left, 'calc(54% + -118px)');
+});
+
 test('category controls retain separate graph lines for every selected parking zone', async () => {
   const { run, today, elements } = await runtime();
   let model = JSON.parse(run('JSON.stringify(chartModel(weekCfg()).lines.map(l => [l.z, l.cmp]))'));
@@ -232,8 +368,8 @@ test('period buttons extend the continuous chart up to four weeks back', async (
   const { run, listeners } = await runtime();
   listeners.click({ target: { closest: () => ({ dataset: { a: 'weeks', v: '4' } }) } });
   const c = JSON.parse(run('JSON.stringify(weekCfg())'));
-  assert.equal(c.nd, 28);
-  assert.deepEqual(c.win, [0, 28 * DAY]);
+  assert.equal(c.nd, 21 + run('weekEnd()') / DAY);
+  assert.deepEqual(c.win, [0, c.nd * DAY]);
   assert.equal(c.d0, run("addDays(weekStart(), -21)"));
   run('S.weeks = 1; S.win = [0, 2016]; panWin(-1); panWin(-1);');
   assert(run('S.weeks') >= 2, 'panning back past this week extends the period');

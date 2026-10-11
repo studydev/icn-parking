@@ -34,6 +34,14 @@ async function verify() {
   const site = directory(siteValue), data = directory(dataValue);
   const index = await read('Website', site, /text\/html/i);
   if (!index.includes('id="view"')) throw new Error('Website: dashboard markup not found');
+  if (!index.includes('src="forecast.js"') || index.indexOf('src="forecast.js"') > index.indexOf('src="app.js"')) {
+    throw new Error('Website: parking forecast script is missing or loads after the dashboard');
+  }
+  for (const file of ['forecast.js', 'app.js']) {
+    const deployed = await read(file, new URL(file, site), /javascript/i);
+    const expected = await readFile(new URL('../web/' + file, import.meta.url), 'utf8');
+    if (deployed !== expected) throw new Error(`${file}: deployed forecast code does not match the source`);
+  }
   if (!index.includes('href="operations.html"')) throw new Error('Website: operating costs link not found');
   const operations = await read('Operating costs', new URL('operations.html', site), /text\/html/i);
   const expectedOperations = await readFile(new URL('../web/operations.html', import.meta.url), 'utf8');
@@ -70,7 +78,7 @@ try {
     }
   }
   if (failure) throw failure;
-  console.log('Deployment verified: website, operating costs reference and image, crawler files, configuration, and public data are responding.');
+  console.log('Deployment verified: website, parking forecast code, operating costs reference and image, crawler files, configuration, and public data are responding.');
 } catch (error) {
   console.error(`Deployment verification failed: ${error.message}`);
   process.exitCode = 1;
