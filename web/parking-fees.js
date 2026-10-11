@@ -59,6 +59,12 @@ const ParkingFees = (() => {
     if (!Number.isFinite(timestamp) || new Date(timestamp + 9 * 3600000).toISOString().slice(0, 16) !== value) throw new InputError('실제로 존재하는 한국시간 날짜와 시각을 입력해 주세요.');
     return timestamp;
   }
+  function duration(entry, exit) {
+    const start = parseKst(entry), end = parseKst(exit);
+    if (end < start) throw new InputError('출차 시각은 입차 시각 이후여야 합니다.');
+    const minutes = (end - start) / 60000;
+    return { minutes, days: Math.floor(minutes / 1440), hours: Math.floor(minutes % 1440 / 60), remainingMinutes: minutes % 60 };
+  }
   function monthIndex(value) {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value || '')) throw new InputError('카드 발급·사용등록 월을 YYYY-MM 형식으로 확인해 주세요.');
     return Number(value.slice(0, 4)) * 12 + Number(value.slice(5, 7)) - 1;
@@ -72,9 +78,7 @@ const ParkingFees = (() => {
   }
   function baseFees({ location = 'long', vehicle = {}, entry, exit }) {
     const place = choice(location, Object.keys(tariffs), '주차장', 'long');
-    const start = parseKst(entry), end = parseKst(exit);
-    if (end < start) throw new InputError('출차 시각은 입차 시각 이후여야 합니다.');
-    const minutes = (end - start) / 60000, size = vehicleClass(vehicle), tariff = tariffs[place];
+    const { minutes } = duration(entry, exit), size = vehicleClass(vehicle), tariff = tariffs[place];
     const warnings = ['2026-10-11 확인 요금표이며 정책 시행일은 미확인입니다. 결제 시 최신 정책을 확인하세요.'];
     if (entry.slice(0, 10) < checkedAt) warnings.push('과거 이용기간에 현재 요금표를 적용한 재현 가정입니다. 당시 정책 적용 여부는 미확인입니다.');
     let unsupported = '';
@@ -320,7 +324,7 @@ const ParkingFees = (() => {
     if (!scenarios.length) throw new InputError('카드 승인액은 가능한 정산 결제액을 초과할 수 없습니다.');
     return { base, scenarios, warnings: [...new Set(warnings)], checkedAt, effectiveFrom: null };
   }
-  return Object.freeze({ checkedAt, effectiveFrom: null, sources, tariffs, qualifications, cards, InputError, parseKst, vehicleClass, baseFees, airportScenarios, cardBenefit, calculate });
+  return Object.freeze({ checkedAt, effectiveFrom: null, sources, tariffs, qualifications, cards, InputError, parseKst, duration, vehicleClass, baseFees, airportScenarios, cardBenefit, calculate });
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = ParkingFees;

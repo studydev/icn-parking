@@ -37,8 +37,9 @@ const num = n => (Math.round(n) || 0).toLocaleString('ko-KR');
 const pad = n => String(n).padStart(2, '0');
 const slotLabel = s => pad(Math.floor(s / 12)) + ':' + pad((s % 12) * 5);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const feeHref = () => `fees.html?terminal=${S.term}`;
 const DAY_MS = 864e5;
-const OCC_COLORS = [[0, '#2e9d6a'], [0.70, '#2e9d6a'], [0.86, '#2d6c9b'], [0.90, '#2d6c9b'], [0.925, '#854b69'], [0.95, '#ac2834'], [0.975, '#a82230'], [1, '#a3222e']];
+const { color: occColor, tint: occTint, contrast: contrastText, bands: OCC_BANDS } = ParkingOccupancy;
 const ymd = d => d.toISOString().slice(0, 10);
 const addDays = (s, n) => ymd(new Date(Date.parse(s + 'T00:00:00Z') + n * DAY_MS));
 const daysBetween = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / DAY_MS);
@@ -48,28 +49,6 @@ const mdw = s => `${md(s)}(${DOW[dowOf(s)]})`;
 const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !isNaN(Date.parse(s + 'T00:00:00Z'));
 const monthEnd = ym => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`; };
 const ymLabel = ym => `${+ym.slice(0, 4)}년 ${+ym.slice(5, 7)}월`;
-function occColor(v) {
-  v = clamp(v, 0, 1);
-  let i = 1;
-  while (i < OCC_COLORS.length && v > OCC_COLORS[i][0]) i++;
-  const [lo, ca] = OCC_COLORS[i - 1], [hi, cb] = OCC_COLORS[i];
-  const raw = hi === lo ? 1 : (v - lo) / (hi - lo);
-  const t = raw * raw * (3 - 2 * raw);
-  const linear = x => { x /= 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
-  const srgb = x => Math.round(255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055));
-  const a = ca.slice(1).match(/../g).map(x => linear(parseInt(x, 16))), b = cb.slice(1).match(/../g).map(x => linear(parseInt(x, 16)));
-  return '#' + a.map((x, k) => srgb(x + (b[k] - x) * t).toString(16).padStart(2, '0')).join('');
-}
-const occTint = v => {
-  const color = occColor(v).slice(1).match(/../g).map(x => parseInt(x, 16));
-  return '#' + color.map(x => Math.round(x * 0.28 + 255 * 0.72).toString(16).padStart(2, '0')).join('');
-};
-const contrastText = hex => {
-  const c = hex.slice(1).match(/../g).map(x => parseInt(x, 16) / 255).map(x => x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
-  const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-  return l > 0.179 ? INK : '#fff';
-};
-const occupancyLegendHtml = () => `<span class="occ-legend">${OCC_BANDS.slice().reverse().map(([mn, l]) => `<span><i style="background:${occColor(mn)}"></i>${l}${mn ? ' ' + Math.round(mn * 100) + '%+' : ''}</span>`).join('')}</span>`;
 const slotRange = (date, i) => {
   const dayOffset = Math.floor(i / DAY), slot = ((i % DAY) + DAY) % DAY;
   return { date: addDays(date, dayOffset), slot };
@@ -78,8 +57,6 @@ const niceCeil = x => { if (!(x > 0)) return 10; const m = Math.pow(10, Math.flo
 /* 100% 초과 표시를 켰을 때 최고값 위로 여유를 둔 Y축 상한 */
 const occTop = mx => S.over && mx > 1 ? Math.ceil((mx + 0.03) * 20) / 20 : 1;
 const HATCH = 'repeating-linear-gradient(45deg,#c9ced4 0 2px,#fff 2px 4px)';
-/* occupancy status bands: [min, label, color, tint] */
-const OCC_BANDS = [[0.98, '만차'], [0.95, '매우 혼잡'], [0.90, '혼잡'], [0.70, '보통'], [0, '여유']];
 const occBand = v => OCC_BANDS.find(b => v >= b[0]);
 /* plot background per day: weekday pastel / weekend·holiday pastel red */
 const isOffDay = (date, hol) => { const dw = dowOf(date); return dw === 0 || dw === 6 || !!hol[date]; };
@@ -135,7 +112,6 @@ function applyLayout() {
   const mode = layoutMode(), body = document.body;
   body?.classList?.toggle('layout-mobile', mode === 'mobile');
   body?.classList?.toggle('layout-desktop', mode === 'desktop');
-  body?.classList?.toggle('parking-compact', compactMobile());
   const button = document.getElementById('layout-toggle');
   if (button) {
     button.textContent = mode === 'mobile' ? '데스크톱 보기' : '모바일 보기';
@@ -348,7 +324,9 @@ function renderHeader() {
     .map(([id, l]) => `<button data-a="term" data-v="${id}" class="${id === S.term ? 'on' : ''}" aria-pressed="${id === S.term}">${l}</button>`).join('');
   const mobile = layoutMode() === 'mobile';
   const tabButton = ([id, label, mobileLabel]) => `<button data-a="tab" data-v="${id}" class="${id === S.tab ? 'on' : ''}" aria-current="${id === S.tab ? 'page' : 'false'}">${mobile ? mobileLabel : label}</button>`;
-  document.getElementById('tabs').innerHTML = `${TABS.map(tabButton).join('')}<a href="fees.html">주차요금</a>`;
+  document.getElementById('tabs').innerHTML = `${TABS.map(tabButton).join('')}<a href="${feeHref()}">주차요금</a>`;
+  document.getElementById('fee-link').href = feeHref();
+  document.getElementById('occupancy-scale').innerHTML = ParkingOccupancy.scaleHtml;
   const s = startDate();
   document.getElementById('foot-start').textContent = `${s}부터 5분 간격 수집`;
 }
@@ -670,6 +648,11 @@ function igotoNotice(term) {
   </div>`;
 }
 
+const compactSlots = () => Array.from({ length: 9 }, (_, index) => {
+  const minutes = (index + 1) * 20;
+  return { ...slotRange(D.now.date, D.now.idx + minutes / 5), minutes };
+});
+
 function compactParking(term, gid) {
   const stale = !!D.err || D.latest?.stale || latestAge() > 15;
   const zones = zonesFor(term, gid).map(zone => {
@@ -682,8 +665,7 @@ function compactParking(term, gid) {
     if (stale) failures.push('수집이 지연되어 미래 예상을 잠시 표시하지 않습니다.');
     if (model && !model.ok) failures.push(model.why);
     if (model?.ok && model.anchor.capacity !== zone.c) failures.push('최신 면수와 예측 기준 면수가 달라 확인이 필요합니다.');
-    const cells = Array.from({ length: 9 }, (_, index) => {
-      const minutes = (index + 1) * 20, at = slotRange(D.now.date, D.now.idx + minutes / 5);
+    const cells = compactSlots().map(({ minutes, ...at }) => {
       if (failures.length) return { ...at, minutes, occupancy: null, available: null };
       const prediction = IGoTo.predict(model, at.date, at.slot);
       if (prediction.value == null) {
@@ -699,12 +681,12 @@ function compactParking(term, gid) {
 }
 
 function renderCompactParking() {
-  const cards = ['T1', 'T2'].flatMap(term => ['단기', '장기'].map(gid => compactParking(term, gid)));
+  const cards = ['단기', '장기'].map(gid => compactParking(S.term, gid));
   const percent = value => (value * 100).toFixed(1).replace(/\.0$/, '') + '%';
   document.getElementById('view').innerHTML = `
-    <section class="quick-parking" aria-label="T1 T2 앞으로 3시간 주차 예상">
+    <section class="quick-parking" aria-label="${S.term} 앞으로 3시간 주차 예상">
       <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>숫자 = 가용 대수 · 배경색 = 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
-      <div class="quick-axis"><span>20분 후부터 · 왼쪽 → 오른쪽</span><span>3시간 후</span></div>
+      <div class="quick-times" aria-label="20분 간격 예측 시각">${compactSlots().map(at => `<time datetime="${at.date}T${slotLabel(at.slot)}+09:00" title="${mdw(at.date)} ${slotLabel(at.slot)}">${slotLabel(at.slot)}${at.date !== D.now.date ? '<small>내일</small>' : ''}</time>`).join('')}</div>
       ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
         ${card.zones.length ? card.zones.map(row => `<section class="quick-zone" data-zone="${esc(row.zone.id)}" aria-label="${esc(card.term + ' ' + row.zone.name)}">
@@ -719,7 +701,7 @@ function renderCompactParking() {
         </section>`).join('') : '<p class="quick-warning" role="status">등록된 구역이 없습니다.</p>'}
       </article>`).join('')}
       <p class="quick-note">각 층·주차장·타워의 남은 대수를 따로 표시합니다. 히트맵은 20분 간격 IGoTo 참고 예상이며 점유율은 구역별 100% 상한입니다. 유사 조건의 표본이 부족할 수 있고 현장 주차 가능 여부를 보장하지 않습니다.</p>
-      <a class="btn quick-fees-link" href="fees.html">주차요금 계산하기</a>
+      <a class="btn quick-fees-link" href="${feeHref()}">주차요금 계산하기</a>
     </section>`;
 }
 
@@ -757,7 +739,7 @@ function renderWeek() {
       <div class="legend">
         ${groupCardsHtml(term, stale)}
         <div class="ltools">
-          <span class="occ-legend"><span>${D.latest && D.latest.last_ok_at ? (stale ? `⚠ ${Math.round(age)}분 전 값` : `${kstLabel(D.latest.last_ok_at)} 기준`) : '최신값 없음'} · 가용/전체 대수 · 막대 = 점유율</span>${occupancyLegendHtml()}</span>
+          <span class="muted">${D.latest && D.latest.last_ok_at ? (stale ? `⚠ ${Math.round(age)}분 전 값` : `${kstLabel(D.latest.last_ok_at)} 기준`) : '최신값 없음'} · 가용/전체 대수 · 막대 = 점유율</span>
           <span class="tools"><button data-a="all" data-v="1">전체</button><button data-a="all" data-v="0">해제</button>${keysHtml(cfg)}</span>
         </div>
       </div>
@@ -838,7 +820,6 @@ function forecastHtml() {
     <div class="sec-head" style="align-items:flex-end">
       <div class="titles"><span class="t15">예상 점유율 · 지난 3시간 + 앞으로 6시간</span>
         <span class="sub">기존 연결 방식의 6시간 참고 예상입니다(공휴일 미고려). 과거는 구역별 실측이며, 예상은 지난주 같은 요일(${md(bd)} ${DOW[dowOf(bd)]})의 흐름에 현재와 지난주 같은 시각의 차이를 더했습니다. 휴일을 고려한 IGoTo 예측은 위 그래프에서 확인하세요.</span></div>
-      ${occupancyLegendHtml()}
     </div>
     ${!on.length ? '<span class="empty">위 카드에서 주차장을 하나 이상 켜세요.</span>' : `<div class="scroll-x"><div class="fc"><div class="fc-row hd"><span></span>${timelineHead}</div>${body}</div></div>`}
   </section>`;
@@ -903,12 +884,11 @@ function renderDay() {
     <section class="sec left">
       <div class="titles"><span class="t15">수집된 날짜</span><span class="sub">칸 색 = 그날 ${term} 최고 점유율(예약 제외) · ${md(st)} 수집 시작</span></div>
       ${monthHtml}
-      <div class="grad"><span>0%</span><span class="bar occ-gradient" style="width:140px"></span><span>100%</span><span class="sq" style="background:${RISK};margin-left:6px"></span><span>만차 도달(98%+)</span></div>
     </section>
     <section class="sec right">
       <div class="sec-head" style="align-items:baseline">
         <div class="titles"><span class="t17">${esc(title)}</span><span class="sub">주차 구역별 5분 슬롯 288개 · 장기 카테고리에 주차타워 포함 · 행을 누르면 해당 카테고리의 모든 구역을 켜거나 끕니다</span></div>
-        <div class="grad"><span>0%</span><span class="bar occ-gradient" style="width:140px"></span><span>100%</span><span class="sq hatch" style="margin-left:6px"></span><span>수집 누락</span></div>
+        <div class="grad"><span class="sq hatch"></span><span>수집 누락</span></div>
       </div>
       ${loading ? '<div class="empty">불러오는 중…</div>' : !doc ? '<div class="empty">이 날짜의 기록이 없습니다.</div>' : `
       <div class="scroll-x"><div class="dgrid"><div class="hd"><span></span>${Array.from({ length: 24 }, (_, x) => `<span>${x % 3 === 0 ? pad(x) : ''}</span>`).join('')}</div>${rows}</div></div>
@@ -949,7 +929,6 @@ function rangeHeatmapHtml(term, cfg) {
   }).join('');
   const head = Array.from({ length: DAY }, (_, slot) => `<span>${slot % 36 === 0 ? pad(slot / 12) : ''}</span>`).join('');
   return `<div class="titles"><span class="t15">기간별 시간대 점유율</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 같은 시간대 5분 실측의 기간 평균 · 만차 초과 표시는 100%에서 색을 고정</span></div>
-    ${occupancyLegendHtml()}
     <div class="scroll-x"><div class="timeheat">
       <div class="th-head"><span></span>${head}</div>${rows}
     </div></div>`;

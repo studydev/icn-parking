@@ -93,6 +93,7 @@ npm run build
 - 해당 데이터 Origin만 허용하는 CSP `connect-src`
 - `operations.html`, `operating-cost-reference.png`: 비용 참고 이미지와 일별 비용에 따른 월 약 4,500원 예상 안내(30일·동일 사용 패턴 가정, 실시간 청구 조회가 아니며 검색 색인 제외)
 - `forecast.js`: IGoTo 휴일 인지 예측 모델. 기존 공개 달력·주차 기록으로 브라우저에서 계산하며 별도 Azure 리소스나 인증키가 필요하지 않습니다.
+- `occupancy.js`: 대시보드와 요금 페이지의 공통 점유율 색상·눈금. 기존 색상 함수를 공유하며 데이터와 예측 모델을 변경하지 않습니다.
 - `fees.html`, `parking-fees.js`, `fees.js`: 정적 요금·감면·카드 계산기. 카드/차량 자격 API나 개인정보 저장을 추가하지 않으며 검색용 canonical·sitemap에 포함합니다.
 
 설정이 없는 기본 빌드는 상대 `./data/`만 사용합니다. 실제 사이트 URL이 없으면 잘못된 sitemap을 배포하지 않도록 sitemap을 생략합니다. URL은 HTTPS이고 인증정보·쿼리(SAS 포함)·fragment가 없어야 합니다. 공개 웹 설정에 API 인증키나 비공개 저장소 주소를 넣지 마세요.

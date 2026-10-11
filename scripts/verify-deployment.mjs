@@ -37,7 +37,10 @@ async function verify() {
   if (!index.includes('src="forecast.js"') || index.indexOf('src="forecast.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: parking forecast script is missing or loads after the dashboard');
   }
-  for (const file of ['forecast.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
+  if (!index.includes('id="occupancy-scale"') || index.indexOf('src="occupancy.js"') < 0 || index.indexOf('src="occupancy.js"') > index.indexOf('src="app.js"')) {
+    throw new Error('Website: shared occupancy scale is missing');
+  }
+  for (const file of ['forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
     const deployed = await read(file, new URL(file, site), file.endsWith('.css') ? /text\/css/i : /javascript/i);
     const expected = await readFile(new URL('../web/' + file, import.meta.url), 'utf8');
     if (deployed !== expected) throw new Error(`${file}: deployed forecast code does not match the source`);
@@ -46,6 +49,9 @@ async function verify() {
   const fees = await read('Parking fee calculator', new URL('fees.html', site), /text\/html/i);
   if (!fees.includes('id="fee-form"') || !fees.includes('id="fee-results"') || fees.indexOf('src="parking-fees.js"') < 0 || fees.indexOf('src="parking-fees.js"') > fees.indexOf('src="fees.js"')) {
     throw new Error('Parking fee calculator: page or calculation scripts are missing');
+  }
+  if (!fees.includes('id="fee-confirm-times"') || !fees.includes('id="occupancy-scale"') || !fees.includes('id="fee-quick-discount"') || fees.indexOf('src="occupancy.js"') < 0 || fees.indexOf('src="occupancy.js"') > fees.indexOf('src="fees.js"')) {
+    throw new Error('Parking fee calculator: quick selection, time confirmation, or shared scale is missing');
   }
   if (!fees.includes(`rel="canonical" href="${new URL('fees.html', site).href}"`)) throw new Error('Parking fee calculator: canonical URL mismatch');
   if (!index.includes('href="operations.html"')) throw new Error('Website: operating costs link not found');

@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="style.css">
   <script src="config.js" defer></script>
+  <script src="occupancy.js" defer></script>
   <script src="forecast.js" defer></script>
   <script src="app.js" defer></script>
   <script src="shuttle-map.js" defer></script>
@@ -31,6 +32,7 @@
           </div>
         </div>
         <nav class="tabs" id="tabs" aria-label="보기"></nav>
+        <div id="occupancy-scale" class="occupancy-scale" role="img" aria-label="공통 점유율 색상 기준: 0%부터 100%, 98% 이상 만차 도달"></div>
       </div>
     </header>
     <main class="main">
@@ -38,7 +40,7 @@
       <footer class="foot">
         <span>출처: 인천국제공항공사 주차 정보(공공데이터포털) · 비공식 서비스입니다.</span>
         <span id="foot-start">5분 간격 수집</span>
-        <a href="fees.html">주차요금·감면 계산기</a>
+        <a id="fee-link" href="fees.html">주차요금·감면 계산기</a>
         <a href="operations.html">운영 비용 안내</a>
       </footer>
     </main>
