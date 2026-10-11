@@ -19,7 +19,13 @@ const GROUPS = [
 ];
 const ACT0 = { 단기: true, 장기: true, 예약: false };
 const CMPS = ['없음', '1주 전', '2주 전', '3주 전', '4주 전'];
-const TABS = [['week', '주차장 현황'], ['day', '날짜별 기록'], ['range', '기간별 기록'], ['access', '터미널 이동'], ['about', '데이터 안내']];
+const TABS = [
+  ['week', '주차장 현황', '주차 현황'],
+  ['day', '날짜별 기록', '날짜별'],
+  ['range', '기간별 기록', '기간별'],
+  ['access', '터미널 이동', '터미널 이동'],
+  ['about', '데이터 안내', '안내']
+];
 const MAXW = 4, MAXR = 92, CMP_OP = 0.38;
 const wkLabel = w => w === 1 ? '지난주' : `${w}주 전`;
 
@@ -340,10 +346,9 @@ function renderHeader() {
   st.innerHTML = `<span class="dot" style="background:${color}"></span><span>${esc(text)}</span>`;
   document.getElementById('terms').innerHTML = [['T1', 'T1 제1터미널'], ['T2', 'T2 제2터미널']]
     .map(([id, l]) => `<button data-a="term" data-v="${id}" class="${id === S.term ? 'on' : ''}" aria-pressed="${id === S.term}">${l}</button>`).join('');
-  const tabButton = ([id, label]) => `<button data-a="tab" data-v="${id}" class="${id === S.tab ? 'on' : ''}" aria-current="${id === S.tab ? 'page' : 'false'}">${label}</button>`;
-  document.getElementById('tabs').innerHTML = layoutMode() === 'mobile'
-    ? `${tabButton(['week', '주차 현황'])}<a href="fees.html">주차요금</a><details class="mobile-menu"><summary>더 보기</summary><div>${TABS.slice(1).map(tabButton).join('')}</div></details>`
-    : `${TABS.map(tabButton).join('')}<a href="fees.html">주차요금</a>`;
+  const mobile = layoutMode() === 'mobile';
+  const tabButton = ([id, label, mobileLabel]) => `<button data-a="tab" data-v="${id}" class="${id === S.tab ? 'on' : ''}" aria-current="${id === S.tab ? 'page' : 'false'}">${mobile ? mobileLabel : label}</button>`;
+  document.getElementById('tabs').innerHTML = `${TABS.map(tabButton).join('')}<a href="fees.html">주차요금</a>`;
   const s = startDate();
   document.getElementById('foot-start').textContent = `${s}부터 5분 간격 수집`;
 }

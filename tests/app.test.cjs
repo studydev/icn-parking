@@ -107,6 +107,31 @@ test('mobile/desktop layout toggle updates the shell and persists the choice', a
   assert.equal(elements.get('layout-toggle').textContent, '모바일 보기');
 });
 
+test('mobile navigation exposes all six menus with short labels and working tab selection', async () => {
+  const { run, elements, listeners } = await runtime('#week/T1', { mobile: true });
+  const labels = () => [...elements.get('tabs').innerHTML.matchAll(/<(?:button|a)[^>]*>([^<]+)<\/(?:button|a)>/g)].map(([, label]) => label);
+  assert.deepEqual(labels(), ['주차 현황', '날짜별', '기간별', '터미널 이동', '안내', '주차요금']);
+  assert.doesNotMatch(elements.get('tabs').innerHTML, /<details|<summary|더 보기|mobile-menu/);
+  assert.match(elements.get('tabs').innerHTML, /<a href="fees.html">주차요금<\/a>/);
+  for (const id of ['day', 'range', 'access', 'about', 'week']) {
+    listeners.click({ target: { closest: () => ({ dataset: { a: 'tab', v: id } }) } });
+    await run('ensure()');
+    assert.equal(run('S.tab'), id);
+    assert.match(elements.get('tabs').innerHTML, new RegExp(`data-v="${id}" class="on" aria-current="page"`));
+    assert.equal((elements.get('tabs').innerHTML.match(/aria-current="page"/g) || []).length, 1);
+  }
+});
+
+test('desktop keeps its original menu names while mobile menu styles prevent wrapping', async () => {
+  const { elements } = await runtime();
+  const labels = [...elements.get('tabs').innerHTML.matchAll(/<(?:button|a)[^>]*>([^<]+)<\/(?:button|a)>/g)].map(([, label]) => label);
+  assert.deepEqual(labels, ['주차장 현황', '날짜별 기록', '기간별 기록', '터미널 이동', '데이터 안내', '주차요금']);
+  const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
+  assert.match(css, /body\.layout-mobile \.tabs\{[^}]*flex-wrap:nowrap/);
+  assert.match(css, /body\.layout-mobile \.tabs button,body\.layout-mobile \.tabs>a\{[^}]*white-space:nowrap/);
+  assert.doesNotMatch(css, /mobile-menu/);
+});
+
 test('mobile stylesheet refits dense menu content instead of clipping the page', () => {
   const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
@@ -241,7 +266,8 @@ test('mobile lists individual T1/T2 short/long zones with nine predictions each,
   assert.equal(data.zones[0].current.available, 0, 'the overfull lot has no spaces');
   assert.equal(data.zones[1].current.available, 4, 'the tower retains its own remaining spaces');
   assert.match(elements.get('tabs').innerHTML, /href="fees.html"/);
-  assert.match(elements.get('tabs').innerHTML, /더 보기/);
+  assert.doesNotMatch(elements.get('tabs').innerHTML, /더 보기/);
+  assert.match(elements.get('tabs').innerHTML, /data-v="day"[^>]*>날짜별<\/button>/);
 });
 
 test('mobile forecasts are nine left-to-right count-only heatmap cells in the existing occupancy palette', async () => {
