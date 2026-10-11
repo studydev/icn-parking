@@ -689,8 +689,6 @@ function renderWeek() {
         <div class="seg">${segHtml([['occ', '점유율'], ['avail', '가용 대수']], S.metric, 'metric')}</div>
         ${overToggle()}
       </div>
-      <p class="muted forecast-window">예측은 오늘 남은 시간과 내일부터 ${S.futureDays}일(${mdw(addDays(D.now.date, 1))}~${mdw(addDays(D.now.date, S.futureDays))})까지입니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
-      ${igotoNotice(term)}
     </div>
     <div class="chart">
       <div class="legend">
@@ -703,7 +701,11 @@ function renderWeek() {
       ${chartHtml(m)}
     </div>
   </section>
-  ${forecastHtml()}`;
+  ${forecastHtml()}
+  <section class="sec lite forecast-notes" aria-label="예측 안내">
+    <p class="muted forecast-window">예측은 오늘 남은 시간과 내일부터 ${S.futureDays}일(${mdw(addDays(D.now.date, 1))}~${mdw(addDays(D.now.date, S.futureDays))})까지입니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
+    ${igotoNotice(term)}
+  </section>`;
   WM = m;
   bindPlot();
   applyFocus();
