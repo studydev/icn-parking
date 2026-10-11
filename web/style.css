@@ -32,8 +32,11 @@ button{font-family:inherit}
 .quick-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .quick-card h2{margin:0;font-size:16px}
 .quick-card-head small{font-size:11px;color:#5b6168}
-.quick-current{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:10px 0 12px;font-size:12px;color:#5b6168}
-.quick-current b{font-size:17px;color:#16181a}
+.quick-zone{margin-top:12px;padding-top:10px;border-top:1px solid #e6e8eb}
+.quick-zone-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 8px;margin-bottom:6px}
+.quick-zone h3{margin:0;font-size:13px;font-weight:600}
+.quick-current{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;font-size:10px;color:#5b6168}
+.quick-current b{font-size:12px;color:#16181a;white-space:nowrap}
 .quick-axis{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:#5b6168}
 .quick-slots{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:1px}
 .quick-slot{display:flex;align-items:center;justify-content:center;min-width:0;min-height:34px;padding:8px 1px}

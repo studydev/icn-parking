@@ -666,28 +666,31 @@ function igotoNotice(term) {
 }
 
 function compactParking(term, gid) {
-  const zones = zonesFor(term, gid).filter(zone => zone.c !== 0);
-  const present = zones.filter(zone => Number.isFinite(zone.p) && zone.p >= 0 && Number.isFinite(zone.c) && zone.c > 0);
-  const current = zones.length && present.length === zones.length ? {
-    capacity: present.reduce((sum, zone) => sum + zone.c, 0),
-    occupied: present.reduce((sum, zone) => sum + Math.min(zone.p, zone.c), 0)
-  } : null;
-  const models = zones.map(igotoModel);
   const stale = !!D.err || D.latest?.stale || latestAge() > 15;
-  const failures = stale ? ['수집이 지연되어 미래 예상을 잠시 표시하지 않습니다.'] : models.filter(model => !model.ok).map(model => model.why);
-  if (!zones.length) failures.push('운영 중인 구역이 없습니다.');
-  if (models.some((model, i) => model.ok && model.anchor.capacity !== zones[i].c)) failures.push('최신 면수와 예측 기준 면수가 달라 확인이 필요합니다.');
-  const cells = Array.from({ length: 9 }, (_, index) => {
-    const minutes = (index + 1) * 20, at = slotRange(D.now.date, D.now.idx + minutes / 5);
-    if (failures.length) return { ...at, minutes, occupancy: null, available: null };
-    const predictions = models.map(model => IGoTo.predict(model, at.date, at.slot));
-    const failed = predictions.find(prediction => prediction.value == null);
-    if (failed) { failures.push(failed.why); return { ...at, minutes, occupancy: null, available: null }; }
-    const capacity = models.reduce((sum, model) => sum + model.anchor.capacity, 0);
-    const occupied = predictions.reduce((sum, prediction, i) => sum + Math.min(prediction.value, 1) * models[i].anchor.capacity, 0);
-    return { ...at, minutes, occupancy: occupied / capacity, available: Math.round(capacity - occupied), limited: predictions.some(prediction => prediction.limited) };
+  const zones = zonesFor(term, gid).map(zone => {
+    const current = Number.isFinite(zone.p) && zone.p >= 0 && Number.isFinite(zone.c) && zone.c > 0
+      ? { available: Math.max(zone.c - zone.p, 0), occupancy: Math.min(zone.p / zone.c, 1) } : null;
+    const model = current && !stale ? igotoModel(zone) : null;
+    const failures = [];
+    if (zone.c === 0) failures.push('현재 운영 중단 구역입니다.');
+    else if (!current) failures.push('구역의 현재 남은 대수를 확인할 수 없습니다.');
+    if (stale) failures.push('수집이 지연되어 미래 예상을 잠시 표시하지 않습니다.');
+    if (model && !model.ok) failures.push(model.why);
+    if (model?.ok && model.anchor.capacity !== zone.c) failures.push('최신 면수와 예측 기준 면수가 달라 확인이 필요합니다.');
+    const cells = Array.from({ length: 9 }, (_, index) => {
+      const minutes = (index + 1) * 20, at = slotRange(D.now.date, D.now.idx + minutes / 5);
+      if (failures.length) return { ...at, minutes, occupancy: null, available: null };
+      const prediction = IGoTo.predict(model, at.date, at.slot);
+      if (prediction.value == null) {
+        failures.push(prediction.why);
+        return { ...at, minutes, occupancy: null, available: null };
+      }
+      const occupancy = Math.min(prediction.value, 1);
+      return { ...at, minutes, occupancy, available: Math.round(model.anchor.capacity * (1 - occupancy)), limited: prediction.limited };
+    });
+    return { zone, current, cells, failures: [...new Set(failures)] };
   });
-  return { term, gid, current, cells, failures: [...new Set(failures)], stale };
+  return { term, gid, zones, stale };
 }
 
 function renderCompactParking() {
@@ -695,20 +698,22 @@ function renderCompactParking() {
   const percent = value => (value * 100).toFixed(1).replace(/\.0$/, '') + '%';
   document.getElementById('view').innerHTML = `
     <section class="quick-parking" aria-label="T1 T2 앞으로 3시간 주차 예상">
-      <div class="quick-heading"><div><h1>간단 주차</h1><p>현재 남은 대수 · 앞으로 3시간 예상</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
+      <div class="quick-heading"><div><h1>앞으로 3시간</h1><p>숫자 = 가용 대수 · 배경색 = 점유율</p></div><button class="btn" data-a="detail" data-v="1">상세 그래프</button></div>
       <div class="quick-axis"><span>20분 후부터 · 왼쪽 → 오른쪽</span><span>3시간 후</span></div>
       ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
-        <div class="quick-current"><span>${card.stale ? '마지막 수집 남은 대수 · 갱신 지연' : '현재 남은 대수'}</span>${card.current ? `<b>${num(card.current.capacity - card.current.occupied)}대</b><span>점유 ${percent(card.current.occupied / card.current.capacity)}</span>` : '<b>남은 대수 확인 필요</b>'}</div>
-        <div class="quick-slots" role="list">${card.cells.map(cell => {
+        ${card.zones.length ? card.zones.map(row => `<section class="quick-zone" data-zone="${esc(row.zone.id)}" aria-label="${esc(card.term + ' ' + row.zone.name)}">
+          <div class="quick-zone-head"><h3>${esc(shortName(row.zone))}</h3><div class="quick-current"><span>${card.stale ? '마지막 수집 · 갱신 지연' : '현재 남은 대수'}</span>${row.current ? `<b>${num(row.current.available)}대</b>` : '<b>남은 대수 확인 필요</b>'}</div></div>
+          <div class="quick-slots" role="list">${row.cells.map(cell => {
           const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
           const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
-          const description = `${card.term} ${card.gid} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}`;
+          const description = `${card.term} ${row.zone.name} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}`;
           return `<div class="quick-slot${cell.available == null ? ' unavailable' : ''}" role="listitem" data-minutes="${cell.minutes}" data-occupancy="${cell.occupancy ?? ''}" style="background:${background};color:${color}" title="${esc(description)}" aria-label="${esc(description)}"><b${cell.available >= 10000 ? ' class="wide-count"' : ''}>${cell.available == null ? '—' : cell.available}</b></div>`;
-        }).join('')}</div>
-        ${card.failures.length ? `<p class="quick-warning" role="status">${card.failures.map(esc).join(' ')}</p>` : card.cells.some(cell => cell.limited) ? '<p class="quick-note">유사 조건의 표본이 적은 참고 예상입니다.</p>' : ''}
+          }).join('')}</div>
+          ${row.failures.length ? `<p class="quick-warning" role="status">${row.failures.map(esc).join(' ')}</p>` : ''}
+        </section>`).join('') : '<p class="quick-warning" role="status">등록된 구역이 없습니다.</p>'}
       </article>`).join('')}
-      <p class="quick-note">히트맵 숫자는 예상 남은 대수, 배경색은 점유율입니다. IGoTo 참고 예상이며 점유율은 구역별 100% 상한, 가용 대수는 각 구역의 남은 면수 합계입니다. 현장 주차 가능 여부를 보장하지 않습니다.</p>
+      <p class="quick-note">각 층·주차장·타워의 남은 대수를 따로 표시합니다. 히트맵은 20분 간격 IGoTo 참고 예상이며 점유율은 구역별 100% 상한입니다. 유사 조건의 표본이 부족할 수 있고 현장 주차 가능 여부를 보장하지 않습니다.</p>
       <a class="btn quick-fees-link" href="fees.html">주차요금 계산하기</a>
     </section>`;
 }
