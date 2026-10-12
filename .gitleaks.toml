@@ -6,3 +6,10 @@ description = "Azure built-in Key Vault Secrets User role ID is public, not a cr
 condition = "AND"
 paths = ['''(^|/)infra/modules/access\.bicep$''']
 regexes = ['''4633458b-17de-408a-b874-0445c86b69e6''']
+
+[[allowlists]]
+description = "Public localStorage preference name is not an API credential"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)web/app\.js$''']
+regexes = ['''^icn\.forecastDays\.v2$''']

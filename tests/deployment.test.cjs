@@ -10,6 +10,7 @@ function verify(broken = '') {
     process.env.DATA_BASE_URL = 'https://data.example.org/data/';
     const fixtures = new Map([
       ['https://parking.example.org/', [await readFile('web/index.html'), 'text/html']],
+      ['https://parking.example.org/github.svg', [await readFile('web/github.svg'), 'image/svg+xml']],
       ['https://parking.example.org/forecast.js', [await readFile('web/forecast.js'), 'application/javascript']],
       ['https://parking.example.org/occupancy.js', [await readFile('web/occupancy.js'), 'application/javascript']],
       ['https://parking.example.org/app.js', [await readFile('web/app.js'), 'application/javascript']],
@@ -52,7 +53,7 @@ test('deployment verifies the forecast scripts, cost image, crawler files, and p
 });
 
 test('deployment rejects stale forecast code, a wrong cost image, and a missing model script', () => {
-  for (const broken of ['forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'fees.html', 'style.css', 'operating-cost-reference.png', 'script-order']) {
+  for (const broken of ['github.svg', 'forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'fees.html', 'style.css', 'operating-cost-reference.png', 'script-order']) {
     const result = verify(broken);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1, broken);

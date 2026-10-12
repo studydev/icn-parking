@@ -13,6 +13,8 @@ Sources:
   snapshot; verify schedules and reuse terms with the original provider.
 - Pretendard Variable font is loaded from an external CDN; it is not bundled.
   The font is distributed by its authors under the SIL Open Font License.
+- GitHub icon: Primer Octicons mark-github-16, Copyright (c) 2026 GitHub Inc.,
+  MIT licensed. Its license notice is included in web/github.svg.
 
 Airport maps in this repository are original schematic SVG drawings. Official
 map images are linked for reference, not copied or redistributed.

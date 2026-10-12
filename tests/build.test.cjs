@@ -31,6 +31,8 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   assert(fees.indexOf('src="occupancy.js"') < fees.indexOf('src="fees.js"'));
   assert.match(fees, /id="fee-confirm-times"/);
   assert.match(fees, /id="fee-submit" disabled/);
+  assert.equal(fs.readFileSync(path.join(out, 'github.svg'), 'utf8'), fs.readFileSync(path.join(root, 'web/github.svg'), 'utf8'));
+  assert.match(fs.readFileSync(path.join(out, 'github.svg'), 'utf8'), /Copyright \(c\) 2026 GitHub Inc/);
   const context = { window: {} };
   vm.runInNewContext(fs.readFileSync(path.join(out, 'config.js'), 'utf8'), context);
   assert.equal(context.window.ICN_CONFIG.dataBase, './data/');

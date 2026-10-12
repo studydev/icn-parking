@@ -138,7 +138,8 @@ test('mobile stylesheet refits dense menu content instead of clipping the page',
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
   assert.match(html, /id="layout-toggle" data-a="layout"/);
   assert.match(css, /body\.layout-mobile \.dgrid \.row\{grid-template-columns:92px repeat\(288,minmax\(0,1fr\)\)/);
-  assert.match(css, /body\.layout-mobile \.th-head,body\.layout-mobile \.th-row\{grid-template-columns:92px repeat\(288,minmax\(0,1fr\)\)/);
+  assert.match(css, /body\.layout-mobile \.timeheat\{--history-label:110px\}/);
+  assert.match(css, /\.th-head,\.th-row\{display:grid;grid-template-columns:var\(--history-label\) repeat\(var\(--history-days\),288px\)/);
   assert.match(css, /body\.layout-mobile \.fc-row\{grid-template-columns:repeat\(10,minmax\(0,1fr\)\)/);
   assert.match(css, /body\.layout-mobile \.shuttle-layout \.acc-side\{display:flex;order:-1\}/);
   assert.match(css, /body\.layout-desktop \.page\{min-width:1180px\}/);
@@ -206,7 +207,7 @@ test('comparison lines are drawn at half the previous opacity, under the measure
 });
 
 test('linked forecast follows the selected comparison line and begins at the current value', async () => {
-  const { run } = await runtime();
+  const { run } = await runtime('#week/T1', { now: '2026-10-13T11:00:00+09:00' });
   run('S.linkedForecast = true;');
   const lines = JSON.parse(run('JSON.stringify(chartModel(weekCfg()).lines.filter(l => l.forecast).map(l => ({z:l.z,offset:l.offset,anchorValue:l.anchorValue,d:l.d})))'));
   assert.equal(lines.length, 3);
@@ -343,16 +344,16 @@ test('each zone labels its own current remaining spaces, including zero, missing
   `);
   run("S.term = 'T1'; render();");
   for (const [id, count] of [['s1', 20], ['l1', 0], ['t1', 4]]) {
-    assert.match(rows().get(id), new RegExp(`<span>현재 남은 대수</span><b>${count}대</b>`));
+    assert.match(rows().get(id), new RegExp(`<span>현재 주차 가능</span><b>${count}대</b><span>/ 전체 100대</span>`));
   }
   assert.match(rows().get('l1'), /<h3>P1<\/h3>/);
   assert.match(rows().get('t1'), /<h3>타워 P1<\/h3>/);
   run("S.term = 'T2'; render();");
   for (const [id, count] of [['t2-s1', 70], ['t2-l1', 0], ['t2-t1', 45]]) {
-    assert.match(rows().get(id), new RegExp(`<span>현재 남은 대수</span><b>${count}대</b>`));
+    assert.match(rows().get(id), new RegExp(`<span>현재 주차 가능</span><b>${count}대</b><span>/ 전체 100대</span>`));
   }
   run("D.latest.zones.find(zone => zone.id === 't2-t1').p = null; D.zones = {}; render();");
-  assert.match(rows().get('t2-t1'), /남은 대수 확인 필요/);
+  assert.match(rows().get('t2-t1'), /주차 가능 대수 확인 필요/);
   assert.equal((rows().get('t2-t1').match(/class="quick-slot unavailable"/g) || []).length, 9);
   assert(run("compactParking('T2','장기').zones.find(row => row.zone.id === 't2-l1').cells.every(cell => cell.available != null)"));
   run("D.latest.zones.find(zone => zone.id === 't2-t1').c = 0; D.zones = {}; render();");
@@ -458,19 +459,24 @@ test('forecast explanations and error notices remain at the very bottom, below b
   assert.doesNotMatch(verifyPosition(), /forecast-notice/);
 });
 
-test('Sunday defaults to three complete following dates and IGoTo works without a comparison week', async () => {
+test('the default shows exactly 72 hours of history and 96 hours of predictions, independent of weekdays', async () => {
   const { run, elements, requested } = await runtime('#week/T1', SUNDAY);
-  assert.equal(run('S.futureDays'), 3);
+  assert.equal(run('S.futureDays'), 4);
   assert.equal(run('S.igoto'), true);
-  assert.equal(run('weekCfg().nd'), 10);
-  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-14');
+  assert.equal(run('weekCfg().nd'), 8);
+  assert.equal(run('weekCfg().d0'), '2026-10-08');
   run('S.cmp = 0; renderWeek()');
+  assert.equal(run('WM.nowG - WM.a'), 3 * DAY);
+  assert.equal(run('WM.b - WM.nowG'), 4 * DAY);
+  assert.equal(run('WM.span'), 7 * DAY);
   const forecast = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|s1').values)"));
-  assert.equal(forecast.slice(7 * DAY, 10 * DAY).length, 3 * DAY);
-  assert(forecast.slice(7 * DAY, 10 * DAY).every(value => Number.isFinite(value)));
+  const first = run('WM.nowG'), last = run('WM.b');
+  assert(forecast.slice(first, last).every(value => Number.isFinite(value)));
+  assert(forecast.slice(last).every(value => value == null));
   assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
   assert.match(elements.get('view').innerHTML, /data-a="igoto"/);
-  assert.match(elements.get('view').innerHTML, /내일부터 3일/);
+  assert.match(elements.get('view').innerHTML, /과거 3일과 향후 4일/);
+  assert.match(elements.get('view').innerHTML, />최근 3일<\/button>/);
   assert(requested.filter(name => name.startsWith('days/')).every(name => name.slice(5, 15) <= '2026-10-11'), 'future day records must never be fetched');
   assert.equal(run("neededDays().filter(date => date <= D.now.date && date >= addDays(D.now.date, -27)).length") >= 28, true);
 });
@@ -480,20 +486,23 @@ test('seven-day selection spans the next week, stays capped, and persists across
   listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '7' } }) } });
   await run('ensure()');
   assert.equal(run('S.futureDays'), 7);
-  assert.equal(run('weekCfg().nd'), 14);
-  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-18');
+  assert.equal(run('weekCfg().nd'), 11);
+  assert.equal(run("slotRange(D.now.date,S.win[1]).date"), '2026-10-18');
   const values = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|l1').values)"));
-  assert(values.slice(7 * DAY, 14 * DAY).every(value => Number.isFinite(value) && value <= 1));
-  assert.equal(stored.get('icn.forecastDays'), '7');
-  assert.throws(() => listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '8' } }) } }), /3·5·7/);
+  assert(values.slice(run('WM.nowG'), run('WM.b')).every(value => Number.isFinite(value) && value <= 1));
+  assert.equal(run('WM.b - WM.nowG'), 7 * DAY);
+  assert.equal(stored.get('icn.forecastDays.v2'), '7');
+  assert.throws(() => listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '8' } }) } }), /3·4·5·7/);
   const again = await runtime('#week/T1', { ...SUNDAY, stored: [...stored] });
   assert.equal(again.run('S.futureDays'), 7);
-  assert.equal(again.run('weekCfg().nd'), 14);
+  assert.equal(again.run('weekCfg().nd'), 11);
+  const old = await runtime('#week/T1', { ...SUNDAY, stored: [['icn.forecastDays', '3']] });
+  assert.equal(old.run('S.futureDays'), 4, 'the old week-boundary default must not override the new rolling default');
 });
 
 test('IGoTo future-only zoom, tooltip, overview, category hit and overflow/availability retain useful predictions', async () => {
   const { run, elements } = await runtime('#week/T1', SUNDAY);
-  run('S.cmp = 0; S.win = [7 * DAY, 10 * DAY]; renderWeek(); S.hf = .2; renderOverlay();');
+  run('S.cmp = 0; S.win = [DAY, 3 * DAY]; renderWeek(); S.hf = .2; renderOverlay();');
   assert.equal(run('WM.hasData'), true);
   assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
   assert.match(elements.get('view').innerHTML, /IGoTo 예측/);
@@ -511,12 +520,12 @@ test('IGoTo future-only zoom, tooltip, overview, category hit and overflow/avail
   assert(available.every(value => value >= 0 && value <= 100 && Number.isFinite(value)));
 });
 
-test('forecast drawing ends at the selected horizon, even when the weekly frame is longer', async () => {
+test('forecast drawing ends at the exact selected future duration even when the overview contains a longer day', async () => {
   const { run } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-12T11:00:00+09:00' });
   const values = JSON.parse(run("JSON.stringify(WM.forecasts.get('igoto|s1').values)"));
-  assert.equal(run('weekCfg().nd'), 7);
-  assert(values.slice(DAY, 4 * DAY).every(value => value != null));
-  assert(values.slice(4 * DAY).every(value => value == null));
+  assert.equal(run('weekCfg().nd'), 8);
+  assert(values.slice(run('WM.nowG'), run('WM.b')).every(value => value != null));
+  assert(values.slice(run('WM.b')).every(value => value == null));
 });
 
 test('calendar/observations errors are visible and disabling IGoTo leaves linked forecasts unchanged', async () => {
@@ -531,25 +540,46 @@ test('calendar/observations errors are visible and disabling IGoTo leaves linked
   assert.equal(run("chartModel(weekCfg()).lines.filter(line => line.model === 'igoto').length"), 0);
 });
 
-test('midnight into Monday resizes the extended week without forgetting future-day preference', async () => {
+test('midnight into Monday retains the full rolling history and the selected future duration', async () => {
   const { run, listeners, clock } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-11T23:55:00+09:00' });
   listeners.click({ target: { closest: () => ({ dataset: { a: 'future', v: '7' } }) } });
   await run('ensure()');
-  assert.equal(run('weekCfg().nd'), 14);
+  assert.equal(run('WM.nowG - WM.a'), 3 * DAY);
+  assert.equal(run('WM.b - WM.nowG'), 7 * DAY);
   clock.value = Date.parse('2026-10-12T00:05:00+09:00');
   await run('refresh(false)');
   assert.equal(run('S.futureDays'), 7);
-  assert.equal(run('weekCfg().nd'), 8);
-  assert.deepEqual(JSON.parse(run('JSON.stringify(weekCfg().win)')), [0, 8 * DAY]);
-  assert.equal(run('addDays(weekCfg().d0, weekCfg().nd - 1)'), '2026-10-19');
+  assert.equal(run('weekCfg().nd'), 11);
+  assert.equal(run('WM.nowG - WM.a'), 3 * DAY);
+  assert.equal(run('WM.b - WM.nowG'), 7 * DAY);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [1 - 3 * DAY, 1 + 7 * DAY]);
+  assert.equal(run('weekCfg().d0'), '2026-10-09');
 });
 
-test('a first-week collection trim does not hide the first future days after Monday rollover', async () => {
+test('initial collection does not trim the rolling viewport or hide history on Monday rollover', async () => {
   const { run, clock } = await runtime('#week/T1', { ...SUNDAY, start: '2026-10-08' });
-  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [3 * DAY, 10 * DAY]);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [132 - 3 * DAY, 132 + 4 * DAY]);
   clock.value = Date.parse('2026-10-12T00:05:00+09:00');
   await run('refresh(false)');
-  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [0, 7 * DAY]);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win)')), [1 - 3 * DAY, 1 + 4 * DAY]);
+});
+
+test('recent rolling history survives Monday and ordinary midnight, while a manual zoom keeps its absolute dates', async () => {
+  const { run, clock, listeners } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-11T23:55:00+09:00' });
+  for (const timestamp of ['2026-10-12T00:05:00+09:00', '2026-10-13T00:05:00+09:00']) {
+    clock.value = Date.parse(timestamp);
+    await run('refresh(false)');
+    assert.equal(run('WM.nowG - WM.a'), 3 * DAY);
+    assert.equal(run('WM.b - WM.nowG'), 4 * DAY);
+    const actual = JSON.parse(run("JSON.stringify(WM.cur(WM.zones.find(zone=>zone.id==='s1')).slice(WM.a,WM.nowG))"));
+    assert(actual.some(value => value != null), 'previous-day history is still loaded after midnight');
+  }
+  listeners.click({ target: { closest: () => ({ dataset: { a: 'win', v: '-200,100' } }) } });
+  await run('ensure()');
+  const before = JSON.parse(run('JSON.stringify(S.win.map(slot => slotRange(D.now.date,slot)))'));
+  clock.value = Date.parse('2026-10-14T00:05:00+09:00');
+  await run('refresh(false)');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(S.win.map(slot => slotRange(D.now.date,slot)))')), before);
 });
 
 test('T2 has its own complete forecast paths and failure notices identify missing history', async () => {
@@ -560,7 +590,7 @@ test('T2 has its own complete forecast paths and failure notices identify missin
   };
   const { run, elements } = await runtime('#week/T2', { ...SUNDAY, zones, dayDoc: t2Day });
   assert.equal(run("WM.lines.filter(line => line.model === 'igoto' && line.d).length"), 3);
-  assert.equal(run("WM.forecasts.get('igoto|t2-l1').values.slice(7 * DAY).filter(value => value != null).length"), 3 * DAY);
+  assert.equal(run("WM.forecasts.get('igoto|t2-l1').values.slice(WM.nowG,WM.b).filter(value => value != null).length"), 4 * DAY);
   run("D.retry.set(addDays(D.now.date, -1), Date.now()); renderWeek();");
   assert.match(elements.get('view').innerHTML, /예측용 기록 1일을 불러오지 못했습니다/);
 });
@@ -569,7 +599,8 @@ test('data guide distinguishes the existing six-hour forecast from the holiday-a
   const { run, elements } = await runtime();
   run('renderAbout()');
   assert.match(elements.get('view').innerHTML, /IGoTo 예측/);
-  assert.match(elements.get('view').innerHTML, /미래 3일\(기본\)·5일·7일/);
+  assert.match(elements.get('view').innerHTML, /과거 3일·향후 4일/);
+  assert.match(elements.get('view').innerHTML, /미래는 3·4일\(기본\)·5·7일/);
   assert.match(elements.get('view').innerHTML, /하단 6시간 예상/);
   assert.match(elements.get('view').innerHTML, /연결 휴가 후보는 실제 공휴일/);
 });
@@ -613,9 +644,9 @@ test('period buttons extend the continuous chart up to four weeks back', async (
   const { run, listeners } = await runtime();
   listeners.click({ target: { closest: () => ({ dataset: { a: 'weeks', v: '4' } }) } });
   const c = JSON.parse(run('JSON.stringify(weekCfg())'));
-  assert.equal(c.nd, 21 + run('weekEnd()') / DAY);
-  assert.deepEqual(c.win, [0, c.nd * DAY]);
-  assert.equal(c.d0, run("addDays(weekStart(), -21)"));
+  assert.equal(c.nd, 24 + run('weekEnd()') / DAY);
+  assert.equal(c.win[1] - c.win[0], 28 * DAY);
+  assert.equal(c.d0, run("addDays(D.now.date, -24)"));
   run('S.weeks = 1; S.win = [0, 2016]; panWin(-1); panWin(-1);');
   assert(run('S.weeks') >= 2, 'panning back past this week extends the period');
 });
@@ -643,6 +674,43 @@ test('forecast applies the offset between now and last week to last week\'s hour
   assert.match(html, /지금/);
   assert.doesNotMatch(html, /\+1시간/);
   assert.match(html, /예상 점유율/);
+});
+
+test('available-space mode switches individual card parts and every forecast cell to counts without changing occupancy colors', async () => {
+  const { run, elements } = await runtime('#week/T1', SUNDAY);
+  const occupied = JSON.parse(run("JSON.stringify(forecastOf('T1','s1'))"));
+  run("S.metric = 'avail'; renderWeek();");
+  const forecast = JSON.parse(run("JSON.stringify(forecastOf('T1','s1'))"));
+  assert.equal(forecast.now, 20);
+  assert.equal(forecast.off, -20);
+  assert(forecast.cells.every(cell => Math.round(cell.v) === 20));
+  assert(forecast.cells.every((cell, index) => Math.abs(cell.occupancy - occupied.cells[index].v) < 1e-12));
+  const cards = run("groupCardsHtml('T1',false)");
+  const parts = [...cards.matchAll(/<span class="gc-zs">([\s\S]*?)<\/span><\/button>/g)].map(([, text]) => text).join('');
+  assert.match(parts, /P1 <b>0대<\/b>/);
+  assert.match(parts, /타워 P1 <b>4대<\/b>/);
+  assert.match(parts, /지하1층 <b>20대<\/b>/);
+  assert.doesNotMatch(parts, /<b>[^<]*%/);
+  const html = run('forecastHtml()');
+  assert.match(html, /예상 가용 대수/);
+  const cells = [...html.matchAll(/class="fc-cell[^"]*"[^>]*>([\s\S]*?)<\/div>/g)];
+  assert.equal(cells.length, 30);
+  assert(cells.every(([, cell]) => /^<b>\d+(?:,\d+)*대<\/b>$|^—$/.test(cell)));
+  assert.doesNotMatch(html, /같은 시각|차이 <b>|<small>실측|<small>현재|<small>지난주/);
+  assert.match(html, /주차 80대 \/ 전체 100대 · 점유율 80%/);
+  assert.match(html, new RegExp(`background:${run('occColor(.8)')}`));
+  run("S.metric='occ'; renderWeek();");
+  assert.match(elements.get('view').innerHTML, /예상 점유율/);
+  assert.match(run("groupCardsHtml('T1',false)"), /지하1층 <b>80%<\/b>/);
+});
+
+test('forecast table can anchor to a recent previous-day observation just after midnight', async () => {
+  const { run, today } = await runtime('#week/T1', { ...SUNDAY, now: '2026-10-13T00:05:00+09:00' });
+  run(`D.days.get('${today}').zones.s1.p.fill(null); D.cache.clear();`);
+  const result = JSON.parse(run("JSON.stringify(forecastOf('T1','s1'))"));
+  assert.equal(result.ok, true);
+  assert.equal(result.i0, 287);
+  assert(result.cells.every(cell => Number.isFinite(cell.v)));
 });
 
 test('the recent three-hour actual heatmap remains visible without enough history to forecast', async () => {
@@ -691,22 +759,95 @@ test('range view loads every day in the range, clamps it to the collection perio
   await run('ensure()');
   assert.equal(run('rangeCfg().nd'), 7);
   assert.match(run('location.hash'), new RegExp(`#range/T1/${addDays(today, -6)}~${today}`));
-  assert.match(run("document.getElementById('rng-sum').innerHTML"), /기간별 시간대 점유율/);
+  assert.match(run("document.getElementById('rng-sum').innerHTML"), /기간별 날짜·시간대 점유율/);
 });
 
-test('range heatmap keeps one row per zone with 5-minute color-only intervals', async () => {
+test('range heatmap keeps chronological daily strips per zone rather than a same-time average', async () => {
   const { run, today } = await runtime();
   const cfg = JSON.parse(run('JSON.stringify(rangeCfg())'));
   const html = run('rangeHeatmapHtml("T1", rangeCfg())');
   assert.equal((html.match(/class="th-row/g) || []).length, 3);
-  assert.equal((html.match(/class="th-cell/g) || []).length, 3 * DAY);
-  assert.match(html, /00<\/span>/);
-  assert.match(html, /21<\/span>/);
+  assert.equal((html.match(/class="th-strip"/g) || []).length, 3 * cfg.nd);
+  assert.match(html, /00:00<\/span>/);
+  assert.match(html, /18:00<\/span>/);
   assert.doesNotMatch(html, />\s*\d+%/);
-  assert.match(html, /aria-label="단기 지하1층 00:00 · 기간 평균 \d+%"/);
+  assert.match(html, /aria-label="단기 지하1층 \d{4}-\d{2}-\d{2} · 00:00~23:55 KST 5분 실측/);
+  assert.doesNotMatch(html, /기간 평균|같은 시간대/);
+  const dates = [...html.matchAll(/data-zone="s1" data-date="([^"]+)"/g)].map(([, date]) => date);
+  assert.equal(dates.length, cfg.nd);
+  assert.equal(dates[0], cfg.d0);
+  assert.equal(dates.at(-1), today);
   assert.equal(cfg.d0, run(`addDays('${today}', -13)`));
 });
 
+test('date-by-date range pixels retain each observation, capacity, missing and future state without averaging', async () => {
+  const { run, today, elements } = await runtime('#range/T1', SUNDAY);
+  const yesterday = addDays(today, -1);
+  run(`
+    D.days.get('${yesterday}').zones.s1.p[12] = 20;
+    D.days.get('${today}').zones.s1.p[12] = 90;
+    D.days.get('${yesterday}').zones.s1.p[13] = null;
+    D.days.get('${yesterday}').zones.s1.c[14] = 0;
+    D.cache.clear();
+  `);
+  assert.equal(run(`rangeSlot('s1','${yesterday}',12).value`), 0.2);
+  assert.equal(run(`rangeSlot('s1','${today}',12).value`), 0.9);
+  assert.equal(run(`rangeSlot('s1','${yesterday}',13).value`), null);
+  assert.equal(run(`rangeSlot('s1','${yesterday}',14).why`), '미운영');
+  assert.equal(run(`rangeSlot('s1','${today}',287).why`), '아직 없음');
+  run("S.metric='avail';");
+  assert.equal(run(`rangeSlot('s1','${yesterday}',12).value`), 80);
+  assert.equal(run(`rangeSlot('s1','${today}',12).value`), 10);
+  assert.equal(run(`rangeSlot('s1','${today}',12).occupancy`), 0.9);
+  elements.set('range-point-detail', { textContent: '' });
+  run(`
+    const painted = [];
+    const canvases = ['${yesterday}','${today}'].map(date => ({
+      dataset:{zone:'s1',date}, title:'', listeners:{},
+      getContext:()=>({createImageData:()=>({data:new Uint8ClampedArray(DAY*4)}),putImageData:image=>painted.push(image.data)}),
+      getBoundingClientRect:()=>({left:0,width:288}),
+      addEventListener(name,callback){this.listeners[name]=callback;},
+      setAttribute(name,value){this[name]=value;}
+    }));
+    document.querySelectorAll = selector => selector === '#rng-sum .th-strip' ? canvases : [];
+    paintRangeHeatmap();
+  `);
+  const expected = run('occColor(.2)').slice(1).match(/../g).map(hex => parseInt(hex, 16));
+  assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from(painted[0].slice(12*4,12*4+4)))')), [...expected, 255]);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from(painted[0].slice(13*4,13*4+4)))')), [0, 0, 0, 0]);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from(painted[1].slice(287*4,287*4+4)))')), [255, 255, 255, 255]);
+  run("canvases[0].listeners.pointerdown({clientX:12.5});");
+  assert.match(elements.get('range-point-detail').textContent, /01:00 KST · 가용 80대 · 실측/);
+  run("canvases[0].listeners.keydown({key:'ArrowRight',preventDefault(){}});");
+  assert.match(elements.get('range-point-detail').textContent, /01:05 KST · 누락/);
+});
+
+test('a 92-day range uses one exact 288-slot raster per day/zone rather than hundreds of thousands of DOM cells', async () => {
+  const { run } = await runtime('#range/T1', { ...SUNDAY, start: '2026-07-01' });
+  run("setRange('2026-07-01','2026-10-11');");
+  const cfg = JSON.parse(run('JSON.stringify(rangeCfg())'));
+  assert.equal(cfg.nd, 92);
+  const html = run("rangeHeatmapHtml('T1',rangeCfg())");
+  assert.equal((html.match(/class="th-strip" width="288" height="1"/g) || []).length, 3 * 92);
+  assert.doesNotMatch(html, /class="th-cell/);
+});
+
+test('all public service pages link the open-source repository and README includes the supplied representative image', () => {
+  const web = path.join(__dirname, '../web');
+  for (const file of ['index.html', 'fees.html', 'operations.html']) {
+    const html = fs.readFileSync(path.join(web, file), 'utf8');
+    assert.match(html, /class="repo-link" href="https:\/\/github\.com\/studydev\/icn-parking" target="_blank" rel="noopener noreferrer"/);
+    assert.match(html, /aria-label="GitHub 오픈 소스 저장소"/);
+    assert.match(html, /src="github\.svg"/);
+  }
+  const readme = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8');
+  assert.match(readme, /\[icn\.igotobook\.com\]\(https:\/\/icn\.igotobook\.com\/\)/);
+  assert.match(readme, /!\[[^\]]+\]\(docs\/images\/dashboard\.png\)/);
+  const image = fs.readFileSync(path.join(__dirname, '../docs/images/dashboard.png'));
+  assert.deepEqual(image.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  assert.equal(image.readUInt32BE(16), 768);
+  assert.equal(image.readUInt32BE(20), 820);
+});
 test('site no longer registers GA4 or allows Google analytics origins in CSP', () => {
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, '../web/staticwebapp.config.json'), 'utf8'));
