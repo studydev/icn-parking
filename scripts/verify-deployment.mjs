@@ -34,6 +34,9 @@ async function verify() {
   const site = directory(siteValue), data = directory(dataValue);
   const index = await read('Website', site, /text\/html/i);
   if (!index.includes('id="view"')) throw new Error('Website: dashboard markup not found');
+  if (!index.includes('class="repo-link" href="https://github.com/studydev/icn-parking"')) throw new Error('Website: open-source repository link missing');
+  const githubIcon = await read('GitHub icon', new URL('github.svg', site), /image\/svg\+xml/i);
+  if (githubIcon !== await readFile(new URL('../web/github.svg', import.meta.url), 'utf8')) throw new Error('GitHub icon: deployed icon does not match the source');
   if (!index.includes('src="forecast.js"') || index.indexOf('src="forecast.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: parking forecast script is missing or loads after the dashboard');
   }

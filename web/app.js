@@ -100,11 +100,12 @@ function smoothVals(arr, a, b, r) {
 }
 
 /* ---------- state ---------- */
-/* win: 이번 주 월요일 00:00 기준 슬롯(과거 주는 음수), rwin: 기간 시작일 기준 슬롯 */
+/* win: 오늘 00:00 기준 슬롯, rwin: 기간 시작일 기준 슬롯 */
 const savedAct = (() => { try { return JSON.parse(store.get('icn.categories') || 'null'); } catch (_) { return null; } })();
 const savedLayout = store.get('icn.layout');
-const savedFutureDays = Number(store.get('icn.forecastDays'));
-const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], mobileDetail: false, futureDays: [3, 5, 7].includes(savedFutureDays) ? savedFutureDays : 3, igoto: store.get('icn.igoto') !== '0', rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
+const FORECAST_DAYS_KEY = 'icn.forecastDays.v2';
+const savedFutureDays = Number(store.get(FORECAST_DAYS_KEY));
+const S = { tab: 'week', term: 'T1', metric: 'occ', weeks: 1, win: [0, WEEK], mobileDetail: false, futureDays: [3, 4, 5, 7].includes(savedFutureDays) ? savedFutureDays : 4, igoto: store.get('icn.igoto') !== '0', rng: null, rwin: null, rclip: false, hf: null, sel: null, cmp: 1, linkedForecast: false, act: savedAct && typeof savedAct === 'object' ? { ...ACT0, ...savedAct } : { ...ACT0 }, focus: null, selDay: null, month: null, over: store.get('icn.over') === '1', layout: ['mobile', 'desktop'].includes(savedLayout) ? savedLayout : null };
 const D = { latest: null, cal: null, days: new Map(), pending: new Map(), retry: new Map(), err: null, now: kstNow(), cache: new Map(), zones: {} };
 const layoutMode = () => S.layout || (window.matchMedia?.('(max-width: 700px)').matches ? 'mobile' : 'desktop');
 const compactMobile = () => layoutMode() === 'mobile' && S.tab === 'week' && !S.mobileDetail;
@@ -251,11 +252,11 @@ function nowAgg(term, gid) {
 }
 
 /* ---------- time geometry ---------- */
-const weekStart = () => addDays(D.now.date, -((dowOf(D.now.date) + 6) % 7));
-const todayK = () => (dowOf(D.now.date) + 6) % 7;
-const NOWI = () => todayK() * DAY + D.now.idx;
+const NOWI = () => D.now.idx;
+const pastDays = (weeks = S.weeks) => 3 + 7 * (weeks - 1);
+const rollingWin = (weeks = S.weeks) => [NOWI() - pastDays(weeks) * DAY, NOWI() + S.futureDays * DAY];
 const holidays = () => (D.cal && D.cal.holidays) || {};
-const weekEnd = () => Math.max(WEEK, (todayK() + 1 + S.futureDays) * DAY);
+const weekEnd = () => (S.futureDays + 1) * DAY;
 function igotoModel(z) {
   const key = `igoto|${z.id}|${D.now.date}|${D.now.idx}`;
   if (!D.cache.has(key)) D.cache.set(key, IGoTo.fit({ days: D.days, zoneId: z.id, category: z.category, now: D.now, holidays: D.cal?.holidays }));
@@ -292,8 +293,8 @@ function rng() {
   return [f, t];
 }
 function weekCfg() {
-  const n = S.weeks, off = 7 * (n - 1) * DAY;
-  return { kind: 'week', d0: addDays(weekStart(), -7 * (n - 1)), nd: 7 * (n - 1) + weekEnd() / DAY, off, win: [S.win[0] + off, S.win[1] + off], cmp: S.cmp };
+  const off = Math.max(pastDays() * DAY, -Math.floor(S.win[0] / DAY) * DAY);
+  return { kind: 'week', d0: addDays(D.now.date, -off / DAY), nd: off / DAY + weekEnd() / DAY, off, win: [S.win[0] + off, S.win[1] + off], cmp: S.cmp };
 }
 function rangeCfg() {
   const [f, t] = rng(), nd = daysBetween(f, t) + 1, N = nd * DAY;
@@ -353,7 +354,7 @@ function chartModel(cfg) {
   const cur = z => zSeries(z.id, d0, nd, 0, key), prev = z => zSeries(z.id, d0, nd, cmp, key);
   const fmt = v => v == null ? '—' : occ ? pct(v) : num(v) + '대';
   const sr = span <= 48 ? 0 : Math.max(2, step * 2), forecasts = new Map(), forecastLines = [];
-  const forecastEnd = Math.min(nd * DAY, (ti + 1 + S.futureDays) * DAY);
+  const forecastEnd = Math.min(nd * DAY, nowG + S.futureDays * DAY);
   if (cfg.kind === 'week' && nowG != null) {
     for (const z of zones) {
       if (S.linkedForecast && cmp) {
@@ -470,7 +471,7 @@ function overviewHtml(term, cfg) {
     const models = zonesFor(term, '합계').filter(z => z.c > 0).map(igotoModel);
     if (models.length && models.every(model => model.ok)) {
       const capacity = models.reduce((sum, model) => sum + model.anchor.capacity, 0), predicted = [];
-      const first = daysBetween(d0, D.now.date) * DAY + D.now.idx, end = Math.min(N, (daysBetween(d0, D.now.date) + 1 + S.futureDays) * DAY);
+      const first = daysBetween(d0, D.now.date) * DAY + D.now.idx, end = Math.min(N, first + S.futureDays * DAY);
       for (let j = first; j < end; j += so) {
         const values = models.map(model => IGoTo.predict(model, addDays(d0, Math.floor(j / DAY)), j % DAY).value);
         const occupied = values.every(value => value != null) ? values.reduce((sum, value, i) => sum + (S.over ? value : Math.min(1, value)) * models[i].anchor.capacity, 0) : null;
@@ -588,8 +589,8 @@ function hitLine(fx, fy) {
 function panWin(dir) {
   const cfg = chartCfg(), [x, y] = cfg.win, span = y - x, half = Math.round(span / 2);
   if (cfg.kind === 'week') {
-    const na = clamp(S.win[0] + dir * half, -7 * (MAXW - 1) * DAY, weekEnd() - span);
-    while (na < -7 * (S.weeks - 1) * DAY) S.weeks++;
+    const na = clamp(S.win[0] + dir * half, -pastDays(MAXW) * DAY, weekEnd() - span);
+    while (S.weeks < MAXW && na < -pastDays() * DAY) S.weeks++;
     S.win = [na, na + span];
   } else {
     const na = clamp(x + dir * half, 0, cfg.nd * DAY - span);
@@ -612,7 +613,7 @@ function groupCardsHtml(term, stale) {
       title = `${g.label} · 최신값 없음`;
       box = '<span class="zc-box na">값 없음</span>';
     }
-    const parts = A.parts.map(({ z, p, c }) => `<span${p != null && p > c ? ' class="ov" title="면수 초과 진입 ' + num(p - c) + '대"' : ''}><i style="border-color:${z.color}"></i>${esc(shortName(z))} <b>${p == null ? '—' : pct(S.over ? p / c : Math.min(p / c, 1))}</b></span>`).join('');
+    const parts = A.parts.map(({ z, p, c }) => `<span${p != null && p > c ? ' class="ov" title="면수 초과 진입 ' + num(p - c) + '대"' : ''}><i style="border-color:${z.color}"></i>${esc(shortName(z))} <b>${p == null ? '—' : S.metric === 'avail' ? num(Math.max(c - p, 0)) + '대' : pct(S.over ? p / c : Math.min(p / c, 1))}</b></span>`).join('');
     return `<button class="gc${on ? '' : ' off'}" data-a="grp" data-v="${g.id}" data-focus="${g.id}" aria-pressed="${on}" title="${esc(title)}">
       <span class="gc-h"><span class="sw" style="border-color:${on ? g.color : '#d9dce0'}"></span><span class="nm">${g.label}</span>${g.note ? `<small>${g.note}</small>` : ''}</span>${box}<span class="gc-zs">${parts}</span></button>`;
   }).join('')}</div>`;
@@ -657,7 +658,7 @@ function compactParking(term, gid) {
   const stale = !!D.err || D.latest?.stale || latestAge() > 15;
   const zones = zonesFor(term, gid).map(zone => {
     const current = Number.isFinite(zone.p) && zone.p >= 0 && Number.isFinite(zone.c) && zone.c > 0
-      ? { available: Math.max(zone.c - zone.p, 0), occupancy: Math.min(zone.p / zone.c, 1) } : null;
+      ? { available: Math.max(zone.c - zone.p, 0), capacity: zone.c, occupancy: Math.min(zone.p / zone.c, 1) } : null;
     const model = current && !stale ? igotoModel(zone) : null;
     const failures = [];
     if (zone.c === 0) failures.push('현재 운영 중단 구역입니다.');
@@ -690,7 +691,7 @@ function renderCompactParking() {
       ${cards.map(card => `<article class="quick-card" data-term="${card.term}" data-group="${card.gid}">
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
         ${card.zones.length ? card.zones.map(row => `<section class="quick-zone" data-zone="${esc(row.zone.id)}" aria-label="${esc(card.term + ' ' + row.zone.name)}">
-          <div class="quick-zone-head"><h3>${esc(shortName(row.zone))}</h3><div class="quick-current"><span>${card.stale ? '마지막 수집 · 갱신 지연' : '현재 남은 대수'}</span>${row.current ? `<b>${num(row.current.available)}대</b>` : '<b>남은 대수 확인 필요</b>'}</div></div>
+          <div class="quick-zone-head"><h3>${esc(shortName(row.zone))}</h3><div class="quick-current"><span>${card.stale ? '마지막 수집 · 갱신 지연' : '현재 주차 가능'}</span>${row.current ? `<b>${num(row.current.available)}대</b><span>/ 전체 ${num(row.current.capacity)}대</span>` : '<b>주차 가능 대수 확인 필요</b>'}</div></div>
           <div class="quick-slots" role="list">${row.cells.map(cell => {
           const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
           const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
@@ -707,16 +708,17 @@ function renderCompactParking() {
 
 function renderWeek() {
   const term = S.term, cfg = weekCfg(), m = chartModel(cfg), tot = nowAgg(term, '합계'), age = latestAge(), stale = age > 15;
-  const [a, b] = S.win, tk = todayK() * DAY, n0 = clamp(NOWI() - 36, -7 * (S.weeks - 1) * DAY, weekEnd() - 72);
-  const spans = [1, 2, 3, 4].map(n => [n, n === 1 ? '이번 주' : `${n}주`, [-7 * (n - 1) * DAY, weekEnd()]]);
-  const zooms = [['today', '오늘', [tk, tk + DAY]], ['now', '지금 ±3시간', [n0, n0 + 72]]];
+  const [a, b] = S.win, n0 = clamp(NOWI() - 36, -pastDays() * DAY, weekEnd() - 72);
+  const spans = [1, 2, 3, 4].map(n => [n, n === 1 ? '최근 3일' : `${n}주`, rollingWin(n)]);
+  const zooms = [['today', '오늘', [0, DAY]], ['now', '지금 ±3시간', [n0, n0 + 72]]];
+  const firstSlot = slotRange(D.now.date, a), lastSlot = slotRange(D.now.date, b);
   const btn = (act, v, l, on) => `<button data-a="${act}" data-v="${v}" class="${on ? 'on' : ''}" aria-pressed="${on}">${l}</button>`;
   const partial = tot.missing && tot.occ != null ? ` · ${tot.missing}개 구역 값 없음` : '';
   document.getElementById('view').innerHTML = `
   <section class="sec">
     <div class="sec-head">
       <div class="titles"><span class="t17">${term} 주차장 현황</span>
-        <span class="sub">${mdw(cfg.d0)} → ${mdw(addDays(cfg.d0, cfg.nd - 1))} · 구역별 5분 실측 그래프 · 드래그로 구간 확대 · 카테고리 카드나 선을 눌러 켜기/끄기</span></div>
+        <span class="sub">${mdw(firstSlot.date)} ${slotLabel(firstSlot.slot)} → ${mdw(lastSlot.date)} ${slotLabel(lastSlot.slot)} · 구역별 5분 실측·참고 예측 · 드래그로 구간 확대</span></div>
       <div class="total"><span class="lbl">${term} 합계 지금 (예약 제외${partial})</span><span class="val">가용 ${tot.occ == null ? '—' : num(tot.avail) + '대'} · 점유율 ${tot.occ == null ? '—' : pct(tot.occ)}</span></div>
     </div>
     ${layoutMode() === 'mobile' ? '<button class="btn" data-a="detail" data-v="0">간단 주차 예상으로 돌아가기</button>' : ''}
@@ -725,7 +727,7 @@ function renderWeek() {
         <div class="seg" role="group" aria-label="기간">${spans.map(([n, l, r]) => btn('weeks', n, l, S.weeks === n && a === r[0] && b === r[1])).join('')}</div>
         <div class="seg" role="group" aria-label="확대">${zooms.map(([, l, r]) => btn('win', r.join(','), l, a === r[0] && b === r[1])).join('')}</div>
         <div class="pan"><button data-a="pan" data-v="-1" aria-label="이전 구간">◀</button><button data-a="pan" data-v="1" aria-label="다음 구간">▶</button></div>
-        <div class="forecast-horizon"><span>미래</span><div class="seg" role="group" aria-label="미래 예측 기간">${segHtml([[3, '3일'], [5, '5일'], [7, '7일']], S.futureDays, 'future')}</div></div>
+        <div class="forecast-horizon"><span>미래</span><div class="seg" role="group" aria-label="미래 예측 기간">${segHtml([[3, '3일'], [4, '4일'], [5, '5일'], [7, '7일']], S.futureDays, 'future')}</div></div>
       </div>
       <div class="control-metrics">
         <div class="seg cmp" role="group" aria-label="점선 비교">${segHtml(CMPS.map((l, w) => [w, l]), S.cmp, 'cmp')}</div>
@@ -748,7 +750,7 @@ function renderWeek() {
   </section>
   ${forecastHtml()}
   <section class="sec lite forecast-notes" aria-label="예측 안내">
-    <p class="muted forecast-window">예측은 오늘 남은 시간과 내일부터 ${S.futureDays}일(${mdw(addDays(D.now.date, 1))}~${mdw(addDays(D.now.date, S.futureDays))})까지입니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
+    <p class="muted forecast-window">기본은 현재 시각 기준 과거 3일과 향후 4일입니다. 미래 기간은 3·4·5·7일을 선택할 수 있으며 현재부터 ${S.futureDays}일 뒤 같은 시각까지 표시합니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
     ${igotoNotice(term)}
   </section>`;
   WM = m;
@@ -757,40 +759,55 @@ function renderWeek() {
   renderOverlay();
 }
 
-/* 예상 점유율: 지난주 같은 요일의 흐름 + (지금 − 지난주 같은 시각) 오프셋 */
+/* 선택 지표의 과거 같은 요일 흐름에 현재 시각의 차이를 반영합니다. */
 function forecastOf(term, gid) {
-  const today = D.now.date, idx = D.now.idx, key = occKey(), td = zoneDay(gid, today);
+  const today = D.now.date, idx = D.now.idx, key = vkey(), occupancyKey = occKey();
   const sample = offset => {
-    const { date, slot } = slotRange(today, idx + offset), day = zoneDay(gid, date);
-    if (!day) return { v: null, date, slot };
-    const values = [slot - 1, slot, slot + 1].map(i => {
+    const { date, slot } = slotRange(today, idx + offset), values = [], occupancies = [];
+    for (const i of [slot - 1, slot, slot + 1]) {
       const at = slotRange(date, i), d = zoneDay(gid, at.date);
-      return d ? d[key][at.slot] : null;
-    }).filter(v => v != null);
-    return { v: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, date, slot };
+      if (!d || at.date > today || (at.date === today && at.slot > idx) || d[key][at.slot] == null) continue;
+      values.push(d[key][at.slot]); occupancies.push(d[occupancyKey][at.slot]);
+    }
+    const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    return { v: mean(values), occupancy: mean(occupancies), date, slot };
   };
   const history = [-36, -24, -12].map(sample);
-  let i0 = -1;
-  if (td) for (let i = idx; i >= Math.max(0, idx - 6); i--) if (td[key][i] != null) { i0 = i; break; }
-  if (i0 < 0) return { ok: false, why: '지금 값이 없어 추정할 수 없습니다', now: null, history };
-  const now = td[key][i0], h0 = Math.floor(idx / 12) + 1, cap = S.over ? Infinity : 1;
+  let anchor = null;
+  for (let back = 0; back <= 6; back++) {
+    const at = slotRange(today, idx - back), day = zoneDay(gid, at.date);
+    if (day?.[key][at.slot] != null) { anchor = { ...at, day }; break; }
+  }
+  if (!anchor) return { ok: false, why: '지금 값이 없어 추정할 수 없습니다', now: null, history };
+  const now = anchor.day[key][anchor.slot], nowOccupancy = anchor.day[occupancyKey][anchor.slot];
+  const capacity = D.days.get(anchor.date).zones[gid].c[anchor.slot], h0 = Math.floor(idx / 12) + 1;
+  const cap = S.metric === 'avail' ? capacity : S.over ? Infinity : 1;
+  const sm = (date, slot) => {
+    let sum = 0, n = 0;
+    for (let delta = -2; delta <= 2; delta++) {
+      const at = slotRange(date, slot + delta), day = zoneDay(gid, at.date), value = day?.[key][at.slot];
+      if (at.date <= today && value != null) { sum += value; n++; }
+    }
+    return n ? sum / n : null;
+  };
   for (let w = 1; w <= 4; w++) {
-    const bd = addDays(today, -7 * w), docs = [zoneDay(gid, bd), zoneDay(gid, addDays(bd, 1))];
-    const at = j => { const g = docs[Math.floor(j / DAY)]; return g ? g[key][j % DAY] : null; };
-    const sm = j => { let s = 0, n = 0; for (let k = Math.max(0, j - 2); k <= j + 2; k++) { const v = at(k); if (v != null) { s += v; n++; } } return n ? s / n : null; };
-    const base = sm(i0);
+    const bd = addDays(today, -7 * w), base = sm(addDays(anchor.date, -7 * w), anchor.slot);
     if (base == null) continue;
     const off = now - base;
-    const cells = Array.from({ length: 6 }, (_, k) => { const j = (h0 + k) * 12, bv = sm(j); return { j, base: bv, v: bv == null ? null : clamp(bv + off, 0, cap) }; });
+    const cells = Array.from({ length: 6 }, (_, k) => {
+      const j = (h0 + k) * 12, at = slotRange(bd, j), bv = sm(at.date, at.slot);
+      const v = bv == null ? null : clamp(bv + off, 0, cap);
+      return { j, base: bv, v, occupancy: v == null ? null : S.metric === 'avail' ? 1 - v / capacity : v };
+    });
     if (cells.every(c => c.v == null)) continue;
-    return { ok: true, now, i0, base, off, w, date: bd, history, cells };
+    return { ok: true, now, nowOccupancy, capacity, i0: anchor.slot, base, off, w, date: bd, history, cells };
   }
-  return { ok: false, why: '지난 4주 같은 요일 기록이 없어 추정할 수 없습니다', now, i0, history };
+  return { ok: false, why: '지난 4주 같은 요일 기록이 없어 추정할 수 없습니다', now, nowOccupancy, capacity, i0: anchor.slot, history };
 }
 function forecastHtml() {
   const term = S.term, on = selectedZones(term), h0 = Math.floor(D.now.idx / 12) + 1;
   const rows = on.map(z => ({ z, g: GROUPS.find(g => g.cats.includes(z.category)), f: forecastOf(term, z.id) }));
-  const first = rows.find(r => r.f.ok), bd = first ? first.f.date : addDays(D.now.date, -7);
+  const available = S.metric === 'avail', fmt = v => available ? num(v) + '대' : pct(v);
   const actualHead = [-36, -24, -12].map(offset => {
     const p = slotRange(D.now.date, D.now.idx + offset);
     return `<span>${slotLabel(p.slot)}${p.date !== D.now.date ? `<small>${p.date < D.now.date ? '어제' : '내일'}</small>` : ''}</span>`;
@@ -800,26 +817,26 @@ function forecastHtml() {
     const name = `<span class="rname"><i style="border-color:${z.color}"></i>${esc(z.name)}<small class="fc-cat">${g.label}</small></span>`;
     const actual = f.history.map(p => {
       const label = `${slotLabel(p.slot)}${p.date !== D.now.date ? ` · ${p.date < D.now.date ? '어제' : '내일'}` : ''}`;
-      return { v: p.v, label, kind: 'past' };
-    }).concat({ v: f.now, label: `지금 ${slotLabel(D.now.idx)}`, kind: 'current' });
+      return { v: p.v, occupancy: p.occupancy, label, kind: 'past' };
+    }).concat({ v: f.now, occupancy: f.nowOccupancy, label: `지금 ${slotLabel(D.now.idx)}`, kind: 'current' });
     const future = f.cells || Array.from({ length: 6 }, (_, k) => ({ v: null, j: (h0 + k) * 12 }));
-    const points = actual.concat(future.map((c, i) => ({ v: c.v, base: c.base, label: slotLabel(c.j % DAY), kind: 'future', firstFuture: i === 0, j: c.j })));
+    const points = actual.concat(future.map((c, i) => ({ v: c.v, occupancy: c.occupancy, label: slotLabel(c.j % DAY), kind: 'future', firstFuture: i === 0, j: c.j })));
     const cells = points.map(p => {
-      if (p.v == null) return `<div class="fc-cell na ${p.kind}${p.firstFuture ? ' first-future' : ''}" title="실측 기록 없음">—</div>`;
-      const color = occColor(p.v);
-      const detail = p.kind === 'future' ? `${wkLabel(f.w)} ${pct(p.base)}` : p.kind === 'current' ? `현재 ${pct(p.v)}` : `실측 ${pct(p.v)}`;
-      const title = p.kind === 'future' ? `${z.name} ${p.label} 예상 ${pct(p.v)} = ${wkLabel(f.w)} ${pct(p.base)} ${pctp(f.off)}` : `${z.name} ${p.label} ${detail}`;
-      return `<div class="fc-cell ${p.kind}${p.firstFuture ? ' first-future' : ''}" style="--occ:${color};--fg:${contrastText(color)};background:${color};color:var(--fg)" title="${esc(title)}"><b>${pct(p.v)}</b><small>${p.kind === 'future' ? `${wkLabel(f.w)} ${pct(p.base)}` : p.kind === 'current' ? '현재' : '실측'}</small></div>`;
+      if (p.v == null) return `<div class="fc-cell na ${p.kind}${p.firstFuture ? ' first-future' : ''}" title="${esc(`${z.name} ${p.label} · ${p.kind === 'future' ? f.why || '예측용 기록 없음' : '실측 기록 없음'}`)}">—</div>`;
+      const color = occColor(p.occupancy), label = `${z.name} ${p.label} · ${p.kind === 'future' ? '연결 방식 참고 예상' : p.kind === 'current' ? '현재' : '실측'} ${available ? '가용' : '점유율'} ${fmt(p.v)}`;
+      return `<div class="fc-cell ${p.kind}${p.firstFuture ? ' first-future' : ''}" style="background:${color};color:${contrastText(color)}" title="${esc(label)}" aria-label="${esc(label)}"><b>${fmt(p.v)}</b></div>`;
     }).join('');
-    const note = f.ok
-      ? `<small>현재 ${pct(f.now)} · ${wkLabel(f.w)} 같은 시각 ${pct(f.base)}</small><small>차이 <b>${pctp(f.off)}</b> 반영</small>`
-      : `<small>${f.now == null ? '현재 실측 없음' : `현재 ${pct(f.now)}`} · ${esc(f.why)}</small>`;
-    return `<div class="fc-row"><div class="fc-name">${name}${note}</div>${cells}</div>`;
+    const latest = D.latest.zones.find(zone => zone.id === z.id);
+    const note = latest?.p != null && latest.c > 0
+      ? `<small class="fc-summary">주차 ${num(latest.p)}대 / 전체 ${num(latest.c)}대 · 점유율 ${pct(latest.p / latest.c)}</small>`
+      : '<small class="fc-summary">현재 주차 대수 확인 필요</small>';
+    const warning = !f.ok ? `<small class="fc-reason">${esc(f.why)}</small>` : '';
+    return `<div class="fc-row"><div class="fc-name">${name}${note}${warning}</div>${cells}</div>`;
   }).join('');
   return `<section class="sec lite">
     <div class="sec-head" style="align-items:flex-end">
-      <div class="titles"><span class="t15">예상 점유율 · 지난 3시간 + 앞으로 6시간</span>
-        <span class="sub">기존 연결 방식의 6시간 참고 예상입니다(공휴일 미고려). 과거는 구역별 실측이며, 예상은 지난주 같은 요일(${md(bd)} ${DOW[dowOf(bd)]})의 흐름에 현재와 지난주 같은 시각의 차이를 더했습니다. 휴일을 고려한 IGoTo 예측은 위 그래프에서 확인하세요.</span></div>
+      <div class="titles"><span class="t15">예상 ${available ? '가용 대수' : '점유율'} · 지난 3시간 + 앞으로 6시간</span>
+        <span class="sub">왼쪽은 과거 실측, 가운데는 현재, 오른쪽은 과거 같은 요일 기반 연결 예상입니다(공휴일 미고려). 배경색은 점유율이며 IGoTo 예측은 위 그래프에서 확인하세요.</span></div>
     </div>
     ${!on.length ? '<span class="empty">위 카드에서 주차장을 하나 이상 켜세요.</span>' : `<div class="scroll-x"><div class="fc"><div class="fc-row hd"><span></span>${timelineHead}</div>${body}</div></div>`}
   </section>`;
@@ -907,31 +924,68 @@ const maxDate = (a, b) => a > b ? a : b;
 const minDate = (a, b) => a < b ? a : b;
 
 /* ---------- 기간별 기록 ---------- */
+function rangeSlot(zid, date, slot) {
+  const day = zoneDay(zid, date), value = day?.[vkey()][slot], occupancy = day?.[occKey()][slot];
+  if (date > D.now.date || (date === D.now.date && slot > D.now.idx)) return { value: null, occupancy: null, why: '아직 없음' };
+  if (D.days.get(date)?.zones[zid]?.c[slot] === 0) return { value: null, occupancy: null, why: '미운영' };
+  return value == null ? { value: null, occupancy: null, why: whyNull(date, slot) } : { value, occupancy, why: '' };
+}
 function rangeHeatmapHtml(term, cfg) {
   const on = selectedZones(term), dates = Array.from({ length: cfg.nd }, (_, k) => addDays(cfg.d0, k));
   if (!on.length) return '<span class="empty">위에서 주차 카테고리를 하나 이상 켜세요.</span>';
-  const key = occKey();
   const rows = on.map(z => {
-    const days = dates.map(d => zoneDay(z.id, d));
     const g = GROUPS.find(group => group.cats.includes(z.category));
-    const cells = Array.from({ length: DAY }, (_, slot) => {
-      let sum = 0, n = 0;
-      for (const day of days) {
-        const arr = day && day[key];
-        if (!arr) continue;
-        if (arr[slot] == null) continue;
-        sum += arr[slot]; n++;
-      }
-      const avg = n ? sum / n : null, color = avg == null ? null : occColor(avg);
-      return `<span class="th-cell${avg == null ? ' na' : ''}"${color ? ` style="--occ:${color};background:${color}"` : ''} aria-label="${esc(`${z.name} ${slotLabel(slot)} · ${avg == null ? '기록 없음' : `기간 평균 ${pct(avg)}`}`)}"></span>`;
-    }).join('');
+    const cells = dates.map(date => `<canvas class="th-strip" width="${DAY}" height="1" data-zone="${esc(z.id)}" data-date="${date}" tabindex="0" role="img" aria-label="${esc(`${z.name} ${date} · 00:00~23:55 KST 5분 실측. 화살표로 시각 이동.`)}"></canvas>`).join('');
     return `<div class="th-row${getAct(term)[categoryGroup(z)] ? '' : ' off'}"><span class="th-name"><i style="border-color:${z.color}"></i><span>${esc(z.name)}</span><small>${g.label}</small></span>${cells}</div>`;
   }).join('');
-  const head = Array.from({ length: DAY }, (_, slot) => `<span>${slot % 36 === 0 ? pad(slot / 12) : ''}</span>`).join('');
-  return `<div class="titles"><span class="t15">기간별 시간대 점유율</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 같은 시간대 5분 실측의 기간 평균 · 만차 초과 표시는 100%에서 색을 고정</span></div>
-    <div class="scroll-x"><div class="timeheat">
-      <div class="th-head"><span></span>${head}</div>${rows}
-    </div></div>`;
+  const head = dates.map(date => `<div class="th-day-heading"><time datetime="${date}">${mdw(date)}</time><span class="th-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></span></div>`).join('');
+  return `<div class="titles"><span class="t15">기간별 날짜·시간대 ${S.metric === 'avail' ? '가용 대수' : '점유율'}</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 날짜를 좌→우로 연결한 5분 실측(평균 아님) · 가로로 이동해 날짜별 비교 · 배경은 공통 점유율 색상</span></div>
+    <div class="scroll-x"><div class="timeheat" style="--history-days:${cfg.nd}">
+      <div class="th-head"><span class="th-corner">구역 / 날짜</span>${head}</div>${rows}
+    </div></div><p id="range-point-detail" class="muted" role="status">칸을 가리키거나 터치하면 해당 날짜·시각의 실측을 확인합니다. 키보드는 화살표로 5분씩 이동합니다.</p>`;
+}
+function paintRangeHeatmap() {
+  const rgb = new Map(), detail = document.getElementById('range-point-detail');
+  for (const canvas of document.querySelectorAll('#rng-sum .th-strip')) {
+    const context = canvas.getContext('2d');
+    if (!context) {
+      console.error('Date-by-date parking heatmap: Canvas 2D is unavailable.');
+      detail.textContent = '날짜별 히트맵을 그릴 수 없습니다. 브라우저의 그래픽 지원을 확인하세요.';
+      return;
+    }
+    const { zone: zid, date } = canvas.dataset, pixels = context.createImageData(DAY, 1);
+    for (let slot = 0; slot < DAY; slot++) {
+      const point = rangeSlot(zid, date, slot);
+      if (point.value == null && !['아직 없음', '수집 전'].includes(point.why)) continue;
+      const color = point.value == null ? '#ffffff' : occColor(point.occupancy);
+      if (!rgb.has(color)) rgb.set(color, color.slice(1).match(/../g).map(hex => parseInt(hex, 16)));
+      pixels.data.set([...rgb.get(color), 255], slot * 4);
+    }
+    context.putImageData(pixels, 0, 0);
+    const name = zonesOf(S.term).find(zone => zone.id === zid).name;
+    const show = slot => {
+      canvas.dataset.slot = String(slot);
+      const point = rangeSlot(zid, date, slot);
+      const label = `${name} · ${date} ${slotLabel(slot)} KST · ${point.value == null ? point.why : `${S.metric === 'avail' ? '가용 ' + num(point.value) + '대' : '점유율 ' + pct(point.value)} · 실측`}`;
+      canvas.title = label;
+      canvas.setAttribute('aria-label', label);
+      detail.textContent = label;
+    };
+    const pointer = event => {
+      const bounds = canvas.getBoundingClientRect();
+      show(clamp(Math.floor((event.clientX - bounds.left) / bounds.width * DAY), 0, DAY - 1));
+    };
+    canvas.addEventListener('pointermove', pointer);
+    canvas.addEventListener('pointerdown', pointer);
+    canvas.addEventListener('focus', () => show(Number(canvas.dataset.slot) || 0));
+    canvas.addEventListener('keydown', event => {
+      const current = Number(canvas.dataset.slot) || 0;
+      const next = { ArrowLeft: current - 1, ArrowRight: current + 1, ArrowUp: current - 12, ArrowDown: current + 12, Home: 0, End: DAY - 1 }[event.key];
+      if (next == null) return;
+      event.preventDefault();
+      show(clamp(next, 0, DAY - 1));
+    });
+  }
 }
 /* 날짜 입력·월 선택(#rng-dates)은 포커스가 있는 동안 다시 그리지 않습니다(입력 중 값과 포커스 보존). */
 function renderRange() {
@@ -970,6 +1024,7 @@ function renderRange() {
   set('rng-chart', `<div class="legend">${groupChipsHtml(term)}<div class="ltools"><span class="tools">${keysHtml(cfg)}</span></div></div>
       ${chartHtml(m)}`);
   set('rng-sum', rangeHeatmapHtml(term, cfg));
+  paintRangeHeatmap();
   WM = m;
   bindPlot();
   applyFocus();
@@ -1018,7 +1073,7 @@ function renderAbout() {
   const firstToday = D.now.date === st && D.days.get(st) ? D.days.get(st).first : 0;
   const expect = D.now.idx - firstToday + 1;
   const blocks = [
-    ['무엇을 보여주나요', '인천국제공항공사가 공개하는 주차장별 주차 차량 수·총 주차면수를 5분마다 저장한 실측 기록입니다. 단기·장기(주차타워 포함)·예약주차장 단위로 묶어 보여주며, 지난 몇 주의 같은 요일·같은 시각 흐름과 비교하거나 원하는 기간의 변화를 직접 확인할 수 있습니다. 일요일에도 다음 주를 볼 수 있도록 미래 3일(기본)·5일·7일을 선택합니다.'],
+    ['무엇을 보여주나요', '인천국제공항공사가 공개하는 주차장별 주차 차량 수·총 주차면수를 5분마다 저장한 실측 기록입니다. 기본 그래프는 현재 기준 과거 3일·향후 4일이며 자정이나 주가 바뀌어도 최근 기록이 보입니다. 미래는 3·4일(기본)·5·7일을 선택합니다. 기간별 하단은 날짜별 5분 실측을 순서대로 연결하며 평균으로 합치지 않습니다.'],
     ['두 가지 참고 예측', '연결 예측과 하단 6시간 예상은 과거 같은 요일·시각 흐름에 현재값 차이를 더한 기존 방식입니다. IGoTo 예측은 최근 실측의 시간대·공휴일·주말·연결 휴가 후보·연휴 전후 조건을 구역별로 학습하고 현재값 보정은 시간에 따라 줄입니다. IGoTo는 기본으로 켜지며 비교 주차와 독립적으로 선택합니다. 연결 휴가 후보는 실제 공휴일이나 확인된 휴가 사용이 아닙니다. 아직 한 연휴 자료로 검증한 실험적 예상이고 연휴 종료 뒤 평일·4~7일 거리·예약주차장은 특히 한계가 있습니다. 어느 예상도 공식 예측이나 실제 가용 면수·만차 여부의 보장이 아닙니다.'],
     ['데이터 출처', '인천국제공항공사 주차 정보(공공데이터포털). 제1터미널 단기주차장(지하1~3층·지상층), 장기주차장(P1~P3), 장기 주차타워(P1·P2), P5 예약주차장과 제2터미널 단기주차장(지하M층·지상1~4층), 장기주차장, 장기주차타워(P1·P2), 예약주차장 등 19개 구역의 주차 차량 수와 총 주차면수를 사용합니다. 공휴일 표시는 한국천문연구원 특일 정보(공공데이터포털)를 사용합니다.'],
     ['왜 직접 쌓나요', `API는 조회하는 순간의 현재값만 제공합니다. 그래서 ${st}부터 5분마다 호출해 저장하고 있으며, 수집 시작 이전 기록은 없습니다. 5분 간격 호출은 하루 288회로 개발 계정 한도(일 1,000회) 안에 들어갑니다.`],
@@ -1074,12 +1129,12 @@ document.addEventListener('click', e => {
   if (a === 'term') { S.term = v; S.focus = null; S.hf = null; }
   else if (a === 'tab') { S.tab = v; S.hf = null; S.focus = null; if (v === 'week') S.mobileDetail = false; }
   else if (a === 'detail') { S.mobileDetail = v === '1'; S.hf = null; }
-  else if (a === 'weeks') { const n = clamp(Number(v), 1, MAXW); S.weeks = n; S.win = [-7 * (n - 1) * DAY, weekEnd()]; winTouched = true; }
+  else if (a === 'weeks') { S.weeks = clamp(Number(v), 1, MAXW); S.win = rollingWin(); winTouched = false; }
   else if (a === 'future') {
     const days = Number(v);
-    if (![3, 5, 7].includes(days)) throw new Error('미래 예측 기간은 3·5·7일 중 선택해야 합니다');
-    S.futureDays = days; S.win = [-7 * (S.weeks - 1) * DAY, weekEnd()]; winTouched = true; S.hf = null;
-    store.set('icn.forecastDays', String(days));
+    if (![3, 4, 5, 7].includes(days)) throw new Error('미래 예측 기간은 3·4·5·7일 중 선택해야 합니다');
+    S.futureDays = days; S.win = rollingWin(); winTouched = false; S.hf = null;
+    store.set(FORECAST_DAYS_KEY, String(days));
   }
   else if (a === 'win') { S.win = v.split(',').map(Number); winTouched = true; }
   else if (a === 'pan') { panWin(Number(v)); winTouched = true; }
@@ -1151,13 +1206,16 @@ function readHash() {
 }
 
 async function refresh(first) {
-  const prevDate = D.now.date, previousEnd = weekEnd(), previousWeek = weekStart();
+  const prevDate = D.now.date;
   D.now = kstNow();
-  if (!winTouched && previousWeek !== weekStart()) S.win[0] = -7 * (S.weeks - 1) * DAY;
-  if (!winTouched || S.win[1] === previousEnd) S.win[1] = weekEnd();
-  if (S.win[1] > weekEnd()) {
-    const span = S.win[1] - S.win[0];
-    S.win[1] = weekEnd(); S.win[0] = Math.max(-7 * (S.weeks - 1) * DAY, S.win[1] - span);
+  if (!winTouched) S.win = rollingWin();
+  else {
+    const shift = daysBetween(prevDate, D.now.date) * DAY;
+    S.win = S.win.map(slot => slot - shift);
+    if (S.win[0] < -pastDays(MAXW) * DAY) {
+      const span = S.win[1] - S.win[0];
+      S.win[0] = -pastDays(MAXW) * DAY; S.win[1] = S.win[0] + span;
+    }
   }
   try {
     const [latest, cal] = await Promise.all([fetchJson('latest.json'), fetchJson('calendar.json').catch(() => null)]);
@@ -1165,13 +1223,6 @@ async function refresh(first) {
   } catch (err) { D.err = err.message; }
   if (!first) { D.days.delete(D.now.date); D.days.delete(prevDate); }
   D.cache.clear();
-  if (first && D.latest && !winTouched && S.weeks === 1) {
-    const ws = weekStart(), st = startDate();
-    if (st > ws && st <= D.now.date) {
-      const k = Math.round((Date.parse(st) - Date.parse(ws)) / DAY_MS);
-      S.win = [k * DAY, weekEnd()];
-    }
-  }
   if (first) render();
   await ensure();
 }
