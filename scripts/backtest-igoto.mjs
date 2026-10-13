@@ -25,6 +25,14 @@ function summary(out) {
     nearFullRecall: out.tp + out.fn ? +(out.tp / (out.tp + out.fn)).toFixed(3) : null
   };
 }
+const demandScore = () => ({ n: 0, absolute: 0, squared: 0 });
+function recordDemand(out, predicted, actual) {
+  out.n++; out.absolute += Math.abs(predicted - actual); out.squared += (predicted - actual) ** 2;
+}
+const demandSummary = out => ({
+  samples: out.n, maeCars: out.n ? +(out.absolute / out.n).toFixed(3) : null,
+  rmseCars: out.n ? +Math.sqrt(out.squared / out.n).toFixed(3) : null
+});
 
 async function main() {
   const args = process.argv.slice(2), options = {};
@@ -48,13 +56,20 @@ async function main() {
     days.set(date, JSON.parse(text));
     hashes[date] = createHash('sha256').update(text).digest('hex');
   }
-  const value = (zoneId, date, idx, cutoff = cutoffTime) => {
+  const observation = (zoneId, date, idx, cutoff = cutoffTime) => {
     if (time(date, idx) > cutoff) return null;
     const z = days.get(date)?.zones[zoneId], p = z?.p[idx], c = z?.c[idx];
-    return Number.isFinite(p) && p >= 0 && c > 0 ? p / c : null;
+    return Number.isSafeInteger(p) && p >= 0 && Number.isSafeInteger(c) && c > 0 ? { parking: p, capacity: c } : null;
+  };
+  const value = (zoneId, date, idx, cutoff, referenceCapacity) => {
+    const sample = observation(zoneId, date, idx, cutoff);
+    return sample ? sample.parking / referenceCapacity : null;
   };
   const all = { igoto: score(), persistence: score() }, common = { igoto: score(), linked: score(), previousWeek: score(), persistence: score() };
   const groups = {}, byTargetDate = {}, byLead = {}, byCondition = {};
+  const capacityScores = Object.fromEntries(['unchanged', 'changed'].map(key => [key, {
+    igoto: score(), linked: score(), demand: { igoto: demandScore(), linked: demandScore() }
+  }]));
   let origins = 0, skippedModels = 0, limitedSamples = 0;
   for (let date = from; date <= to && date <= asOf.date; date = addDays(date, 1)) {
     for (const idx of [0, 72, 144, 216]) {
@@ -65,16 +80,20 @@ async function main() {
         const model = IGoTo.fit({ days, zoneId: zone.id, category: zone.category, now: { date, idx }, holidays: calendar.holidays });
         if (!model.ok) { skippedModels++; continue; }
         const anchorTime = time(model.anchor.date, model.anchor.idx);
-        const previousAnchor = value(zone.id, addDays(model.anchor.date, -7), model.anchor.idx, cutoff);
+        const previousAnchor = value(zone.id, addDays(model.anchor.date, -7), model.anchor.idx, cutoff, model.anchor.capacity);
         for (let hours = 1; hours <= 168; hours++) {
           const target = atTime(anchorTime + hours * 3600000);
           if (target.date > to || time(target.date, target.idx) > cutoffTime) break;
-          const actual = value(zone.id, target.date, target.idx);
-          if (actual == null) continue;
+          const actualSample = observation(zone.id, target.date, target.idx);
+          if (!actualSample) continue;
+          const actual = actualSample.parking / actualSample.capacity;
           const prediction = IGoTo.predict(model, target.date, target.idx);
           if (prediction.value == null) continue;
           record(all.igoto, prediction.value, actual);
           record(all.persistence, model.anchor.value, actual);
+          const capacityScore = capacityScores[actualSample.capacity === model.anchor.capacity ? 'unchanged' : 'changed'];
+          record(capacityScore.igoto, prediction.value, actual);
+          recordDemand(capacityScore.demand.igoto, prediction.parking, actualSample.parking);
           if (prediction.limited) limitedSamples++;
           const group = zone.terminal + '/' + (['장기', '타워'].includes(zone.category) ? '장기·타워' : zone.category);
           const lead = hours <= 24 ? '1–24h' : hours <= 72 ? '25–72h' : '73–168h';
@@ -85,13 +104,15 @@ async function main() {
             record(scores.igoto, prediction.value, actual);
             record(scores.persistence, model.anchor.value, actual);
           }
-          const previous = value(zone.id, addDays(target.date, -7), target.idx, cutoff);
+          const previous = value(zone.id, addDays(target.date, -7), target.idx, cutoff, model.anchor.capacity);
           if (previous == null || previousAnchor == null) continue;
           const linked = Math.max(0, previous + model.anchor.value - previousAnchor);
           record(common.igoto, prediction.value, actual);
           record(common.linked, linked, actual);
           record(common.previousWeek, previous, actual);
           record(common.persistence, model.anchor.value, actual);
+          record(capacityScore.linked, linked, actual);
+          recordDemand(capacityScore.demand.linked, linked * model.anchor.capacity, actualSample.parking);
           for (const [table, key] of [[groups, group], [byTargetDate, target.date], [byLead, lead], [byCondition, condition]]) {
             record(table[key].commonIgoto, prediction.value, actual);
             record(table[key].linked, linked, actual);
@@ -103,11 +124,16 @@ async function main() {
   if (!all.igoto.n) throw new Error('No evaluable IGoTo forecasts; inspect snapshot coverage and holiday data');
   const summarizeTable = table => Object.fromEntries(Object.entries(table).map(([key, scores]) => [key, Object.fromEntries(Object.entries(scores).map(([name, result]) => [name, summary(result)]))]));
   const result = {
-    model: 'IGoTo calendar ridge v1', from, to, snapshotLastOkAt: latest.last_ok_at, origins, skippedModels, limitedSamples,
-    protocol: 'KST origins every 6h; fit only at/before origin; evaluate hourly targets 1–168h ahead available at snapshot cutoff; raw p/c; identical samples for each paired comparison; overlapping origins are not independent',
+    model: IGoTo.VERSION, from, to, snapshotLastOkAt: latest.last_ok_at, origins, skippedModels, limitedSamples,
+    modelSha256: createHash('sha256').update(await readFile(new URL('../web/forecast.js', import.meta.url))).digest('hex'),
+    protocol: 'KST origins every 6h; fit only at/before origin; evaluate hourly targets 1–168h ahead available at snapshot cutoff; forecasts assume anchor operating capacity, never future observed capacity; raw actual p/c; linked histories use parked demand at anchor capacity; identical samples for each paired comparison; overlapping origins are not independent',
     snapshotDayHashes: hashes,
     overall: summarizeTable({ all, common }),
-    byGroup: summarizeTable(groups), byTargetDate: summarizeTable(byTargetDate), byLead: summarizeTable(byLead), byCondition: summarizeTable(byCondition)
+    byGroup: summarizeTable(groups), byTargetDate: summarizeTable(byTargetDate), byLead: summarizeTable(byLead), byCondition: summarizeTable(byCondition),
+    byFutureCapacity: Object.fromEntries(Object.entries(capacityScores).map(([key, scores]) => [key, {
+      igoto: summary(scores.igoto), linked: summary(scores.linked),
+      demand: Object.fromEntries(Object.entries(scores.demand).map(([name, scores]) => [name, demandSummary(scores)]))
+    }]))
   };
   const text = JSON.stringify(result, null, 2) + '\n';
   if (options['--output']) await writeFile(resolve(options['--output']), text);

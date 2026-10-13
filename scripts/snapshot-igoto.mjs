@@ -21,27 +21,30 @@ export function snapshotForecast({ latest, calendar, days }) {
     if (!model.ok) return { ...metadata, why: model.why };
     const predictions = {};
     for (let date = now.date; date <= end; date = addDays(date, 1)) {
-      const occupancy = [], limited = [];
+      const occupancy = [], parking = [], limited = [];
       for (let hour = 0; hour < 24; hour++) {
-        if (date === now.date && hour * 12 <= now.idx) { occupancy.push(null); limited.push(null); continue; }
+        if (date === now.date && hour * 12 <= now.idx) { occupancy.push(null); parking.push(null); limited.push(null); continue; }
         const prediction = IGoTo.predict(model, date, hour * 12);
         if (prediction.value == null) throw new Error(`${zone.id} ${date}: ${prediction.why}`);
         occupancy.push(prediction.value);
+        parking.push(prediction.parking);
         limited.push(prediction.limited);
       }
-      predictions[date] = { occupancy, limited };
+      predictions[date] = { occupancy, parking, limited };
     }
     return {
       ...metadata, capacity: model.anchor.capacity, anchor: { date: model.anchor.date, idx: model.anchor.idx },
-      trainingDays: model.days, trainingHours: model.hours, predictions
+      trainingDays: model.days, trainingHours: model.hours, observedCapacities: model.capacities,
+      capacityChanged: model.capacityChanged, predictions
     };
   });
   if (zones.every(zone => !zone.ok)) throw new Error('Forecast snapshot has no usable models');
   return {
-    v: 1, model: 'IGoTo calendar ridge v1', snapshotLastOkAt: latest.last_ok_at,
+    v: 1, model: IGoTo.VERSION, snapshotLastOkAt: latest.last_ok_at,
     cutoffKst: `${now.date}T${String(Math.floor(now.idx / 12)).padStart(2, '0')}:${String(now.idx % 12 * 5).padStart(2, '0')}+09:00`,
     futureDays: IGoTo.MAX_FUTURE_DAYS, firstFutureDate: addDays(now.date, 1), lastFutureDate: end,
-    slotConvention: 'KST hourly; array index 0=00:00, 23=23:00; current/past hours are null; occupancy is raw p/c, without the UI 100% cap',
+    slotConvention: 'KST hourly; array index 0=00:00, 23=23:00; current/past hours are null; parking is predicted demand; occupancy uses the reference operating capacity without the UI 100% cap',
+    capacityAssumption: 'reference-operating-capacity-unchanged',
     comparisonStatus: 'pending-actual-data', zones
   };
 }

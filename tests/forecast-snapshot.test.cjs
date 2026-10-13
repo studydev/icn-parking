@@ -33,17 +33,22 @@ test('snapshot freezes hourly raw predictions at the last successful KST slot, n
   assert.equal(result.firstFutureDate, '2026-10-12');
   assert.equal(result.lastFutureDate, '2026-10-18');
   assert.equal(result.comparisonStatus, 'pending-actual-data');
+  assert.equal(result.model, IGoTo.VERSION);
+  assert.equal(result.capacityAssumption, 'reference-operating-capacity-unchanged');
   assert.deepEqual(result.zones[0].anchor, { date: '2026-10-11', idx: 144 });
   for (const [date, day] of Object.entries(result.zones[0].predictions)) {
     assert.equal(day.occupancy.length, 24);
+    assert.equal(day.parking.length, 24);
     assert.equal(day.limited.length, 24);
     for (let hour = 0; hour < 24; hour++) {
       if (date === '2026-10-11' && hour <= 12) {
         assert.equal(day.occupancy[hour], null);
+        assert.equal(day.parking[hour], null);
         assert.equal(day.limited[hour], null);
       } else {
         const expected = IGoTo.predict(model, date, hour * 12);
         assert.equal(day.occupancy[hour], expected.value);
+        assert.equal(day.parking[hour], expected.parking);
         assert.equal(day.limited[hour], expected.limited);
       }
     }
@@ -93,6 +98,7 @@ test('snapshot command records source hashes and refuses to overwrite a frozen b
 test('published baseline preserves seven full future days for all zones and leaves actual comparison pending', () => {
   const baseline = JSON.parse(fs.readFileSync(path.join(root, 'docs/forecast-baseline-2026-10-11.json'), 'utf8'));
   assert.equal(baseline.snapshotLastOkAt, '2026-10-11T03:00:00Z');
+  assert.equal(baseline.model, 'IGoTo calendar ridge v1', 'published historical evidence must not be relabelled as the new model');
   assert.equal(baseline.cutoffKst, '2026-10-11T12:00+09:00');
   assert.equal(baseline.comparisonStatus, 'pending-actual-data');
   assert.equal(baseline.zones.length, 19);
@@ -111,5 +117,37 @@ test('published baseline preserves seven full future days for all zones and leav
     }
   }
   assert.equal(futureSamples, 19 * 7 * 24);
+  assert.doesNotMatch(JSON.stringify(baseline), /https?:\/\/|\/subscriptions\/|apiKey|serviceKey/);
+});
+
+test('separate v2 baseline preserves changed-capacity demand and raw overflow for future comparison', () => {
+  const baseline = JSON.parse(fs.readFileSync(path.join(root, 'docs/forecast-baseline-capacity-2026-10-13.json'), 'utf8'));
+  assert.equal(baseline.model, 'IGoTo parking-demand ridge v2');
+  assert.equal(baseline.snapshotLastOkAt, '2026-10-13T08:45:00Z');
+  assert.equal(baseline.cutoffKst, '2026-10-13T17:45+09:00');
+  assert.equal(baseline.capacityAssumption, 'reference-operating-capacity-unchanged');
+  assert.equal(baseline.comparisonStatus, 'pending-actual-data');
+  assert.equal(baseline.zones.length, 19);
+  const b1 = baseline.zones.find(zone => zone.id === 't1-short-b1');
+  assert.equal(b1.ok, true);
+  assert.equal(b1.capacity, 378);
+  assert.equal(b1.capacityChanged, true);
+  assert.deepEqual(b1.observedCapacities, [378, 520]);
+  assert.equal(b1.trainingDays, 13);
+  assert.equal(b1.trainingHours, 302);
+  assert.deepEqual(b1.anchor, { date: '2026-10-13', idx: 213 });
+  assert(b1.predictions['2026-10-13'].occupancy.some(value => value > 1));
+  for (const zone of baseline.zones) {
+    for (let date = '2026-10-14'; date <= '2026-10-20'; date = addDays(date, 1)) {
+      const day = zone.predictions[date];
+      assert.equal(day.parking.length, 24);
+      for (let hour = 0; hour < 24; hour++) {
+        assert(Number.isFinite(day.parking[hour]) && day.parking[hour] >= 0);
+        assert.equal(day.parking[hour], day.occupancy[hour] * zone.capacity);
+        assert.equal(typeof day.limited[hour], 'boolean');
+      }
+    }
+  }
+  assert.match(baseline.modelSha256, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(JSON.stringify(baseline), /https?:\/\/|\/subscriptions\/|apiKey|serviceKey/);
 });

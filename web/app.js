@@ -213,15 +213,16 @@ function zoneDay(zid, date) {
   if (D.cache.has(ck)) return D.cache.get(ck);
   const doc = D.days.get(date), z = doc && doc.zones[zid];
   if (!z) { D.cache.set(ck, null); return null; }
-  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice();
+  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice(), parking = o.slice();
   for (let i = 0; i < DAY; i++) {
     const p = z.p[i], c = z.c[i];
     if (p == null || c == null || c <= 0) continue;
     o[i] = p / c;
     oc[i] = Math.min(p, c) / c;
     a[i] = Math.max(c - p, 0);
+    parking[i] = p;
   }
-  const out = { o, oc, a };
+  const out = { o, oc, a, p: parking };
   D.cache.set(ck, out);
   return out;
 }
@@ -257,10 +258,18 @@ const pastDays = (weeks = S.weeks) => 3 + 7 * (weeks - 1);
 const rollingWin = (weeks = S.weeks) => [NOWI() - pastDays(weeks) * DAY, NOWI() + S.futureDays * DAY];
 const holidays = () => (D.cal && D.cal.holidays) || {};
 const weekEnd = () => (S.futureDays + 1) * DAY;
+const demandValue = (parking, capacity) => S.metric === 'avail' ? Math.max(capacity - parking, 0) : S.over ? parking / capacity : Math.min(parking / capacity, 1);
+function capacityPredictionIssue(zoneId, capacity) {
+  const current = D.latest?.zones.find(zone => zone.id === zoneId)?.c;
+  if (current === 0) return '현재 운영 중단 구역입니다.';
+  if (!(current > 0)) return '현재 운영 면수를 확인할 수 없어 예상을 만들 수 없습니다.';
+  return current !== capacity ? '최신 면수와 예측 기준 면수가 달라 확인이 필요합니다.' : '';
+}
 function igotoModel(z) {
   const key = `igoto|${z.id}|${D.now.date}|${D.now.idx}`;
   if (!D.cache.has(key)) D.cache.set(key, IGoTo.fit({ days: D.days, zoneId: z.id, category: z.category, now: D.now, holidays: D.cal?.holidays }));
-  return D.cache.get(key);
+  const model = D.cache.get(key), issue = model.ok ? capacityPredictionIssue(z.id, model.anchor.capacity) : '';
+  return issue ? { ok: false, why: issue } : model;
 }
 function forecastContexts(cfg) {
   const key = `forecast-calendar|${cfg.d0}|${cfg.nd}`;
@@ -303,6 +312,38 @@ function rangeCfg() {
 }
 const chartCfg = () => S.tab === 'range' ? rangeCfg() : weekCfg();
 function setWin(cfg, w) { if (cfg.kind === 'week') S.win = [w[0] - cfg.off, w[1] - cfg.off]; else S.rwin = w; }
+
+function capacityEventsFor(cfg, zones) {
+  const key = `capacity-events|${cfg.d0}|${cfg.nd}|${zones.map(zone => zone.id).join(',')}`;
+  if (!D.cache.has(key)) D.cache.set(key, ParkingCapacity.events({
+    days: D.days, zones, from: cfg.d0, to: addDays(cfg.d0, cfg.nd - 1), now: D.now
+  }));
+  return D.cache.get(key).filter(event => {
+    const slot = daysBetween(cfg.d0, event.date) * DAY + event.idx;
+    return slot >= cfg.win[0] && slot < cfg.win[1];
+  });
+}
+const capacityEventLabel = event => `${event.name} · ${event.date} ${slotLabel(event.idx)} · 운영 ${num(event.from)}→${num(event.to)}대`;
+function capacityMarkersFor(cfg, zones, leftOf) {
+  const groups = new Map();
+  for (const event of capacityEventsFor(cfg, zones)) {
+    const slot = daysBetween(cfg.d0, event.date) * DAY + event.idx;
+    if (!groups.has(slot)) groups.set(slot, []);
+    groups.get(slot).push(capacityEventLabel(event));
+  }
+  return [...groups].map(([slot, titles]) => ({ left: leftOf(slot), title: titles.join(' · ') }));
+}
+function capacityNotice(cfg, zones) {
+  const events = capacityEventsFor(cfg, zones), references = zones.filter(zone => ParkingCapacity.references[zone.id]);
+  if (!events.length && !references.length) return '';
+  return `<section class="sec lite capacity-events" id="capacity-events" aria-label="운영 면수 변경 참고">
+    <div class="titles"><span class="t15">운영 면수 변경 참고</span><span class="sub">시각은 KST 수집 기준입니다. 실제 운영 면수는 API 최신값을 사용합니다.</span></div>
+    ${references.map(zone => `<p class="muted">${esc(zone.name)}: ${esc(ParkingCapacity.references[zone.id].note)} · ${esc(ParkingCapacity.references[zone.id].source)}</p>`).join('')}
+    ${events.length ? `<ul>${events.map(event => `<li><b>${esc(capacityEventLabel(event))}</b><p>${esc(event.note)} <small>출처: ${esc(event.source)}</small></p></li>`).join('')}</ul>` : ''}
+    <p class="muted">면수가 줄어도 이미 주차한 차량 수가 즉시 줄지는 않습니다. 정리·출차 과정에서 실제 점유율이 100%를 넘을 수 있으며 가용 대수는 최소 0대입니다. 새 예측은 주차 대수를 학습하고 현재 운영 면수 유지로 가정합니다. 감소 속도나 안정화 시점은 보장하지 않습니다.</p>
+  </section>`;
+}
+const capacityMarkerHtml = markers => markers.map(marker => `<div class="abs capacity-line" style="left:${marker.left}%"></div><button class="capacity-flag${Number(marker.left) > 75 ? ' flip' : ''}" type="button" data-a="capacity-note" title="${esc(marker.title)}" aria-label="${esc(marker.title + ' · 하단 운영 참고 보기')}" style="left:${marker.left}%">면수 변경</button>`).join('');
 
 /* ---------- header ---------- */
 function renderHeader() {
@@ -358,16 +399,19 @@ function chartModel(cfg) {
   if (cfg.kind === 'week' && nowG != null) {
     for (const z of zones) {
       if (S.linkedForecast && cmp) {
-        const actual = cur(z), baseline = prev(z);
+        const actual = zSeries(z.id, d0, nd, 0, 'p'), baseline = zSeries(z.id, d0, nd, cmp, 'p');
         let anchor = nowG;
         while (anchor >= Math.max(0, nowG - 6) && actual[anchor] == null) anchor--;
         if (anchor >= 0 && actual[anchor] != null && baseline[anchor] != null) {
-          const anchorValue = smoothVals(actual, anchor, anchor + 1, sr)[0] ?? actual[anchor];
+          const currentParking = smoothVals(actual, anchor, anchor + 1, sr)[0] ?? actual[anchor];
           const base = smoothVals(baseline, anchor, anchor + 1, sr)[0] ?? baseline[anchor];
-          const offset = anchorValue - base, values = new Array(nd * DAY).fill(null);
+          const demandOffset = currentParking - base, values = new Array(nd * DAY).fill(null);
           const capacity = D.latest.zones.find(x => x.id === z.id)?.c;
-          const ceiling = occ ? (S.over ? Infinity : 1) : capacity;
-          for (let j = anchor; j < forecastEnd; j++) if (baseline[j] != null) values[j] = clamp(baseline[j] + offset, 0, ceiling);
+          const anchorCapacity = D.days.get(addDays(d0, Math.floor(anchor / DAY)))?.zones[z.id]?.c[anchor % DAY];
+          if (capacityPredictionIssue(z.id, anchorCapacity)) continue;
+          const anchorValue = demandValue(currentParking, capacity);
+          const offset = anchorValue - demandValue(base, capacity);
+          for (let j = anchor; j < forecastEnd; j++) if (baseline[j] != null) values[j] = demandValue(Math.max(baseline[j] + demandOffset, 0), capacity);
           values[anchor] = anchorValue;
           forecasts.set(`linked|${z.id}`, { values, anchor });
           forecastLines.push({ z, model: 'linked', values, anchor, anchorValue, offset });
@@ -441,7 +485,8 @@ function chartModel(cfg) {
     xTicks.push({ left: px(j), label: slotLabel(j % DAY) });
     if (span <= 600 && j % DAY !== 0 && j > a && j < b) vLines.push({ left: px(j), c: '#f0f2f4' });
   }
-  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, occ, forecasts };
+  const capacityMarkers = capacityMarkersFor(cfg, zones, px);
+  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, occ, forecasts, capacityMarkers };
 }
 
 function chartHtml(m) {
@@ -455,6 +500,7 @@ function chartHtml(m) {
         ${ref != null ? `<div class="abs refline" style="top:${ref}%"></div>${m.hi > 1 ? `<span class="abs reftag" style="top:${ref}%">만차 기준 100%</span>` : ''}` : ''}
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${m.lines.map(p => `<path data-g="${p.g}" data-z="${p.z}" data-op="${p.op}" data-cmp="${p.cmp}" data-forecast="${!!p.forecast}" data-model="${p.model || ''}" d="${p.d}" style="stroke:${p.color};stroke-width:${p.w};stroke-dasharray:${p.dash};opacity:${p.op}"><title>${esc(p.name)}${p.model === 'linked' ? ` · 오프셋 ${pctp(p.offset)}` : p.cmp ? ` · ${CMPS[m.cfg.cmp]}` : ''}</title></path>`).join('')}</svg>
         ${m.dots.map(o => `<div class="abs dotm" style="left:${o.left}%;top:${o.top}%;border-color:${o.c}"></div>`).join('')}
+        ${capacityMarkerHtml(m.capacityMarkers)}
         ${nowL != null ? `<div class="abs nowline" style="left:${nowL}%"></div><span class="abs nowtag${nowL > 80 ? ' flip' : ''}" style="left:${nowL}%">지금 ${slotLabel(D.now.idx)}</span>` : ''}
         ${!m.on.length ? '<div class="abs emptymsg">주차장을 하나 이상 켜세요.</div>' : !m.hasData ? '<div class="abs emptymsg">이 구간에는 수집된 기록이 없습니다.</div>' : ''}
         <div id="overlay"></div>
@@ -541,6 +587,7 @@ function bindPlot() {
   const cfg = WM.cfg, N = cfg.nd * DAY;
   const frac = e => { const r = plot.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width, 0, 1); };
   plot.addEventListener('pointerdown', e => {
+    if (e.target.closest('[data-a="capacity-note"]')) return;
     const f = frac(e);
     if (e.pointerType === 'touch') { S.hf = f; renderOverlay(); return; }
     drag = f; try { plot.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
@@ -643,6 +690,7 @@ function igotoNotice(term) {
     <b>IGoTo 예측 · 실험적 참고 예상</b>${evidence}<br>
     공휴일·주말, 최대 3일의 연결 휴가 후보, 연휴 전날 오후와 종료 뒤 변화를 고려합니다. 실제 휴가 사용이나 만차 여부를 보장하지 않습니다.
     ${ready.length ? '<span>일반 평일·연휴 직후와 4~7일 뒤 예측은 검증 표본이 부족합니다. 예약주차장 예측은 기존 연결 방식보다 오차가 클 수 있습니다.</span>' : ''}
+    ${ready.some(row => row.model.capacityChanged) ? '<span>운영 면수가 바뀐 기록은 주차 차량 대수 기준으로 함께 학습합니다. 변경 직후 예상은 현재 운영 면수 유지 가정이며 실제 초과값을 숨기지 않습니다.</span>' : ''}
     ${unavailable.length ? `<span>${unavailable.map(({ z, model }) => `${esc(z.name)}: ${esc(model.why)}`).join(' · ')}</span>` : ''}
     ${futureErrors.length ? `<span>${futureErrors.map(esc).join(' · ')}</span>` : ''}
     ${failed.length ? `<span>예측용 기록 ${failed.length}일을 불러오지 못했습니다. 수신된 기록만 사용하며 다음 갱신 때 재시도합니다.</span>` : ''}
@@ -658,7 +706,7 @@ function compactParking(term, gid) {
   const stale = !!D.err || D.latest?.stale || latestAge() > 15;
   const zones = zonesFor(term, gid).map(zone => {
     const current = Number.isFinite(zone.p) && zone.p >= 0 && Number.isFinite(zone.c) && zone.c > 0
-      ? { available: Math.max(zone.c - zone.p, 0), capacity: zone.c, occupancy: Math.min(zone.p / zone.c, 1) } : null;
+      ? { available: Math.max(zone.c - zone.p, 0), capacity: zone.c, parking: zone.p, rawOccupancy: zone.p / zone.c, occupancy: Math.min(zone.p / zone.c, 1) } : null;
     const model = current && !stale ? igotoModel(zone) : null;
     const failures = [];
     if (zone.c === 0) failures.push('현재 운영 중단 구역입니다.');
@@ -674,7 +722,7 @@ function compactParking(term, gid) {
         return { ...at, minutes, occupancy: null, available: null };
       }
       const occupancy = Math.min(prediction.value, 1);
-      return { ...at, minutes, occupancy, available: Math.round(model.anchor.capacity * (1 - occupancy)), limited: prediction.limited };
+      return { ...at, minutes, occupancy, rawOccupancy: prediction.value, available: Math.round(Math.max(prediction.capacity - prediction.parking, 0)), limited: prediction.limited };
     });
     return { zone, current, cells, failures: [...new Set(failures)] };
   });
@@ -692,18 +740,20 @@ function renderCompactParking() {
         <div class="quick-card-head"><h2>${card.term} · ${card.gid}주차장</h2>${card.gid === '장기' ? '<small>타워 포함</small>' : ''}</div>
         ${card.zones.length ? card.zones.map(row => `<section class="quick-zone" data-zone="${esc(row.zone.id)}" aria-label="${esc(card.term + ' ' + row.zone.name)}">
           <div class="quick-zone-head"><h3>${esc(shortName(row.zone))}</h3><div class="quick-current"><span>${card.stale ? '마지막 수집 · 갱신 지연' : '현재 주차 가능'}</span>${row.current ? `<b>${num(row.current.available)}대</b><span>/ 전체 ${num(row.current.capacity)}대</span>` : '<b>주차 가능 대수 확인 필요</b>'}</div></div>
+          ${ParkingCapacity.references[row.zone.id] ? `<p class="quick-capacity-note">기본 ${num(ParkingCapacity.references[row.zone.id].capacity)}대 · 성수기 운영 면수 조정 가능</p>` : ''}
+          ${row.current?.rawOccupancy > 1 ? `<p class="quick-capacity-note">실측 주차 ${num(row.current.parking)}대 · 실제 점유율 ${pct(row.current.rawOccupancy)} · 운영 면수 초과 ${num(row.current.parking - row.current.capacity)}대</p>` : ''}
           <div class="quick-slots" role="list">${row.cells.map(cell => {
           const background = cell.occupancy == null ? HATCH : occColor(cell.occupancy);
           const color = cell.occupancy == null ? '#6b7178' : contrastText(background);
-          const description = `${card.term} ${row.zone.name} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.occupancy)}`}`;
+          const description = `${card.term} ${row.zone.name} ${cell.minutes}분 후 ${cell.date} ${slotLabel(cell.slot)} ${cell.available == null ? '예측 없음' : `예상 가용 ${num(cell.available)}대 점유율 ${percent(cell.rawOccupancy)}`}`;
           return `<div class="quick-slot${cell.available == null ? ' unavailable' : ''}" role="listitem" data-minutes="${cell.minutes}" data-occupancy="${cell.occupancy ?? ''}" style="background:${background};color:${color}" title="${esc(description)}" aria-label="${esc(description)}"><b${cell.available >= 10000 ? ' class="wide-count"' : ''}>${cell.available == null ? '—' : cell.available}</b></div>`;
           }).join('')}</div>
           ${row.failures.length ? `<p class="quick-warning" role="status">${row.failures.map(esc).join(' ')}</p>` : ''}
         </section>`).join('') : '<p class="quick-warning" role="status">등록된 구역이 없습니다.</p>'}
       </article>`).join('')}
-      <p class="quick-note">각 층·주차장·타워의 남은 대수를 따로 표시합니다. 히트맵은 20분 간격 IGoTo 참고 예상이며 점유율은 구역별 100% 상한입니다. 유사 조건의 표본이 부족할 수 있고 현장 주차 가능 여부를 보장하지 않습니다.</p>
+      <p class="quick-note">각 층·주차장·타워의 남은 대수를 따로 표시합니다. 히트맵은 20분 간격 IGoTo 참고 예상이며 배경색은 100% 상한, 툴팁은 초과를 포함한 원 점유율입니다. 유사 조건의 표본이 부족할 수 있고 현장 주차 가능 여부를 보장하지 않습니다.</p>
       <a class="btn quick-fees-link" href="${feeHref()}">주차요금 계산하기</a>
-    </section>`;
+    </section>${capacityNotice({d0:addDays(D.now.date,-3),nd:4,win:[0,4*DAY]}, cards.flatMap(card=>card.zones.map(row=>row.zone)))}`;
 }
 
 function renderWeek() {
@@ -752,14 +802,14 @@ function renderWeek() {
   <section class="sec lite forecast-notes" aria-label="예측 안내">
     <p class="muted forecast-window">기본은 현재 시각 기준 과거 3일과 향후 4일입니다. 미래 기간은 3·4·5·7일을 선택할 수 있으며 현재부터 ${S.futureDays}일 뒤 같은 시각까지 표시합니다. 비교 주차 기록이 없으면 연결 예측은 비어 있고 IGoTo 예측은 별도로 학습합니다.</p>
     ${igotoNotice(term)}
-  </section>`;
+  </section>${capacityNotice(cfg, m.zones)}`;
   WM = m;
   bindPlot();
   applyFocus();
   renderOverlay();
 }
 
-/* 선택 지표의 과거 같은 요일 흐름에 현재 시각의 차이를 반영합니다. */
+/* 과거 주차 대수의 흐름에 현재 대수 차이를 더하고 현재 운영 면수로 변환합니다. */
 function forecastOf(term, gid) {
   const today = D.now.date, idx = D.now.idx, key = vkey(), occupancyKey = occKey();
   const sample = offset => {
@@ -776,28 +826,31 @@ function forecastOf(term, gid) {
   let anchor = null;
   for (let back = 0; back <= 6; back++) {
     const at = slotRange(today, idx - back), day = zoneDay(gid, at.date);
+    if (D.days.get(at.date)?.zones[gid]?.c[at.slot] === 0) return { ok: false, why: '최근 관측이 운영 중단 상태입니다.', now: null, history };
     if (day?.[key][at.slot] != null) { anchor = { ...at, day }; break; }
   }
   if (!anchor) return { ok: false, why: '지금 값이 없어 추정할 수 없습니다', now: null, history };
   const now = anchor.day[key][anchor.slot], nowOccupancy = anchor.day[occupancyKey][anchor.slot];
   const capacity = D.days.get(anchor.date).zones[gid].c[anchor.slot], h0 = Math.floor(idx / 12) + 1;
-  const cap = S.metric === 'avail' ? capacity : S.over ? Infinity : 1;
+  const issue = capacityPredictionIssue(gid, capacity);
+  if (issue) return { ok: false, why: issue, now: null, history };
+  const currentParking = anchor.day.p[anchor.slot];
   const sm = (date, slot) => {
     let sum = 0, n = 0;
     for (let delta = -2; delta <= 2; delta++) {
-      const at = slotRange(date, slot + delta), day = zoneDay(gid, at.date), value = day?.[key][at.slot];
-      if (at.date <= today && value != null) { sum += value; n++; }
+      const at = slotRange(date, slot + delta), day = zoneDay(gid, at.date), value = day?.p[at.slot];
+      if ((at.date < today || (at.date === today && at.slot <= idx)) && value != null) { sum += value; n++; }
     }
     return n ? sum / n : null;
   };
   for (let w = 1; w <= 4; w++) {
-    const bd = addDays(today, -7 * w), base = sm(addDays(anchor.date, -7 * w), anchor.slot);
-    if (base == null) continue;
-    const off = now - base;
+    const bd = addDays(today, -7 * w), baseParking = sm(addDays(anchor.date, -7 * w), anchor.slot);
+    if (baseParking == null) continue;
+    const base = demandValue(baseParking, capacity), off = now - base, demandOffset = currentParking - baseParking;
     const cells = Array.from({ length: 6 }, (_, k) => {
       const j = (h0 + k) * 12, at = slotRange(bd, j), bv = sm(at.date, at.slot);
-      const v = bv == null ? null : clamp(bv + off, 0, cap);
-      return { j, base: bv, v, occupancy: v == null ? null : S.metric === 'avail' ? 1 - v / capacity : v };
+      const v = bv == null ? null : demandValue(Math.max(bv + demandOffset, 0), capacity);
+      return { j, base: bv == null ? null : demandValue(bv, capacity), v, occupancy: v == null ? null : S.metric === 'avail' ? 1 - v / capacity : v };
     });
     if (cells.every(c => c.v == null)) continue;
     return { ok: true, now, nowOccupancy, capacity, i0: anchor.slot, base, off, w, date: bd, history, cells };
@@ -843,13 +896,14 @@ function forecastHtml() {
 }
 
 /* ---------- 날짜별 기록 ---------- */
-function staticChartHtml(list, n) {
+function staticChartHtml(list, n, capacityMarkers = []) {
   const all = list.flatMap(s => s.arr.filter(v => v != null)), hi = occTop(all.length ? Math.max(...all) : 0), ref = ((1 - 1 / hi) * 100).toFixed(2);
   const mk = arr => { const sm = smoothVals(arr, 0, n, 2), segs = []; let c = null; sm.forEach((v, j) => { if (v == null) { c = null; return; } if (!c) segs.push(c = []); c.push([j / (n - 1) * W, H * (1 - v / hi)]); }); return smoothPath(segs); };
   return `<div class="detail">
       ${ticks(0, hi, 0.2, pct).map(g => `<div class="grid" style="top:${g.top}%"></div><div class="ylab" style="top:${g.top}%">${g.label}</div>`).join('')}
       <div class="refline" style="top:${ref}%"></div>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${list.map(s => `<path d="${mk(s.arr)}" style="stroke:${s.color}"/>`).join('')}</svg>
+      ${capacityMarkerHtml(capacityMarkers)}
     </div>`;
 }
 function statRows(on, arrOf, date) {
@@ -894,6 +948,8 @@ function renderDay() {
     return `<div class="row${enabled ? '' : ' off'}" data-a="grp" data-v="${gid}" data-z="${z.id}" data-focus="${gid}" role="button" aria-pressed="${enabled}"><span class="rname"><i style="border-color:${enabled ? z.color : '#d9dce0'}"></i>${esc(z.name)}</span>${cs}</div>`;
   }).join('');
   const on = selectedZones(term);
+  const capacityCfg = { d0: sel, nd: 1, win: [0, DAY] };
+  const capacityMarkers = capacityMarkersFor(capacityCfg, on, slot => (slot / (DAY - 1) * 100).toFixed(2));
   const dw = dowOf(sel), h = hol[sel];
   const title = `${+sel.slice(5, 7)}월 ${+sel.slice(8, 10)}일(${DOW[dw]})${h ? ' · ' + h : ''}${sel === D.now.date ? ' · 오늘 ' + slotLabel(D.now.idx) + '까지' : ''} · ${term}`;
   document.getElementById('view').innerHTML = `
@@ -912,13 +968,13 @@ function renderDay() {
       <div class="col g10" style="border-top:1px solid #e6e8eb;padding-top:14px">
         <div class="sec-head" style="align-items:center"><span class="t15">선택한 주차장 · 하루 흐름</span>${overToggle()}</div>
         ${on.length ? `
-        ${staticChartHtml(on.map(z => ({ arr: arrOf(z), color: z.color })), DAY)}
+        ${staticChartHtml(on.map(z => ({ arr: arrOf(z), color: z.color })), DAY, capacityMarkers)}
         <div class="detail-x">${[0, 6, 12, 18, 24].map(x => `<span style="left:${(x / 24 * 100).toFixed(2)}%">${pad(x)}:00</span>`).join('')}</div>
         <div class="scroll-x"><div class="stats"><div class="r h"><span>주차장</span><span>최고</span><span>최저</span><span>평균</span><span>수집 누락</span></div>${statRows(on, arrOf, sel)}</div></div>`
         : '<span class="empty">위 표에서 주차장 행을 눌러 켜세요.</span>'}
       </div>`}
     </section>
-  </div>`;
+  </div>${capacityNotice(capacityCfg, on)}`;
 }
 const maxDate = (a, b) => a > b ? a : b;
 const minDate = (a, b) => a < b ? a : b;
@@ -938,7 +994,8 @@ function rangeHeatmapHtml(term, cfg) {
     const cells = dates.map(date => `<canvas class="th-strip" width="${DAY}" height="1" data-zone="${esc(z.id)}" data-date="${date}" tabindex="0" role="img" aria-label="${esc(`${z.name} ${date} · 00:00~23:55 KST 5분 실측. 화살표로 시각 이동.`)}"></canvas>`).join('');
     return `<div class="th-row${getAct(term)[categoryGroup(z)] ? '' : ' off'}"><span class="th-name"><i style="border-color:${z.color}"></i><span>${esc(z.name)}</span><small>${g.label}</small></span>${cells}</div>`;
   }).join('');
-  const head = dates.map(date => `<div class="th-day-heading"><time datetime="${date}">${mdw(date)}</time><span class="th-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></span></div>`).join('');
+  const events = capacityEventsFor(cfg, on);
+  const head = dates.map(date => `<div class="th-day-heading"><time datetime="${date}">${mdw(date)}</time>${events.some(event=>event.date===date) ? '<button class="capacity-day" type="button" data-a="capacity-note" title="이 날짜의 운영 면수 변경 참고 보기">면수 변경</button>' : ''}<span class="th-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></span></div>`).join('');
   return `<div class="titles"><span class="t15">기간별 날짜·시간대 ${S.metric === 'avail' ? '가용 대수' : '점유율'}</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 날짜를 좌→우로 연결한 5분 실측(평균 아님) · 가로로 이동해 날짜별 비교 · 배경은 공통 점유율 색상</span></div>
     <div class="scroll-x"><div class="timeheat" style="--history-days:${cfg.nd}">
       <div class="th-head"><span class="th-corner">구역 / 날짜</span>${head}</div>${rows}
@@ -1023,7 +1080,7 @@ function renderRange() {
       ${overToggle()}`);
   set('rng-chart', `<div class="legend">${groupChipsHtml(term)}<div class="ltools"><span class="tools">${keysHtml(cfg)}</span></div></div>
       ${chartHtml(m)}`);
-  set('rng-sum', rangeHeatmapHtml(term, cfg));
+  set('rng-sum', rangeHeatmapHtml(term, cfg) + capacityNotice(cfg, m.zones));
   paintRangeHeatmap();
   WM = m;
   bindPlot();
@@ -1110,8 +1167,8 @@ function neededDays() {
     for (let w = 1; w <= 4; w++) out.push(addDays(today, -7 * w), addDays(today, 1 - 7 * w));
     out.push(addDays(today, -1));
     if (S.igoto) for (let k = 0; k < IGoTo.HISTORY_DAYS; k++) out.push(addDays(today, -k));
-  } else if (S.tab === 'day') out.push(S.selDay || today);
-  else if (S.tab === 'range') { const c = rangeCfg(); for (let k = 0; k < c.nd; k++) out.push(addDays(c.d0, k)); }
+  } else if (S.tab === 'day') { const date = S.selDay || today; out.push(date, addDays(date,-1)); }
+  else if (S.tab === 'range') { const c = rangeCfg(); for (let k = -1; k < c.nd; k++) out.push(addDays(c.d0, k)); }
   return out;
 }
 async function ensure() {
@@ -1126,6 +1183,7 @@ document.addEventListener('click', e => {
   if (!t) return;
   const a = t.dataset.a, v = t.dataset.v;
   if (a === 'sroute' || a === 'sstop' || a === 'sview') { if (typeof onShuttleAction === 'function') onShuttleAction(a, v, t); return; }
+  if (a === 'capacity-note') { document.getElementById('capacity-events')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (a === 'term') { S.term = v; S.focus = null; S.hf = null; }
   else if (a === 'tab') { S.tab = v; S.hf = null; S.focus = null; if (v === 'week') S.mobileDetail = false; }
   else if (a === 'detail') { S.mobileDetail = v === '1'; S.hf = null; }

@@ -76,7 +76,7 @@ test('learned holiday and departure demand differs from weekdays and does not pe
   assert.equal(IGoTo.predict(model, '2026-10-07', 0).value, null, 'past values are not predictions');
 });
 
-test('missing, closed and changed-capacity records cannot become success-shaped forecasts', () => {
+test('missing and closed records cannot become success-shaped forecasts', () => {
   const now = { date: '2026-10-08', idx: 144 }, days = fixture();
   const fit = changes => IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays, ...changes });
   assert.equal(fit({ holidays: {} }).ok, false);
@@ -89,11 +89,79 @@ test('missing, closed and changed-capacity records cannot become success-shaped 
   assert.equal(fit().ok, false, 'closed lots have no valid occupancy');
 });
 
-test('capacity changes reset evidence instead of learning incomparable occupancy samples', () => {
+test('a new operating capacity immediately reuses demand history without inventing a demand jump', () => {
   const days = fixture(), now = { date: '2026-10-08', idx: 144 };
+  const before = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
   days.get(now.date).zones.long.c.fill(1500);
   const model = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
-  assert.equal(model.ok, false, 'only the current half-day has the new capacity');
+  assert.equal(model.ok, true, 'historical parked counts remain valid at a different capacity');
+  assert.equal(model.capacityChanged, true);
+  assert.equal(model.currentCapacityDays, 1);
+  assert.deepEqual(model.capacities, [1000, 1500]);
+  assert.equal(model.anchor.parking, before.anchor.parking);
+  for (const idx of [148, 152, 156, 160, 164, 168, 172, 176, 180]) {
+    const previous = IGoTo.predict(before, now.date, idx), prediction = IGoTo.predict(model, now.date, idx);
+    assert(Math.abs(previous.parking - prediction.parking) < 1e-8);
+    assert.equal(prediction.capacity, 1500);
+    assert.equal(prediction.value, prediction.parking / 1500);
+    assert.equal(prediction.limited, true);
+    assert.equal(prediction.adaptingCapacity, true);
+    assert.match(prediction.why, /면수 변경 직후/);
+  }
+});
+
+test('temporary 520 capacity restored to 378 preserves actual excess and nine numeric forecasts', () => {
+  const days = fixture(), now = { date: '2026-10-13', idx: 203 };
+  for (const doc of days.values()) { doc.zones.long.p.fill(432); doc.zones.long.c.fill(520); }
+  days.get(now.date).zones.long.c.fill(378, now.idx);
+  const model = IGoTo.fit({ days, zoneId: 'long', category: '단기', now, holidays });
+  assert.equal(model.ok, true);
+  assert.equal(model.anchor.capacity, 378);
+  assert.equal(model.anchor.parking, 432);
+  assert.equal(model.anchor.value, 432 / 378);
+  assert.equal(model.currentCapacityHours, 0, 'one new-capacity slot is not a complete hourly sample');
+  for (let minutes = 20; minutes <= 180; minutes += 20) {
+    const prediction = IGoTo.predict(model, now.date, now.idx + minutes / 5);
+    assert(Number.isFinite(prediction.parking));
+    assert(prediction.value > 1, 'do not force transitioning demand below current operating capacity');
+    assert.equal(Math.max(prediction.capacity - prediction.parking, 0), 0);
+  }
+  assert.equal(IGoTo.VERSION, 'IGoTo parking-demand ridge v2');
+});
+
+test('an observed closure stops forecasting even when recent open-lot demand could otherwise be reused', () => {
+  const days = fixture(), now = { date: '2026-10-13', idx: 203 };
+  days.get(now.date).zones.long.c[now.idx] = 0;
+  const model = IGoTo.fit({ days, zoneId: 'long', category: '단기', now, holidays });
+  assert.equal(model.ok, false);
+  assert.match(model.why, /운영 중단/);
+});
+
+test('repeated capacity increases and decreases do not alter the learned parked demand', () => {
+  const days = fixture(), now = { date: '2026-10-13', idx: 213 };
+  const before = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
+  days.get('2026-10-03').zones.long.c.fill(1500);
+  days.get('2026-10-05').zones.long.c.fill(800);
+  days.get(now.date).zones.long.c.fill(378, 203);
+  const model = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
+  for (const date of ['2026-10-14', '2026-10-18']) {
+    const a = IGoTo.predict(before, date, 144), b = IGoTo.predict(model, date, 144);
+    assert(Math.abs(a.parking - b.parking) < 1e-8);
+  }
+  assert.deepEqual(model.capacities, [378, 800, 1000, 1500]);
+  assert.equal(model.days, before.days);
+  assert.equal(model.hours, before.hours);
+});
+
+test('future capacity changes do not influence current demand, evidence or prediction assumptions', () => {
+  const days = fixture(), now = { date: '2026-10-13', idx: 202 };
+  for (const doc of days.values()) doc.zones.long.c.fill(520);
+  const before = IGoTo.fit({ days, zoneId: 'long', category: '단기', now, holidays });
+  days.get(now.date).zones.long.c.fill(378, 203);
+  const after = IGoTo.fit({ days, zoneId: 'long', category: '단기', now, holidays });
+  assert.deepEqual(after, before);
+  assert.equal(after.capacityChanged, false);
+  assert.equal(IGoTo.predict(after, now.date, 206).capacity, 520);
 });
 
 test('the first hour after midnight can anchor to a recent previous-day observation', () => {
