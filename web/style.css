@@ -53,6 +53,16 @@ button{font-family:inherit}
 .quick-slot b.wide-count{font-size:clamp(8px,2.4vw,10px)}
 .quick-warning,.quick-note{margin:10px 0 0;font-size:11px;line-height:1.6;color:#5b6168}
 .quick-warning{color:#a3222e}
+.quick-capacity-note{margin:0 0 5px;font-size:10px;line-height:1.5;color:#805719}
+.capacity-events p{margin:0;line-height:1.7}
+.capacity-events ul{margin:0;padding-left:18px;font-size:12px;line-height:1.7}
+.capacity-events li{margin-bottom:8px}
+.capacity-events small{color:#6b7178}
+.capacity-line{position:absolute;top:0;bottom:0;border-left:1px dashed #b67b23;pointer-events:none}
+.capacity-flag{position:absolute;top:3px;z-index:2;pointer-events:auto;margin-left:4px;border:1px solid #b67b23;border-radius:3px;background:#fff9ef;color:#805719;font:inherit;font-size:10px;padding:2px 4px;cursor:pointer;white-space:nowrap}
+.capacity-flag.flip{margin-left:-4px;transform:translateX(-100%)}
+.capacity-flag:focus-visible,.capacity-day:focus-visible{outline:2px solid #16181a;outline-offset:2px}
+.capacity-day{margin-left:6px;border:0;background:#fff9ef;color:#805719;font:inherit;font-size:10px;cursor:pointer}
 .quick-fees-link{text-align:center;text-decoration:none;padding:10px}
 
 /* Parking fee calculator */

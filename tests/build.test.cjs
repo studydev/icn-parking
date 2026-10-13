@@ -26,7 +26,7 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   const fees = fs.readFileSync(path.join(out, 'fees.html'), 'utf8');
   assert.match(fees, /id="fee-form"/);
   assert.doesNotMatch(fees, /__SITE_URL__|rel="canonical"/);
-  for (const file of ['occupancy.js', 'parking-fees.js', 'fees.js']) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), fs.readFileSync(path.join(root, 'web', file), 'utf8'));
+  for (const file of ['occupancy.js', 'capacity.js', 'parking-fees.js', 'fees.js']) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), fs.readFileSync(path.join(root, 'web', file), 'utf8'));
   assert(html.indexOf('src="occupancy.js"') < html.indexOf('src="app.js"'));
   assert(fees.indexOf('src="occupancy.js"') < fees.indexOf('src="fees.js"'));
   assert.match(fees, /id="fee-confirm-times"/);
@@ -38,6 +38,7 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   assert.equal(context.window.ICN_CONFIG.dataBase, './data/');
   assert.equal(fs.readFileSync(path.join(out, 'forecast.js'), 'utf8'), fs.readFileSync(path.join(root, 'web/forecast.js'), 'utf8'));
   assert(html.indexOf('src="forecast.js"') < html.indexOf('src="app.js"'), 'forecast model must load before the dashboard');
+  assert(html.indexOf('src="capacity.js"') < html.indexOf('src="app.js"'), 'capacity events must load before the dashboard');
   assert.doesNotMatch(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8'), /blob\.core\.windows\.net/);
   for (const file of ['index.html', 'fees.html', 'operations.html']) {
     assert.doesNotMatch(fs.readFileSync(path.join(out, file), 'utf8'), /googletagmanager\.com|data-measurement-id=|src="analytics\.js"/);

@@ -87,6 +87,7 @@ async function runtime(hash = '#week/T1', options = {}) {
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/occupancy.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/forecast.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/capacity.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8'), ctx);
   const run = code => vm.runInContext(code, ctx);
   for (let i = 0; i < 20 && run('D.pending.size || !D.latest'); i++) await new Promise(r => setImmediate(r));
@@ -247,6 +248,165 @@ const mobileFixture = () => ({
     const doc = dayDoc(date, date === today);
     return { ...doc, zones: { ...doc.zones, ...Object.fromEntries(Object.entries(doc.zones).map(([id, zone]) => ['t2-' + id, zone])) } };
   }
+});
+
+const seasonalFixture = (mobile = true) => {
+  const zones = [{ ...ZONES[0], id: 't1-short-b1' }, ...ZONES.slice(1),
+    { ...ZONES[0], id: 't2-short-m', terminal: 'T2' }];
+  return {
+    now: '2026-10-13T17:45:00+09:00', holidays: HOLIDAYS_2026, mobile, zones,
+    dayDoc: date => {
+      const doc = { date, zones: Object.fromEntries(zones.map(zone => [zone.id, {
+        p: new Array(DAY).fill(60), c: new Array(DAY).fill(100)
+      }])) };
+      const b1 = doc.zones['t1-short-b1'];
+      b1.p.fill(430); b1.c.fill(520);
+      if (date === '2026-10-13') {
+        b1.p[202] = 429; b1.c.fill(378, 203);
+        for (let idx = 203; idx <= 213; idx++) b1.p[idx] = 432 - 3 * (idx - 203);
+      }
+      return doc;
+    }
+  };
+};
+const currentSeasonal = run => run(`
+  Object.assign(D.latest.zones.find(zone => zone.id === 't1-short-b1'), { p: 402, c: 378 });
+  D.zones = {}; D.cache.clear(); render();
+`);
+
+test('mobile seasonal restoration shows 0/378 with real overflow and nine numeric forecasts rather than reset evidence', async () => {
+  const { run, elements } = await runtime('#week/T1', seasonalFixture());
+  currentSeasonal(run);
+  const row = JSON.parse(run("JSON.stringify(compactParking('T1','단기').zones[0])"));
+  assert.equal(row.current.available, 0);
+  assert.equal(row.current.capacity, 378);
+  assert.equal(row.current.parking, 402);
+  assert.equal(row.current.rawOccupancy, 402 / 378);
+  assert.equal(row.cells.length, 9);
+  assert(row.cells.every(cell => Number.isInteger(cell.available) && cell.available >= 0));
+  assert(row.cells.every(cell => Number.isFinite(cell.occupancy)));
+  assert(row.cells.some(cell => cell.rawOccupancy > 1), 'the original occupancy must remain available to accessible tooltips');
+  assert.equal(run("igotoModel(zonesOf('T1')[0]).ok"), true);
+  const html = elements.get('view').innerHTML;
+  assert.match(html, /<b>0대<\/b><span>\/ 전체 378대<\/span>/);
+  assert.match(html, /기본 378대 · 성수기 운영 면수 조정 가능/);
+  assert.match(html, /실측 주차 402대 · 실제 점유율 106% · 운영 면수 초과 24대/);
+  assert.doesNotMatch(html, /같은 면수의 실측/);
+  assert.match(html, /2026-10-13 16:55 · 운영 520→378대/);
+  assert.match(html, /사용자 전화 확인/);
+  assert.match(html, /상황실\(전화 끝자리 7700/);
+  assert.match(html, /공개 공지 확인과는 구분/);
+});
+
+test('normal capacity is explanatory metadata and never replaces a subsequent 600-space operation', async () => {
+  const { run, elements } = await runtime('#week/T1', seasonalFixture());
+  currentSeasonal(run);
+  run(`
+    D.days.get(D.now.date).zones['t1-short-b1'].c[D.now.idx] = 600;
+    D.latest.zones.find(zone => zone.id === 't1-short-b1').c = 600;
+    D.zones = {}; D.cache.clear(); render();
+  `);
+  const row = JSON.parse(run("JSON.stringify(compactParking('T1','단기').zones[0])"));
+  assert.equal(row.current.available, 198);
+  assert.equal(row.current.capacity, 600);
+  assert(row.cells.every(cell => Number.isInteger(cell.available)));
+  assert.equal(run("igotoModel(zonesOf('T1')[0]).anchor.capacity"), 600);
+  assert.match(elements.get('view').innerHTML, /전체 600대/);
+  assert.match(elements.get('view').innerHTML, /기본 378대/);
+  assert.match(elements.get('view').innerHTML, /운영 378→600대/);
+});
+
+test('linked six-hour predictions use parked demand at current capacity while historical actuals retain their own capacity', async () => {
+  const { run } = await runtime('#week/T1', seasonalFixture(false));
+  currentSeasonal(run);
+  run(`
+    D.days.get('2026-10-06').zones['t1-short-b1'].p.fill(330,226,231);
+    S.metric = 'avail'; D.cache.clear();
+  `);
+  const result = JSON.parse(run("JSON.stringify(forecastOf('T1','t1-short-b1'))"));
+  assert.equal(result.ok, true);
+  assert.equal(result.capacity, 378);
+  assert.equal(result.now, 0);
+  assert.equal(result.cells[1].v, 76, '330 historical parked - 28 current demand offset = 302 parked at 378 capacity');
+  assert.equal(result.cells[1].occupancy, 302 / 378);
+  assert.equal(run("zoneDay('t1-short-b1','2026-10-06').a[213]"), 90, 'original 520 capacity is retained for the past actual curve');
+  assert.equal(run("zoneDay('t1-short-b1','2026-10-13').a[202]"), 91);
+  run("S.metric = 'occ'; S.over = true;");
+  assert.equal(run("zoneDay('t1-short-b1','2026-10-13').o[203]"), 432 / 378);
+  assert.equal(run("forecastOf('T1','t1-short-b1').cells[1].v"), 302 / 378);
+  run('S.linkedForecast = true;');
+  assert(run("chartModel(weekCfg()).lines.some(line => line.forecast && line.z === 't1-short-b1' && line.anchorValue > 1)"));
+  assert.equal(run("rangeSlot('t1-short-b1','2026-10-13',203).value"), 432 / 378);
+});
+
+test('capacity timeline markers and lower references follow the selected terminal, categories and exact visible window', async () => {
+  const { run, elements } = await runtime('#week/T1', seasonalFixture(false));
+  currentSeasonal(run);
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers.length'), 1);
+  assert.match(run('chartHtml(chartModel(weekCfg()))'), /data-a="capacity-note"[^>]*title="[^"]*16:55/);
+  assert(elements.get('view').innerHTML.indexOf('id="capacity-events"') > elements.get('view').innerHTML.indexOf('IGoTo 예측 · 실험적 참고 예상'));
+  run('S.win = [200,220];');
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers[0].left'), '15.00');
+  run('S.win = [204,220];');
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers.length'), 0);
+  run("S.win = rollingWin(); S.act['단기'] = false; render();");
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers.length'), 0);
+  assert.doesNotMatch(elements.get('view').innerHTML, /id="capacity-events"/);
+  run("S.act['단기'] = true; S.term = 'T2'; render();");
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers.length'), 0);
+  assert.doesNotMatch(elements.get('view').innerHTML, /520→378|기본 378/);
+});
+
+test('date and period history include the same capacity event with the previous day loaded for boundary comparisons', async () => {
+  const { run, elements, requested } = await runtime('#day/T1', seasonalFixture(false));
+  currentSeasonal(run);
+  assert(requested.includes('days/2026-10-12.json'));
+  assert.match(elements.get('view').innerHTML, /class="capacity-flag/);
+  assert.match(elements.get('view').innerHTML, /2026-10-13 16:55 · 운영 520→378대/);
+  run("S.tab = 'range'; S.rng = ['2026-10-12','2026-10-13']; S.rwin = null;");
+  await run('ensure()');
+  run('renderRange();');
+  assert.match(elements.get('rng-sum').innerHTML, /class="capacity-day"/);
+  assert.match(elements.get('rng-sum').innerHTML, /id="capacity-events"/);
+  assert.equal((elements.get('rng-sum').innerHTML.match(/<canvas class="th-strip"/g) || []).length, 6, 'three selected zones across exactly two dates');
+  assert.match(elements.get('rng-sum').innerHTML, /2026-10-13 16:55 · 운영 520→378대/);
+  assert.match(elements.get('rng-chart').innerHTML, /class="abs capacity-line"/);
+  assert(run("neededDays().includes('2026-10-11')"));
+});
+
+test('simultaneous changes share one timeline marker but retain both zone explanations in weekly and daily views', async () => {
+  const { run, elements } = await runtime('#week/T1', seasonalFixture(false));
+  currentSeasonal(run);
+  run(`
+    D.days.get(D.now.date).zones.l1.c.fill(150,203);
+    D.latest.zones.find(zone => zone.id === 'l1').c = 150;
+    D.zones = {}; D.cache.clear(); render();
+  `);
+  assert.equal(run('chartModel(weekCfg()).capacityMarkers.length'), 1);
+  assert.match(run('chartModel(weekCfg()).capacityMarkers[0].title'), /520→378/);
+  assert.match(run('chartModel(weekCfg()).capacityMarkers[0].title'), /100→150/);
+  run("S.tab = 'day'; S.selDay = D.now.date; render();");
+  const html = elements.get('view').innerHTML;
+  assert.equal((html.match(/class="capacity-flag/g) || []).length, 1);
+  assert.match(html, /운영 520→378대/);
+  assert.match(html, /운영 100→150대/);
+});
+
+test('all forecast surfaces reject an asynchronous capacity mismatch or closure without discarding history', async () => {
+  const { run } = await runtime('#week/T1', seasonalFixture(false));
+  currentSeasonal(run);
+  run("S.linkedForecast = true; D.latest.zones.find(zone => zone.id === 't1-short-b1').c = 600;");
+  assert.equal(run("igotoModel(zonesOf('T1')[0]).ok"), false);
+  assert.match(run("igotoModel(zonesOf('T1')[0]).why"), /최신 면수/);
+  assert.equal(run("forecastOf('T1','t1-short-b1').ok"), false);
+  assert(!run("chartModel(weekCfg()).lines.some(line => ['linked','igoto'].includes(line.model) && line.z === 't1-short-b1')"));
+  assert.equal(run("zoneDay('t1-short-b1','2026-10-06').a[213]"), 90);
+  run("D.latest.zones.find(zone => zone.id === 't1-short-b1').c = 0;");
+  assert.equal(run("forecastOf('T1','t1-short-b1').ok"), false);
+  assert.match(run("igotoModel(zonesOf('T1')[0]).why"), /운영 중단/);
+  run("D.latest.zones.find(zone => zone.id === 't1-short-b1').c = 378;");
+  assert.equal(run("igotoModel(zonesOf('T1')[0]).ok"), true, 'restoring matching live metadata must not leave a cached error');
+  assert.equal(run("forecastOf('T1','t1-short-b1').ok"), true);
 });
 
 test('mobile lists individual T1/T2 short/long zones with nine predictions each, without advanced filters', async () => {

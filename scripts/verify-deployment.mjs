@@ -48,10 +48,13 @@ async function verify() {
   if (!index.includes('src="forecast.js"') || index.indexOf('src="forecast.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: parking forecast script is missing or loads after the dashboard');
   }
+  if (!index.includes('src="capacity.js"') || index.indexOf('src="capacity.js"') > index.indexOf('src="app.js"')) {
+    throw new Error('Website: operating capacity event script is missing or loads after the dashboard');
+  }
   if (!index.includes('id="occupancy-scale"') || index.indexOf('src="occupancy.js"') < 0 || index.indexOf('src="occupancy.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: shared occupancy scale is missing');
   }
-  for (const file of ['analytics.js', 'forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
+  for (const file of ['analytics.js', 'forecast.js', 'capacity.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
     const deployed = await read(file, new URL(file, site), file.endsWith('.css') ? /text\/css/i : /javascript/i);
     const expected = await readFile(new URL('../web/' + file, import.meta.url), 'utf8');
     if (deployed !== expected) throw new Error(`${file}: deployed forecast code does not match the source`);
