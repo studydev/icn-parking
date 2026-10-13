@@ -845,8 +845,8 @@ test('all public service pages link the open-source repository and README includ
   assert.match(readme, /!\[[^\]]+\]\(docs\/images\/dashboard\.png\)/);
   const image = fs.readFileSync(path.join(__dirname, '../docs/images/dashboard.png'));
   assert.deepEqual(image.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  assert.equal(image.readUInt32BE(16), 768);
-  assert.equal(image.readUInt32BE(20), 820);
+  assert.equal(image.readUInt32BE(16), 1263);
+  assert.equal(image.readUInt32BE(20), 1425);
 });
 test('site no longer registers GA4 or allows Google analytics origins in CSP', () => {
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
