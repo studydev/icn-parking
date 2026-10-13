@@ -846,10 +846,11 @@ test('all public service pages link the open-source repository and README includ
   const image = fs.readFileSync(path.join(__dirname, '../docs/images/dashboard.png'));
   assert.deepEqual(image.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 });
-test('site no longer registers GA4 or allows Google analytics origins in CSP', () => {
+test('source templates leave GA4 opt-in at build time and retain a strict script policy', () => {
   const html = fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8');
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, '../web/staticwebapp.config.json'), 'utf8'));
   assert.doesNotMatch(html, /googletagmanager|gtag\(/);
+  assert.match(html, /Optional GA4 is injected/);
   assert.doesNotMatch(JSON.stringify(config), /googletagmanager|google-analytics\.com|analytics\.google\.com/);
   assert.doesNotMatch(config.globalHeaders['content-security-policy'], /script-src[^;]*'unsafe-inline'/);
 });

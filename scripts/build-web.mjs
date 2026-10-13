@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'web');
 const files = [
-  'index.html', 'operations.html', 'operating-cost-reference.png', 'github.svg', 'config.js', 'occupancy.js', 'forecast.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
+  'index.html', 'operations.html', 'operating-cost-reference.png', 'github.svg', 'config.js', 'analytics.js', 'occupancy.js', 'forecast.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
   'fees.html', 'parking-fees.js', 'fees.js',
   'shuttle.json', 'staticwebapp.config.json', 'robots.txt', 'sitemap.xml'
 ];
@@ -30,13 +30,20 @@ function verificationToken(value, name) {
 
 const escapeAttribute = value => value.replace(/[&"<>]/g, c => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' }[c]));
 const inside = (child, parent) => child === parent || child.startsWith(parent + sep);
+export const ANALYTICS_MARKER = '  <!-- Optional GA4 is injected by scripts/build-web.mjs. -->';
+export function analyticsTags(measurementId = '') {
+  if (!measurementId) return ANALYTICS_MARKER;
+  if (!/^G-[A-Z0-9]{4,20}$/.test(measurementId)) throw new Error('GA_MEASUREMENT_ID must be a GA4 measurement ID (G- followed by uppercase letters/digits)');
+  return `  <script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>\n  <script src="analytics.js" data-measurement-id="${measurementId}" defer></script>`;
+}
 
 export function buildWeb({
   outDir = join(root, 'dist'),
   dataBaseUrl = './data/',
   siteUrl = '',
   naver = '',
-  bing = ''
+  bing = '',
+  gaMeasurementId = ''
 } = {}) {
   const target = resolve(outDir);
   if (inside(target, source) || inside(source, target) || inside(root, target)) {
@@ -47,6 +54,7 @@ export function buildWeb({
   const site = siteUrl ? publicUrl(siteUrl, 'PUBLIC_SITE_URL', { rootOnly: true }) : '';
   const naverToken = verificationToken(naver, 'NAVER_SITE_VERIFICATION');
   const bingToken = verificationToken(bing, 'BING_SITE_VERIFICATION');
+  const analytics = analyticsTags(gaMeasurementId);
   if (existsSync(target) && readdirSync(target).length) {
     throw new Error('Build output must be empty; remove the previous build before rebuilding');
   }
@@ -65,6 +73,11 @@ export function buildWeb({
     if (!html.includes(marker)) throw new Error(`Deployment metadata marker is missing from ${file}`);
     writeFileSync(join(target, file), html.replace(marker, metadata));
   }
+  for (const file of ['index.html', 'fees.html', 'operations.html']) {
+    const html = readFileSync(join(target, file), 'utf8');
+    if (!html.includes(ANALYTICS_MARKER)) throw new Error(`GA4 marker is missing from ${file}`);
+    writeFileSync(join(target, file), html.replace(ANALYTICS_MARKER, analytics));
+  }
 
   if (site) {
     for (const file of ['robots.txt', 'sitemap.xml']) {
@@ -79,10 +92,16 @@ export function buildWeb({
   const hostConfig = JSON.parse(readFileSync(hostConfigPath, 'utf8'));
   const headers = hostConfig.globalHeaders;
   const dataOrigin = dataBase.startsWith('https:') ? new URL(dataBase).origin : '';
+  const analyticsConnections = gaMeasurementId ? ' https://www.googletagmanager.com https://*.google-analytics.com https://www.google.com' : '';
   headers['content-security-policy'] = headers['content-security-policy'].replace(
     /connect-src[^;]*/,
-    `connect-src 'self'${dataOrigin ? ' ' + dataOrigin : ''}`
+    `connect-src 'self'${dataOrigin ? ' ' + dataOrigin : ''}${analyticsConnections}`
   );
+  if (gaMeasurementId) {
+    headers['content-security-policy'] = headers['content-security-policy']
+      .replace(/script-src[^;]*/, "$& https://www.googletagmanager.com")
+      .replace(/img-src[^;]*/, '$& https://www.googletagmanager.com https://*.google-analytics.com');
+  }
   writeFileSync(hostConfigPath, JSON.stringify(hostConfig, null, 2) + '\n');
   return target;
 }
@@ -96,7 +115,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       dataBaseUrl: process.env.DATA_BASE_URL || './data/',
       siteUrl: process.env.PUBLIC_SITE_URL || '',
       naver: process.env.NAVER_SITE_VERIFICATION || '',
-      bing: process.env.BING_SITE_VERIFICATION || ''
+      bing: process.env.BING_SITE_VERIFICATION || '',
+      gaMeasurementId: process.env.GA_MEASUREMENT_ID || ''
     });
     console.log('Static web build completed.');
   } catch (error) {

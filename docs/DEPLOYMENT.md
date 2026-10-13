@@ -47,6 +47,7 @@ PUBLIC_SITE_URL=https://parking.example.org/
 DATA_BASE_URL=
 NAVER_SITE_VERIFICATION=
 BING_SITE_VERIFICATION=
+GA_MEASUREMENT_ID=
 ```
 
 `APP_NAME`은 3~9자의 영문 소문자/숫자이고 첫 글자는 영문자여야 합니다. 리소스 이름은 이 접두사와 배포 리소스 그룹의 고유 suffix로 생성됩니다. 구독 ID나 알림 이메일을 예시 파일에 실제 값으로 커밋하지 마세요.
@@ -82,6 +83,7 @@ DATA_BASE_URL='https://example.blob.core.windows.net/$web/data/' \
 PUBLIC_SITE_URL='https://parking.example.org/' \
 NAVER_SITE_VERIFICATION='' \
 BING_SITE_VERIFICATION='' \
+GA_MEASUREMENT_ID='' \
 npm run build
 ```
 
@@ -90,6 +92,7 @@ npm run build
 - 데이터 주소를 사용하는 `config.js`
 - 사이트 URL에 맞춘 canonical, robots, sitemap
 - 선택적 네이버/Bing 소유 확인 태그
+- 선택적 GA4 태그·`analytics.js`: `GA_MEASUREMENT_ID`가 있을 때만 주차 현황·요금·운영 비용 페이지에 활성화
 - 해당 데이터 Origin만 허용하는 CSP `connect-src`
 - `operations.html`, `operating-cost-reference.png`: 비용 참고 이미지와 일별 비용에 따른 월 약 4,500원 예상 안내(30일·동일 사용 패턴 가정, 실시간 청구 조회가 아니며 검색 색인 제외)
 - `forecast.js`: IGoTo 휴일 인지 예측 모델. 기존 공개 달력·주차 기록으로 브라우저에서 계산하며 별도 Azure 리소스나 인증키가 필요하지 않습니다.
@@ -134,6 +137,7 @@ Settings → Secrets and variables → Actions에서 다음을 설정합니다. 
 | `DATA_BASE_URL` | 공개 데이터 디렉터리 HTTPS URL |
 | `NAVER_SITE_VERIFICATION` | 선택적 소유 확인 토큰 |
 | `BING_SITE_VERIFICATION` | 선택적 소유 확인 토큰 |
+| `GA_MEASUREMENT_ID` | 선택적 GA4 측정 ID(`G-...`), 빈 값이면 분석 비활성 |
 | `AZURE_CLIENT_ID` | 수집기 배포용 Entra 애플리케이션 ID |
 | `AZURE_TENANT_ID` | Entra 테넌트 ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure 구독 ID |
@@ -152,6 +156,18 @@ gh secret set PUBLIC_SITE_URL --repo OWNER/REPOSITORY
 gh secret set DATA_BASE_URL --repo OWNER/REPOSITORY
 gh variable set DEPLOY_WEB_ENABLED --body true --repo OWNER/REPOSITORY
 ```
+
+### 선택적 GA4 방문 통계
+
+`GA_MEASUREMENT_ID`를 `.env`/환경변수 또는 배포 환경의 GitHub Secret에 설정한 뒤 웹을 재배포합니다. 측정 ID는 브라우저에 공개되는 값이며 인증키가 아닙니다. 기본 로컬·PR 빌드에는 운영 ID와 외부 추적 태그를 넣지 않습니다.
+
+```bash
+gh secret set GA_MEASUREMENT_ID --repo OWNER/REPOSITORY
+```
+
+초기화 코드는 외부 `analytics.js`에서 표준 `gtag('js', ...)`, `gtag('config', ...)`를 실행합니다. CSP의 `script-src`에 `unsafe-inline`/`unsafe-eval`을 허용하지 않고, 설정된 빌드에만 Google 태그 로더·Analytics 수집에 필요한 출처를 추가합니다. 광고 개인화·Google signals는 활성화하지 않습니다. 직접 설정하는 페이지 URL/유입 URL은 query·fragment를 제거하며, 요금 입력이나 자격·카드 정보를 맞춤 이벤트로 보내는 코드는 추가하지 않습니다.
+
+GA4 속성의 향상된 측정·데이터 보관·개인정보 및 동의 정책은 운영자가 별도로 확인해야 합니다. 광고 차단·브라우저 제한은 요청을 막을 수 있습니다. 배포 검증은 세 페이지의 태그 설정과 초기화 파일을 검사하며, 실제 전송은 브라우저 Network의 `gtag/js`·`g/collect`와 GA4 실시간 보고서에서 확인합니다.
 
 ### 수집기 OIDC(클라이언트 secret 불필요)
 

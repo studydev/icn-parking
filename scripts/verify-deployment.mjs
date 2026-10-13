@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
+import { ANALYTICS_MARKER, analyticsTags } from './build-web.mjs';
 
 const siteValue = process.env.PUBLIC_SITE_URL;
 const dataValue = process.env.DATA_BASE_URL;
+const gaMeasurementId = process.env.GA_MEASUREMENT_ID || '';
 if (!siteValue || !dataValue) {
   console.error('Set PUBLIC_SITE_URL and DATA_BASE_URL to verify a deployment.');
   process.exit(1);
@@ -33,6 +35,12 @@ async function read(name, url, type, binary = false) {
 async function verify() {
   const site = directory(siteValue), data = directory(dataValue);
   const index = await read('Website', site, /text\/html/i);
+  const analytics = analyticsTags(gaMeasurementId);
+  const checkAnalytics = (html, name) => {
+    if (!html.includes(analytics)) throw new Error(`${name}: GA4 deployment settings mismatch`);
+    if (!gaMeasurementId && /googletagmanager\.com\/gtag\/js|data-measurement-id=/.test(html)) throw new Error(`${name}: unexpected analytics enabled`);
+  };
+  checkAnalytics(index, 'Website');
   if (!index.includes('id="view"')) throw new Error('Website: dashboard markup not found');
   if (!index.includes('class="repo-link" href="https://github.com/studydev/icn-parking"')) throw new Error('Website: open-source repository link missing');
   const githubIcon = await read('GitHub icon', new URL('github.svg', site), /image\/svg\+xml/i);
@@ -43,13 +51,14 @@ async function verify() {
   if (!index.includes('id="occupancy-scale"') || index.indexOf('src="occupancy.js"') < 0 || index.indexOf('src="occupancy.js"') > index.indexOf('src="app.js"')) {
     throw new Error('Website: shared occupancy scale is missing');
   }
-  for (const file of ['forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
+  for (const file of ['analytics.js', 'forecast.js', 'occupancy.js', 'app.js', 'parking-fees.js', 'fees.js', 'style.css']) {
     const deployed = await read(file, new URL(file, site), file.endsWith('.css') ? /text\/css/i : /javascript/i);
     const expected = await readFile(new URL('../web/' + file, import.meta.url), 'utf8');
     if (deployed !== expected) throw new Error(`${file}: deployed forecast code does not match the source`);
   }
   if (!index.includes('href="fees.html"')) throw new Error('Website: parking fee calculator link not found');
   const fees = await read('Parking fee calculator', new URL('fees.html', site), /text\/html/i);
+  checkAnalytics(fees, 'Parking fee calculator');
   if (!fees.includes('id="fee-form"') || !fees.includes('id="fee-results"') || fees.indexOf('src="parking-fees.js"') < 0 || fees.indexOf('src="parking-fees.js"') > fees.indexOf('src="fees.js"')) {
     throw new Error('Parking fee calculator: page or calculation scripts are missing');
   }
@@ -59,7 +68,8 @@ async function verify() {
   if (!fees.includes(`rel="canonical" href="${new URL('fees.html', site).href}"`)) throw new Error('Parking fee calculator: canonical URL mismatch');
   if (!index.includes('href="operations.html"')) throw new Error('Website: operating costs link not found');
   const operations = await read('Operating costs', new URL('operations.html', site), /text\/html/i);
-  const expectedOperations = await readFile(new URL('../web/operations.html', import.meta.url), 'utf8');
+  checkAnalytics(operations, 'Operating costs');
+  const expectedOperations = (await readFile(new URL('../web/operations.html', import.meta.url), 'utf8')).replace(ANALYTICS_MARKER, analytics);
   if (operations !== expectedOperations) throw new Error('Operating costs: deployed reference does not match the source');
   const costImage = await read('Cost reference image', new URL('operating-cost-reference.png', site), /image\/png/i, true);
   const expectedImage = await readFile(new URL('../web/operating-cost-reference.png', import.meta.url));
@@ -94,7 +104,7 @@ try {
     }
   }
   if (failure) throw failure;
-  console.log('Deployment verified: website, parking forecast code, fee calculator, operating costs reference and image, crawler files, configuration, and public data are responding.');
+  console.log('Deployment verified: website, analytics settings, parking forecast code, fee calculator, operating costs reference and image, crawler files, configuration, and public data are responding.');
 } catch (error) {
   console.error(`Deployment verification failed: ${error.message}`);
   process.exitCode = 1;
