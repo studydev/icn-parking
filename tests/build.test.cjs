@@ -39,6 +39,10 @@ test('default build has no deployment-specific settings or placeholder URLs', as
   assert.equal(fs.readFileSync(path.join(out, 'forecast.js'), 'utf8'), fs.readFileSync(path.join(root, 'web/forecast.js'), 'utf8'));
   assert(html.indexOf('src="forecast.js"') < html.indexOf('src="app.js"'), 'forecast model must load before the dashboard');
   assert.doesNotMatch(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8'), /blob\.core\.windows\.net/);
+  for (const file of ['index.html', 'fees.html', 'operations.html']) {
+    assert.doesNotMatch(fs.readFileSync(path.join(out, file), 'utf8'), /googletagmanager\.com|data-measurement-id=|src="analytics\.js"/);
+  }
+  assert.doesNotMatch(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8'), /googletagmanager|google-analytics/);
 });
 
 test('configured build injects search metadata, crawler files, data settings, and precise CSP', async t => {
@@ -70,6 +74,23 @@ test('build leaves repository templates unchanged and does not copy runtime data
   assert.equal(fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'), before);
   assert.equal(fs.existsSync(path.join(out, 'data')), false);
   assert.match(fs.readFileSync(path.join(root, 'web/sitemap.xml'), 'utf8'), /__SITE_URL__/);
+});
+
+test('configured GA4 build wires all service pages and permits only the necessary analytics resources', async t => {
+  const out = await build(t, { gaMeasurementId: 'G-EXAMPLE123', dataBaseUrl: 'https://data.example.org/public/' });
+  for (const file of ['index.html', 'fees.html', 'operations.html']) {
+    const html = fs.readFileSync(path.join(out, file), 'utf8');
+    assert.match(html, /<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-EXAMPLE123"><\/script>/);
+    assert.match(html, /<script src="analytics\.js" data-measurement-id="G-EXAMPLE123" defer><\/script>/);
+    assert.equal((html.match(/data-measurement-id=/g) || []).length, 1);
+    assert.doesNotMatch(html, /<script(?:\s[^>]*)?>\s*[^<\s]/);
+  }
+  assert.equal(fs.readFileSync(path.join(out, 'analytics.js'), 'utf8'), fs.readFileSync(path.join(root, 'web/analytics.js'), 'utf8'));
+  const csp = JSON.parse(fs.readFileSync(path.join(out, 'staticwebapp.config.json'), 'utf8')).globalHeaders['content-security-policy'];
+  assert.match(csp, /script-src 'self' https:\/\/www\.googletagmanager\.com;/);
+  assert.match(csp, /connect-src 'self' https:\/\/data\.example\.org https:\/\/www\.googletagmanager\.com https:\/\/\*\.google-analytics\.com https:\/\/www\.google\.com;/);
+  assert.match(csp, /img-src 'self' data: https:\/\/www\.googletagmanager\.com https:\/\/\*\.google-analytics\.com;/);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'|'unsafe-eval'|doubleclick|googleadservices/);
 });
 
 test('build deploys an exact, static operating cost reference without private resource identifiers', async t => {
@@ -136,7 +157,10 @@ test('build refuses credentials, SAS/query strings, non-HTTPS URLs, and injected
     { dataBaseUrl: 'https://data.example.org/?sig=not-a-real-signature' },
     { dataBaseUrl: 'file:///tmp/data/' },
     { naver: '"><script>' },
-    { bing: 'contains spaces' }
+    { bing: 'contains spaces' },
+    { gaMeasurementId: 'UA-12345-1' },
+    { gaMeasurementId: 'G-invalid' },
+    { gaMeasurementId: 'G-EXAMPLE123"><script>' }
   ]) {
     assert.throws(() => buildWeb({ ...options, outDir: path.join(temp, 'site') }));
     assert.equal(fs.existsSync(path.join(temp, 'site')), false, 'invalid settings must not produce deployable files');

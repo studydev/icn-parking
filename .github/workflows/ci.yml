@@ -84,6 +84,7 @@ jobs:
           PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
           NAVER_SITE_VERIFICATION: ${{ secrets.NAVER_SITE_VERIFICATION }}
           BING_SITE_VERIFICATION: ${{ secrets.BING_SITE_VERIFICATION }}
+          GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
           DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
         run: |
           set -euo pipefail
@@ -105,6 +106,7 @@ jobs:
         env:
           PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
           DATA_BASE_URL: ${{ secrets.DATA_BASE_URL }}
+          GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
         run: node scripts/verify-deployment.mjs
 
   deploy-functions:
