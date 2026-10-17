@@ -8,6 +8,8 @@ measured day, re-applied on every publish, so a trailing gap is filled as soon a
 import copy
 
 MAX_GAP_SLOTS = 6  # 30 minutes
+# Bump when the estimation rules change: the collector then re-publishes every finalized day once (see heal_days).
+IMPUTE_VERSION = 1
 
 
 def fill_gaps(doc: dict, max_gap: int = MAX_GAP_SLOTS) -> dict:

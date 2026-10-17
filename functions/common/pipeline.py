@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 from . import api
-from .impute import fill_gaps
+from .impute import IMPUTE_VERSION, fill_gaps
 from .kst import SLOTS_PER_DAY, iso_utc, now_utc, parse_iso, slot_index, slot_key, slot_of, to_kst
 from .normalize import is_stale, normalize_holidays, normalize_parking, normalize_passenger, prev_state
 from .store import Store, get_json, put_json
@@ -23,6 +23,7 @@ CACHE_SHORT = "public, max-age=60"
 CACHE_LONG = "public, max-age=86400"
 STATE_LATEST = "state/latest.json"
 STATE_CALENDAR = "state/calendar.json"
+STATE_HEAL = "state/heal.json"
 
 
 def _ymd(d: str) -> str:
@@ -246,7 +247,38 @@ def run_collect(private: Store, web: Store, key: str, now: datetime | None = Non
         raw["soft_retries"] = soft
     private.put(raw_parking_path(raw["slot_kst"]), json.dumps(raw, ensure_ascii=False).encode("utf-8"),
                 content_type="application/json")
-    return ingest(private, web, raw, now, reg)
+    result = ingest(private, web, raw, now, reg)
+    try:
+        healed = heal_days(private, web, reg, now)
+        if healed:
+            result["healed"] = healed
+    except Exception:  # noqa: BLE001 - re-publishing old days must never cost a collection
+        log.exception("heal_days failed")
+    return result
+
+
+def heal_days(private: Store, web: Store, reg: ZoneRegistry, now: datetime, limit: int = 3) -> list[str]:
+    """Re-publish finalized days that were last built before the current gap-estimation rules (IMPUTE_VERSION).
+
+    A day file is finalized when the next day starts and is never rebuilt afterwards, so the first deployment of
+    gap estimation (or a later rule change) would leave every earlier day with its holes. Newest days first, a few
+    per collect run; it runs inside the collector, so it is serialized with the calendar read-modify-write that
+    `publish_day` does. A day without observations is only marked done: rebuilding it would publish an empty file."""
+    today = to_kst(now).strftime("%Y-%m-%d")
+    done = get_json(private, STATE_HEAL) or {}
+    if done.get("version") != IMPUTE_VERSION:
+        done = {"version": IMPUTE_VERSION, "days": []}
+    cal = get_json(private, STATE_CALENDAR) or {}
+    todo = [d for d in sorted(cal.get("days", {}), reverse=True) if d < today and d not in done["days"]][:limit]
+    healed = []
+    for d in todo:
+        if read_obs(private, d):
+            publish_day(private, web, d, reg, now, final=True)
+            healed.append(d)
+        done["days"].append(d)
+    if todo:
+        put_json(private, STATE_HEAL, done)
+    return healed
 
 
 def ingest(private: Store, web: Store, raw: dict, now: datetime, reg: ZoneRegistry) -> dict:
