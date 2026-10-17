@@ -9,6 +9,8 @@ PARKING_URL = "https://apis.data.go.kr/B551177/StatusOfParking/getTrackingParkin
 PASSENGER_URL = "https://apis.data.go.kr/B551177/passgrAnncmt/getPassgrAnncmt"
 HOLIDAY_URL = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
 RETRY_DELAYS = (2, 5, 10)
+# The parking slot is 5 minutes long, so the collector can afford a longer backoff than the hourly calls.
+PARKING_RETRY_DELAYS = (2, 5, 10, 20, 30)
 TIMEOUT = 10
 
 
@@ -17,16 +19,20 @@ def _open(url: str) -> tuple[int, str]:
         return r.status, r.read().decode("utf-8")
 
 
-def call(url: str, params: dict, opener=_open, sleep=time.sleep, delays=RETRY_DELAYS) -> tuple[dict, object]:
+def call(url: str, params: dict, opener=_open, sleep=time.sleep, delays=RETRY_DELAYS,
+         deadline: float | None = None, clock=time.monotonic) -> tuple[dict, object]:
     """Call with retries. Returns (meta, body); meta['error'] is None on success.
 
     Success requires HTTP 200, JSON body and header.resultCode == '00'.
+    `deadline` (a `clock()` value) stops retrying once a further attempt could no longer finish before it.
     """
     full = f"{url}?{urllib.parse.urlencode(params)}"
     meta = {"http_status": None, "result_code": None, "latency_ms": None, "attempts": 0, "error": None}
     body = None
     for attempt, delay in enumerate((0,) + tuple(delays)):
         if delay:
+            if deadline is not None and deadline - (clock() + delay) < TIMEOUT:
+                break
             sleep(delay)
         meta["attempts"] = attempt + 1
         t0 = time.monotonic()

@@ -318,6 +318,7 @@ button{font-family:inherit}
 .month .cells button{aspect-ratio:1.25;border:none;border-radius:3px;font-size:12px;padding:0;outline-offset:-2px}
 .grad{display:flex;align-items:center;gap:8px;font-size:11px;color:#8a9097;flex-wrap:wrap}
 .grad .sq{width:10px;height:10px}
+.grad .sq.est{background:#e0a458 repeating-linear-gradient(45deg,rgba(255,255,255,.62) 0 2px,rgba(255,255,255,0) 2px 4px)}
 .dgrid{min-width:760px;display:flex;flex-direction:column;gap:3px}
 .dgrid .hd{display:grid;grid-template-columns:150px repeat(24,minmax(0,1fr));font-size:11px;color:#8a9097}
 .dgrid .hd span{border-left:1px solid #e6e8eb;padding-left:3px}

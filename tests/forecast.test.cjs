@@ -184,3 +184,20 @@ test('an unknown future calendar year is rejected explicitly instead of treated 
   assert.equal(IGoTo.predict(model, '2027-01-01', 144).value, null);
   assert.match(IGoTo.predict(model, '2027-01-01', 144).why, /공휴일 달력이 없습니다/);
 });
+
+test('slots the server estimated for a collection gap are display-only: they neither anchor nor train the model', () => {
+  const now = { date: '2026-10-08', idx: 144 }, days = fixture(), zone = days.get(now.date).zones.long;
+  const measuredAnchor = IGoTo.fit({ days: fixture(), zoneId: 'long', category: '장기', now, holidays }).anchor;
+  assert.equal(measuredAnchor.idx, 144);
+  zone.p[143] = 5000;
+  zone.p[144] = 5000;
+  zone.e = [143, 144];
+  const fit = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
+  assert.equal(fit.ok, true);
+  assert.equal(fit.anchor.idx, 142, 'the newest measured slot is used, not the estimate');
+  assert.notEqual(fit.anchor.parking, 5000);
+  zone.e = [138, 139, 140, 141, 142, 143, 144];
+  const none = IGoTo.fit({ days, zoneId: 'long', category: '장기', now, holidays });
+  assert.equal(none.ok, false);
+  assert.match(none.why, /실측이 없어/);
+});
