@@ -15,9 +15,10 @@ from common import api  # noqa: E402
 from common.kst import slot_index, slot_key, slot_of  # noqa: E402
 from common.normalize import normalize_holidays, normalize_parking, normalize_passenger  # noqa: E402
 from common.impute import fill_gaps  # noqa: E402
-from common.pipeline import (COLLECT_BUDGET_S, MAX_CALLS, build_day, day_summary, ingest, publish_day, rebuild_obs,  # noqa: E402
-                             read_obs, run_collect, run_exog, terminal_series)
-from common.store import LocalStore, get_json  # noqa: E402
+from common import pipeline  # noqa: E402
+from common.pipeline import (COLLECT_BUDGET_S, MAX_CALLS, build_day, day_summary, heal_days, ingest,  # noqa: E402
+                             publish_day, rebuild_obs, read_obs, run_collect, run_exog, terminal_series)
+from common.store import LocalStore, get_json, put_json  # noqa: E402
 from common.zones import load_zones  # noqa: E402
 
 FIX = Path(__file__).parent / "fixtures"
@@ -421,3 +422,55 @@ def test_default_fetch_hands_the_budget_to_the_api_client(stores, reg, monkeypat
     run_collect(private, web, "k", now=utc("2026-10-01T05:00:00"), reg=reg, clock=lambda: 1000.0)
     assert seen["deadline"] == 1000.0 + COLLECT_BUDGET_S and seen["delays"] == api.PARKING_RETRY_DELAYS
     assert set(seen) <= set(inspect.signature(api.call).parameters)  # every keyword is one api.call accepts
+
+
+def test_heal_days_republishes_finalized_days_once_per_rule_version(stores, reg, monkeypatch):
+    private, web = stores
+
+    def collect(t, parking, datetm):
+        return run_collect(private, web, "k", now=utc(t), reg=reg,
+                           fetch=lambda k: (OK_META, body_with({"T1 단기주차장지하1층": {"parking": str(parking)}},
+                                                               datetm=datetm)))
+
+    collect("2026-10-01T05:00:00", 200, "20261001140000.000")
+    collect("2026-10-01T05:10:00", 300, "20261001141000.000")  # 14:05 was never collected
+    # Simulate the day file a collector without gap estimation had finalized (hole, 1-day cache, no `e`).
+    legacy = build_day("2026-10-01", read_obs(private, "2026-10-01"), reg)
+    put_json(web, "data/days/2026-10-01.json", legacy, gz=True)
+    assert "e" not in get_json(web, "data/days/2026-10-01.json")["zones"]["t1-short-b1"]
+
+    assert heal_days(private, web, reg, utc("2026-10-01T05:15:00")) == []  # today is never healed
+    later = utc("2026-10-01T15:05:00")  # 2026-10-02 00:05 KST: 10-01 is final
+    assert heal_days(private, web, reg, later) == ["2026-10-01"]
+    z = get_json(web, "data/days/2026-10-01.json")["zones"]["t1-short-b1"]
+    assert z["p"][SLOT + 1] == 250 and z["e"] == [SLOT + 1]
+    assert heal_days(private, web, reg, later) == []  # done: later runs only read two small blobs
+
+    monkeypatch.setattr(pipeline, "IMPUTE_VERSION", 2)  # new rules -> every finalized day is rebuilt once more
+    assert heal_days(private, web, reg, later) == ["2026-10-01"]
+    assert heal_days(private, web, reg, later) == []
+
+
+def test_heal_days_skips_days_without_observations_and_is_bounded(stores, reg):
+    private, web = stores
+    put_json(web, "data/days/2026-09-29.json", {"v": 1, "date": "2026-09-29", "zones": {"keep": {"p": [1], "c": [2]}}})
+    days = {d: {"n": 1} for d in ("2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01")}
+    put_json(private, "state/calendar.json", {"v": 1, "start": "2026-09-28", "days": days})
+    now = utc("2026-10-02T03:00:00")
+    assert heal_days(private, web, reg, now) == []  # newest three considered, none has obs: nothing is rebuilt
+    assert get_json(private, "state/heal.json")["days"] == ["2026-10-01", "2026-09-30", "2026-09-29"]
+    assert get_json(web, "data/days/2026-09-29.json")["zones"] == {"keep": {"p": [1], "c": [2]}}  # untouched
+    heal_days(private, web, reg, now)
+    assert get_json(private, "state/heal.json")["days"][-1] == "2026-09-28"
+
+
+def test_collect_survives_a_failing_heal(stores, reg, monkeypatch):
+    private, web = stores
+
+    def boom(*a, **k):
+        raise RuntimeError("storage hiccup")
+
+    monkeypatch.setattr(pipeline, "heal_days", boom)
+    res = run_collect(private, web, "k", now=utc("2026-10-01T05:00:00"), reg=reg,
+                      fetch=lambda k: (OK_META, body_with(datetm="20261001140000.000")))
+    assert res["ok"] and "healed" not in res

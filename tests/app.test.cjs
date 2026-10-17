@@ -1030,6 +1030,25 @@ test('server-estimated collection gaps are drawn as 보정값, stay out of the s
   assert.match(elements.get('range-point-detail').textContent, /01:40 KST · 점유율 75% · 보정값\(수집 누락 추정\)/);
 });
 
+test('the line chart marks estimated points with a dotted marker and a 보정 tooltip note', async () => {
+  const { run } = await runtime('#week/T1', { ...SUNDAY, dayDoc: date => {
+    const doc = dayDoc(date, false);
+    doc.zones.s1.p = doc.zones.s1.p.slice();
+    doc.zones.s1.p[20] = 75;
+    doc.zones.s1.e = [20];
+    return doc;
+  } });
+  run('D.cache.clear();');
+  assert.deepEqual(JSON.parse(run("JSON.stringify(zSeries('s1', D.now.date, 1, 0, 'est').slice(19, 22))")), [false, true, false]);
+  const dots = JSON.parse(run("JSON.stringify(chartModel({ d0: D.now.date, nd: 1, win: [15, 26], kind: 'range' }).dots)"));
+  assert.equal(dots.filter(dot => dot.est).length, 1, 'only the estimated slot of the one affected zone');
+  assert(dots.length > 1);
+  assert.match(fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8'), /class="abs dotm\$\{o\.est \? ' est' : ''\}"/, 'the plot renders the flag');
+  assert.match(fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8'), /m\.fmt\(v\) \+ \(m\.est\(z\)\[hj\] \? ' · 보정' : ''\)/, 'the tooltip notes it');
+  const css = fs.readFileSync(path.join(__dirname, '../web/style.css'), 'utf8');
+  assert.match(css, /\.plot \.dotm\.est\{[^}]*border-style:dotted/);
+});
+
 test('a 92-day range uses one exact 288-slot raster per day/zone rather than hundreds of thousands of DOM cells', async () => {
   const { run } = await runtime('#range/T1', { ...SUNDAY, start: '2026-07-01' });
   run("setRange('2026-07-01','2026-10-11');");

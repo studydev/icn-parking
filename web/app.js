@@ -402,7 +402,7 @@ function chartModel(cfg) {
   const term = S.term, on = onGroups(term), zones = on.flatMap(g => g.zones), key = vkey(), occ = S.metric === 'occ', { d0, nd, cmp } = cfg;
   const [a, b] = cfg.win, span = b - a, step = Math.max(1, Math.floor(span / 700)), hol = holidays();
   const ti = daysBetween(d0, D.now.date), nowG = ti >= 0 && ti < nd ? ti * DAY + D.now.idx : null;
-  const cur = z => zSeries(z.id, d0, nd, 0, key), prev = z => zSeries(z.id, d0, nd, cmp, key);
+  const cur = z => zSeries(z.id, d0, nd, 0, key), prev = z => zSeries(z.id, d0, nd, cmp, key), est = z => zSeries(z.id, d0, nd, 0, 'est');
   const fmt = v => v == null ? '—' : occ ? pct(v) : num(v) + '대';
   const sr = span <= 48 ? 0 : Math.max(2, step * 2), forecasts = new Map(), forecastLines = [];
   const forecastEnd = Math.min(nd * DAY, nowG + S.futureDays * DAY);
@@ -473,7 +473,7 @@ function chartModel(cfg) {
     op: 0.88, cmp: 0, forecast: true, model, offset, anchor, anchorValue
   });
   const dots = [];
-  if (span <= 48) zones.forEach(z => { const s = cur(z); for (let j = a; j < b; j++) if (s[j] != null) dots.push({ left: (xv(j) / 10).toFixed(2), top: (yv(s[j]) / 2).toFixed(2), c: z.color }); });
+  if (span <= 48) zones.forEach(z => { const s = cur(z), e = est(z); for (let j = a; j < b; j++) if (s[j] != null) dots.push({ left: (xv(j) / 10).toFixed(2), top: (yv(s[j]) / 2).toFixed(2), c: z.color, est: !!e[j] }); });
   const plotEl = document.getElementById('plot');
   const plotPx = plotEl && plotEl.clientWidth ? plotEl.clientWidth : Math.max(240, Math.min(window.innerWidth, 1280) - 110), dayPx = DAY / span * plotPx;
   const vLines = [], dayLabels = [], bands = [], contexts = S.igoto && cfg.kind === 'week' ? forecastContexts(cfg) : null;
@@ -496,7 +496,7 @@ function chartModel(cfg) {
     if (span <= 600 && j % DAY !== 0 && j > a && j < b) vLines.push({ left: px(j), c: '#f0f2f4' });
   }
   const capacityMarkers = capacityMarkersFor(cfg, zones, px);
-  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, occ, forecasts, capacityMarkers };
+  return { cfg, on, zones, a, b, span, hi, yv, yTicks, lines, dots, vLines, dayLabels, xTicks, bands, fmt, hasData, nowG, cur, prev, est, occ, forecasts, capacityMarkers };
 }
 
 function chartHtml(m) {
@@ -509,7 +509,7 @@ function chartHtml(m) {
         ${m.vLines.map(l => `<div class="abs vline" style="left:${l.left}%;border-color:${l.c}"></div>`).join('')}
         ${ref != null ? `<div class="abs refline" style="top:${ref}%"></div>${m.hi > 1 ? `<span class="abs reftag" style="top:${ref}%">만차 기준 100%</span>` : ''}` : ''}
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${m.lines.map(p => `<path data-g="${p.g}" data-z="${p.z}" data-op="${p.op}" data-cmp="${p.cmp}" data-forecast="${!!p.forecast}" data-model="${p.model || ''}" d="${p.d}" style="stroke:${p.color};stroke-width:${p.w};stroke-dasharray:${p.dash};opacity:${p.op}"><title>${esc(p.name)}${p.model === 'linked' ? ` · 오프셋 ${pctp(p.offset)}` : p.cmp ? ` · ${CMPS[m.cfg.cmp]}` : ''}</title></path>`).join('')}</svg>
-        ${m.dots.map(o => `<div class="abs dotm" style="left:${o.left}%;top:${o.top}%;border-color:${o.c}"></div>`).join('')}
+        ${m.dots.map(o => `<div class="abs dotm${o.est ? ' est' : ''}" style="left:${o.left}%;top:${o.top}%;border-color:${o.c}"></div>`).join('')}
         ${capacityMarkerHtml(m.capacityMarkers)}
         ${nowL != null ? `<div class="abs nowline" style="left:${nowL}%"></div><span class="abs nowtag${nowL > 80 ? ' flip' : ''}" style="left:${nowL}%">지금 ${slotLabel(D.now.idx)}</span>` : ''}
         ${!m.on.length ? '<div class="abs emptymsg">주차장을 하나 이상 켜세요.</div>' : !m.hasData ? '<div class="abs emptymsg">이 구간에는 수집된 기록이 없습니다.</div>' : ''}
@@ -562,7 +562,7 @@ function renderOverlay() {
     const rows = m.zones.map(z => {
       const v = m.cur(z)[hj], c = cmp ? m.prev(z)[hj] : null;
       const predicted = ['igoto', 'linked'].map(model => ({ model, value: m.forecasts.get(`${model}|${z.id}`)?.values[hj] })).filter(p => p.value != null);
-      const val = future && predicted.length ? predicted.map(p => `<span>${p.model === 'igoto' ? 'IGoTo' : '연결'} ${m.fmt(p.value)}</span>`).join('') : v == null ? whyNull(date, i) : m.fmt(v);
+      const val = future && predicted.length ? predicted.map(p => `<span>${p.model === 'igoto' ? 'IGoTo' : '연결'} ${m.fmt(p.value)}</span>`).join('') : v == null ? whyNull(date, i) : m.fmt(v) + (m.est(z)[hj] ? ' · 보정' : '');
       return { c: z.color, label: z.name, val, future: future && predicted.length > 0, cmp: cmp ? m.fmt(c) : '', sort: v ?? predicted[0]?.value ?? c ?? -1 };
     }).sort((x, y) => y.sort - x.sort);
     const left = ((hj - a) / span * 100).toFixed(2);
