@@ -982,6 +982,54 @@ test('date-by-date range pixels retain each observation, capacity, missing and f
   assert.match(elements.get('range-point-detail').textContent, /01:05 KST · 누락/);
 });
 
+test('server-estimated collection gaps are drawn as 보정값, stay out of the statistics and never feed the forecasts', async () => {
+  const estimated = date => {
+    const doc = dayDoc(date, false), s1 = doc.zones.s1;
+    s1.p = s1.p.slice();
+    s1.p[20] = 75;
+    s1.p[21] = 80;
+    s1.e = [20, 21];
+    return doc;
+  };
+  const { run, today, elements } = await runtime('#day/T1', { ...SUNDAY, dayDoc: estimated });
+  run("D.cache.clear();");
+  assert.equal(run("zoneDay('s1', D.now.date).p[20]"), 75, 'the estimate keeps the chart continuous');
+  assert.equal(run("zoneDay('s1', D.now.date).pm[20]"), null, 'the measured-only series has no estimate');
+  assert.deepEqual(JSON.parse(run("JSON.stringify(zoneDay('s1', D.now.date).est.slice(19, 23))")), [false, true, true, false]);
+  assert.deepEqual(JSON.parse(run("JSON.stringify(grpDay('T1', '단기', D.now.date).est.slice(19, 23))")), [false, true, true, false]);
+  assert.equal(run("grpDay('T1', '장기', D.now.date).est[20]"), false, 'a group is estimated only when one of its zones is');
+
+  run(`S.tab = 'day'; S.selDay = '${today}'; renderDay();`);
+  const html = run("document.getElementById('view').innerHTML");
+  assert.match(html, /단기 지하1층 01:40 · 75% · 가용 25대 · 보정값\(수집 누락 추정\)/);
+  assert.equal((html.match(/class="est"/g) || []).length, 2, 'only the estimated slots are hatched');
+  assert.match(html, /<span class="sq est"><\/span><span>보정값<\/span>/);
+  assert.match(html, /60% · 00:00/, 'the maximum ignores the 75–80% estimates');
+  assert.match(html, /2슬롯 \(10분\) · 보정 2슬롯/);
+
+  assert.equal(run(`rangeSlot('s1','${today}',20).est`), true);
+  assert.equal(run(`rangeSlot('s1','${today}',19).est`), false);
+  elements.set('range-point-detail', { textContent: '' });
+  run(`
+    const painted = [];
+    const canvases = ['${today}'].map(date => ({
+      dataset:{zone:'s1',date}, title:'', listeners:{},
+      getContext:()=>({createImageData:()=>({data:new Uint8ClampedArray(DAY*4)}),putImageData:image=>painted.push(image.data)}),
+      getBoundingClientRect:()=>({left:0,width:288}),
+      addEventListener(name,callback){this.listeners[name]=callback;},
+      setAttribute(name,value){this[name]=value;}
+    }));
+    document.querySelectorAll = selector => selector === '#rng-sum .th-strip' ? canvases : [];
+    paintRangeHeatmap();
+  `);
+  const channels = hex => hex.slice(1).match(/../g).map(v => parseInt(v, 16));
+  const pixel = slot => JSON.parse(run(`JSON.stringify(Array.from(painted[0].slice(${slot}*4,${slot}*4+4)))`));
+  assert.deepEqual(pixel(19), [...channels(run('occColor(.6)')), 255]);
+  assert.deepEqual(pixel(20), [...channels(run('occColor(.75)')).map(v => Math.round(v * .45 + 255 * .55)), 255], 'estimates are the same color, lightened');
+  run("canvases[0].listeners.pointerdown({clientX:20.5});");
+  assert.match(elements.get('range-point-detail').textContent, /01:40 KST · 점유율 75% · 보정값\(수집 누락 추정\)/);
+});
+
 test('a 92-day range uses one exact 288-slot raster per day/zone rather than hundreds of thousands of DOM cells', async () => {
   const { run } = await runtime('#range/T1', { ...SUNDAY, start: '2026-07-01' });
   run("setRange('2026-07-01','2026-10-11');");

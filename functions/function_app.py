@@ -18,6 +18,8 @@ def collect(timer: func.TimerRequest) -> None:
     from common.pipeline import run_collect
     from common.store import stores_from_env
 
+    if timer.past_due:
+        logging.warning("collect timer is past due (platform delayed or skipped the schedule)")
     private, web = stores_from_env()
     result = run_collect(private, web, _key())
     logging.info("collect %s", result)

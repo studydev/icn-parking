@@ -1,15 +1,23 @@
 """Builders for the public `$web/data` documents and the collect/exog pipelines."""
 import json
 import logging
+import time
 from datetime import datetime
 
 from . import api
+from .impute import fill_gaps
 from .kst import SLOTS_PER_DAY, iso_utc, now_utc, parse_iso, slot_index, slot_key, slot_of, to_kst
 from .normalize import is_stale, normalize_holidays, normalize_parking, normalize_passenger, prev_state
 from .store import Store, get_json, put_json
 from .zones import ZoneRegistry, registry
 
 log = logging.getLogger("icnparking")
+
+# Time one collect run may spend re-polling inside its 5-minute slot, and the call cap that protects the
+# data.go.kr daily quota (hard-failure retries and stale re-polls share it).
+COLLECT_BUDGET_S = 110
+SOFT_RETRY_DELAY_S = 20
+MAX_CALLS = 6
 
 CACHE_SHORT = "public, max-age=60"
 CACHE_LONG = "public, max-age=86400"
@@ -46,16 +54,21 @@ def rows_to_jsonl(rows: list[dict]) -> bytes:
 
 # ---------- day document ----------
 
+def _row_rank(r: dict) -> tuple[bool, str]:
+    return "STALE" not in r.get("flags", []), r["collected_at_utc"]
+
+
 def build_day(d: str, rows: list[dict], reg: ZoneRegistry) -> dict:
-    """288-slot parking/capacity arrays per zone. Duplicate slot+zone keeps the latest collection.
-    STALE / invalid values become null (shown as 수집 누락)."""
+    """288-slot parking/capacity arrays per zone. Duplicate slot+zone keeps the latest collection,
+    but a fresh row is never replaced by a STALE duplicate.
+    STALE / invalid values become null (shown as 수집 누락 unless `fill_gaps` can estimate them)."""
     best: dict[tuple[str, int], dict] = {}
     for r in rows:
         s = r.get("slot_ts_kst", "")
         if s[:10] != d or r["zone_id"] not in reg.by_id:
             continue
         k = (r["zone_id"], int(s[11:13]) * 12 + int(s[14:16]) // 5)
-        if k not in best or r["collected_at_utc"] >= best[k]["collected_at_utc"]:
+        if k not in best or _row_rank(r) >= _row_rank(best[k]):
             best[k] = r
     zones = {}
     for (zid, i), r in best.items():
@@ -121,18 +134,25 @@ def load_holidays(private: Store, years) -> dict[str, str]:
 
 
 def publish_day(private: Store, web: Store, d: str, reg: ZoneRegistry, now: datetime, final: bool = False) -> dict:
-    """Rebuild day file from obs, update calendar master and publish both."""
-    doc = build_day(d, read_obs(private, d), reg)
-    doc["updated_at"] = iso_utc(now)
+    """Rebuild day file from obs, update calendar master and publish both.
+
+    The published day file has short gaps estimated (`fill_gaps`, marked in each zone's `e`); the calendar
+    statistics stay measurement-only and report the estimated slot count as `est`."""
+    measured = build_day(d, read_obs(private, d), reg)
+    measured["updated_at"] = iso_utc(now)
+    doc = fill_gaps(measured)
     put_json(web, f"data/days/{d}.json", doc, gz=True, cache_control=CACHE_LONG if final else CACHE_SHORT)
 
     cal = get_json(private, STATE_CALENDAR) or {"v": 1, "start": d, "days": {}}
     if d < cal["start"]:
         cal["start"] = d
-    if doc["zones"]:
-        first, last = slot_bounds(doc, d, cal["start"], slot_of(now))
-        n = len({i for z in doc["zones"].values() for i, c in enumerate(z["c"]) if c is not None})
-        cal["days"][d] = {"n": n, **day_summary(doc, reg, first, last)}
+    if measured["zones"]:
+        first, last = slot_bounds(measured, d, cal["start"], slot_of(now))
+        n = len({i for z in measured["zones"].values() for i, c in enumerate(z["c"]) if c is not None})
+        cal["days"][d] = {"n": n, **day_summary(measured, reg, first, last)}
+        est = len({i for z in doc["zones"].values() for i in z.get("e", [])})
+        if est:
+            cal["days"][d]["est"] = est
     cal["days"] = dict(sorted(cal["days"].items()))
     cal["updated_at"] = iso_utc(now)
     put_json(private, STATE_CALENDAR, cal)
@@ -170,15 +190,60 @@ def raw_parking_path(slot_key_: str) -> str:
     return f"raw/parking/{slot_key_[:4]}/{slot_key_[5:7]}/{slot_key_[8:10]}/{slot_key_[11:13]}{slot_key_[14:16]}.json"
 
 
+def _prev_of(state: dict) -> dict:
+    return {zid: {"slot": r.get("slot_ts_kst"), "source_ts": r.get("source_ts"), "capacity": r.get("capacity")}
+            for zid, r in state.get("zones", {}).items()}
+
+
+def _assess(raw: dict, reg: ZoneRegistry, state: dict) -> tuple[int, int]:
+    """(zones with a fresh value, zones that were healthy in the last successful call but are not now).
+
+    (-1, 0) for a failed call. Zones already STALE or absent last time are not counted as lost, so a source
+    that is persistently stuck on one zone cannot make every slot burn the whole retry budget."""
+    if raw.get("error"):
+        return -1, 0
+    rows, _ = normalize_parking(raw, reg, _prev_of(state))
+    fresh = {r["zone_id"] for r in rows if not {"STALE", "BAD_VALUE"} & set(r["flags"])}
+    healthy = {zid for zid, r in state.get("zones", {}).items()
+               if r.get("slot_ts_kst") == state.get("slot") and "STALE" not in r.get("flags", [])}
+    expected = {z.id for z in reg.zones if not z.active_to}
+    return len(fresh), len((healthy & expected) - fresh)
+
+
 def run_collect(private: Store, web: Store, key: str, now: datetime | None = None, fetch=None,
-                reg: ZoneRegistry | None = None) -> dict:
+                reg: ZoneRegistry | None = None, sleep=time.sleep, clock=time.monotonic) -> dict:
+    """Collect one slot. A failed call is retried inside `api.call`; a call that succeeds but returns stale,
+    missing or empty zones is re-polled every SOFT_RETRY_DELAY_S. The attempt with the most fresh zones is the
+    only one that is stored, so a later stale answer can never overwrite an earlier fresh one."""
     now = now or now_utc()
     reg = reg or registry()
-    fetch = fetch or api.fetch_parking
     slot = slot_of(now)
-    meta, body = fetch(key)
-    raw = {"source": "parking", "collected_at_utc": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-           "slot_kst": slot_key(slot), **meta, "body": body}
+    deadline = clock() + COLLECT_BUDGET_S
+    state = get_json(private, STATE_LATEST) or {}
+    used = soft = 0
+    best: tuple[int, dict] | None = None
+    while True:
+        if fetch:
+            meta, body = fetch(key)
+        else:
+            meta, body = api.fetch_parking(key, delays=api.PARKING_RETRY_DELAYS[:max(MAX_CALLS - used - 1, 0)],
+                                           deadline=deadline, sleep=sleep, clock=clock)
+        used += meta.get("attempts") or 1
+        raw = {"source": "parking",
+               "collected_at_utc": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+               "slot_kst": slot_key(slot), **meta, "body": body}
+        fresh, lost = _assess(raw, reg, state)
+        if best is None or fresh >= best[0]:
+            best = (fresh, raw)
+        if fresh < 0 or not lost or used >= MAX_CALLS or clock() + SOFT_RETRY_DELAY_S + api.TIMEOUT > deadline:
+            break
+        soft += 1
+        log.warning("parking response degraded slot=%s fresh=%s lost=%s; polling again", raw["slot_kst"], fresh, lost)
+        sleep(SOFT_RETRY_DELAY_S)
+    raw = best[1]
+    raw["attempts"] = used
+    if soft:
+        raw["soft_retries"] = soft
     private.put(raw_parking_path(raw["slot_kst"]), json.dumps(raw, ensure_ascii=False).encode("utf-8"),
                 content_type="application/json")
     return ingest(private, web, raw, now, reg)
@@ -192,8 +257,7 @@ def ingest(private: Store, web: Store, raw: dict, now: datetime, reg: ZoneRegist
         state.update(ok=False, error=raw["error"])
         log.warning("parking call failed slot=%s error=%s", raw["slot_kst"], raw["error"])
     else:
-        prev = {zid: {"slot": r.get("slot_ts_kst"), "source_ts": r.get("source_ts"), "capacity": r.get("capacity")}
-                for zid, r in state.get("zones", {}).items()}
+        prev = _prev_of(state)
         rows, unknown = normalize_parking(raw, reg, prev)
         if unknown:
             log.warning("unknown parking zones: %s", unknown)

@@ -57,6 +57,9 @@ const niceCeil = x => { if (!(x > 0)) return 10; const m = Math.pow(10, Math.flo
 /* 100% 초과 표시를 켰을 때 최고값 위로 여유를 둔 Y축 상한 */
 const occTop = mx => S.over && mx > 1 ? Math.ceil((mx + 0.03) * 20) / 20 : 1;
 const HATCH = 'repeating-linear-gradient(45deg,#c9ced4 0 2px,#fff 2px 4px)';
+/* 수집 누락을 추정으로 메운 슬롯(서버 일별 JSON의 zone.e): 점유율 색 위에 옅은 사선 */
+const EST_HATCH = 'repeating-linear-gradient(45deg,rgba(255,255,255,.62) 0 2px,rgba(255,255,255,0) 2px 4px)';
+const EST_NOTE = '보정값(수집 누락 추정)';
 const occBand = v => OCC_BANDS.find(b => v >= b[0]);
 /* plot background per day: weekday pastel / weekend·holiday pastel red */
 const isOffDay = (date, hol) => { const dw = dowOf(date); return dw === 0 || dw === 6 || !!hol[date]; };
@@ -131,6 +134,9 @@ function prepDay(doc) {
   for (const z of Object.values(doc.zones)) {
     const f = z.c.findIndex(c => c != null);
     if (f >= 0 && f < first) first = f;
+    /* z.e = 서버가 인접 실측으로 추정해 채운 슬롯 인덱스(없으면 생략). 실측과 구분하려고 슬롯별 표시로 바꿔 둡니다. */
+    z.est = new Array(DAY).fill(false);
+    for (const i of z.e || []) z.est[i] = true;
   }
   doc.first = first;
   return doc;
@@ -186,18 +192,19 @@ const vkey = () => S.metric === 'avail' ? 'a' : occKey();
 
 /* 구역 묶음의 슬롯별 합계: o = Σ주차/Σ면수, oc = Σmin(주차, 면수)/Σ면수, a = 가용 대수 */
 function aggDay(zs) {
-  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice();
+  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice(), est = new Array(DAY).fill(false);
   for (let i = 0; i < DAY; i++) {
-    let sp = 0, sq = 0, sc = 0, ok = true;
+    let sp = 0, sq = 0, sc = 0, ok = true, guess = false;
     for (const z of zs) {
       const p = z.p[i], c = z.c[i];
       if (c === 0) continue;
       if (p == null || c == null) { ok = false; break; }
       sp += p; sq += Math.min(p, c); sc += c;
+      if (z.est && z.est[i]) guess = true;
     }
-    if (ok && sc) { o[i] = sp / sc; oc[i] = sq / sc; a[i] = sc - sq; }
+    if (ok && sc) { o[i] = sp / sc; oc[i] = sq / sc; a[i] = sc - sq; est[i] = guess; }
   }
-  return { o, oc, a };
+  return { o, oc, a, est };
 }
 function grpDay(term, gid, date) {
   const ck = `g|${term}|${gid}|${date}`;
@@ -213,7 +220,8 @@ function zoneDay(zid, date) {
   if (D.cache.has(ck)) return D.cache.get(ck);
   const doc = D.days.get(date), z = doc && doc.zones[zid];
   if (!z) { D.cache.set(ck, null); return null; }
-  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice(), parking = o.slice();
+  const o = new Array(DAY).fill(null), oc = o.slice(), a = o.slice(), parking = o.slice(), measured = o.slice();
+  const est = z.est || new Array(DAY).fill(false);
   for (let i = 0; i < DAY; i++) {
     const p = z.p[i], c = z.c[i];
     if (p == null || c == null || c <= 0) continue;
@@ -221,8 +229,10 @@ function zoneDay(zid, date) {
     oc[i] = Math.min(p, c) / c;
     a[i] = Math.max(c - p, 0);
     parking[i] = p;
+    if (!est[i]) measured[i] = p;
   }
-  const out = { o, oc, a, p: parking };
+  /* p = 화면용(보정값 포함), pm = 실측만(예상 모델용), est = 보정 슬롯 */
+  const out = { o, oc, a, p: parking, pm: measured, est };
   D.cache.set(ck, out);
   return out;
 }
@@ -399,7 +409,7 @@ function chartModel(cfg) {
   if (cfg.kind === 'week' && nowG != null) {
     for (const z of zones) {
       if (S.linkedForecast && cmp) {
-        const actual = zSeries(z.id, d0, nd, 0, 'p'), baseline = zSeries(z.id, d0, nd, cmp, 'p');
+        const actual = zSeries(z.id, d0, nd, 0, 'pm'), baseline = zSeries(z.id, d0, nd, cmp, 'pm');
         let anchor = nowG;
         while (anchor >= Math.max(0, nowG - 6) && actual[anchor] == null) anchor--;
         if (anchor >= 0 && actual[anchor] != null && baseline[anchor] != null) {
@@ -816,7 +826,7 @@ function forecastOf(term, gid) {
     const { date, slot } = slotRange(today, idx + offset), values = [], occupancies = [];
     for (const i of [slot - 1, slot, slot + 1]) {
       const at = slotRange(date, i), d = zoneDay(gid, at.date);
-      if (!d || at.date > today || (at.date === today && at.slot > idx) || d[key][at.slot] == null) continue;
+      if (!d || at.date > today || (at.date === today && at.slot > idx) || d[key][at.slot] == null || d.est[at.slot]) continue;
       values.push(d[key][at.slot]); occupancies.push(d[occupancyKey][at.slot]);
     }
     const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -827,7 +837,7 @@ function forecastOf(term, gid) {
   for (let back = 0; back <= 6; back++) {
     const at = slotRange(today, idx - back), day = zoneDay(gid, at.date);
     if (D.days.get(at.date)?.zones[gid]?.c[at.slot] === 0) return { ok: false, why: '최근 관측이 운영 중단 상태입니다.', now: null, history };
-    if (day?.[key][at.slot] != null) { anchor = { ...at, day }; break; }
+    if (day?.[key][at.slot] != null && !day.est[at.slot]) { anchor = { ...at, day }; break; }
   }
   if (!anchor) return { ok: false, why: '지금 값이 없어 추정할 수 없습니다', now: null, history };
   const now = anchor.day[key][anchor.slot], nowOccupancy = anchor.day[occupancyKey][anchor.slot];
@@ -838,7 +848,7 @@ function forecastOf(term, gid) {
   const sm = (date, slot) => {
     let sum = 0, n = 0;
     for (let delta = -2; delta <= 2; delta++) {
-      const at = slotRange(date, slot + delta), day = zoneDay(gid, at.date), value = day?.p[at.slot];
+      const at = slotRange(date, slot + delta), day = zoneDay(gid, at.date), value = day?.pm[at.slot];
       if ((at.date < today || (at.date === today && at.slot <= idx)) && value != null) { sum += value; n++; }
     }
     return n ? sum / n : null;
@@ -906,11 +916,11 @@ function staticChartHtml(list, n, capacityMarkers = []) {
       ${capacityMarkerHtml(capacityMarkers)}
     </div>`;
 }
-function statRows(on, arrOf, date) {
+function statRows(on, arrOf, date, estOf = () => []) {
   return on.map(z => {
-    const arr = arrOf(z); let iMax = -1, iMin = -1, sum = 0, n = 0, miss = 0;
-    arr.forEach((v, j) => { if (v == null) { if (whyNull(date, j) === '누락') miss++; return; } if (iMax < 0 || v > arr[iMax]) iMax = j; if (iMin < 0 || v < arr[iMin]) iMin = j; sum += v; n++; });
-    return `<div class="r"><span><i style="border-color:${z.color}"></i>${esc(z.name)}</span><span>${iMax >= 0 ? `${pct(arr[iMax])} · ${slotLabel(iMax)}` : '—'}</span><span>${iMin >= 0 ? `${pct(arr[iMin])} · ${slotLabel(iMin)}` : '—'}</span><span>${n ? pct(sum / n) : '—'}</span><span>${miss ? `${miss}슬롯 (${miss * 5}분)` : '없음'}</span></div>`;
+    const arr = arrOf(z), est = estOf(z); let iMax = -1, iMin = -1, sum = 0, n = 0, miss = 0, guess = 0;
+    arr.forEach((v, j) => { if (v == null) { if (whyNull(date, j) === '누락') miss++; return; } if (est[j]) { guess++; return; } if (iMax < 0 || v > arr[iMax]) iMax = j; if (iMin < 0 || v < arr[iMin]) iMin = j; sum += v; n++; });
+    return `<div class="r"><span><i style="border-color:${z.color}"></i>${esc(z.name)}</span><span>${iMax >= 0 ? `${pct(arr[iMax])} · ${slotLabel(iMax)}` : '—'}</span><span>${iMin >= 0 ? `${pct(arr[iMin])} · ${slotLabel(iMin)}` : '—'}</span><span>${n ? pct(sum / n) : '—'}</span><span>${miss + guess ? `${miss + guess}슬롯 (${(miss + guess) * 5}분)${guess ? ` · 보정 ${guess}슬롯` : ''}` : '없음'}</span></div>`;
   }).join('');
 }
 function renderDay() {
@@ -938,11 +948,13 @@ function renderDay() {
   const doc = D.days.get(sel), loading = !D.days.has(sel);
   const arrOf = z => (zoneDay(z.id, sel) || {})[key] || new Array(DAY).fill(null);
   const avOf = z => (zoneDay(z.id, sel) || {}).a || [];
+  const estOf = z => (zoneDay(z.id, sel) || {}).est || [];
   const rows = Z.map(z => {
-    const gid = categoryGroup(z), enabled = !!act[gid], o = arrOf(z), av = avOf(z);
+    const gid = categoryGroup(z), enabled = !!act[gid], o = arrOf(z), av = avOf(z), est = estOf(z);
     const cs = Array.from({ length: DAY }, (_, i) => {
       const v = o[i];
       if (v == null) { const w = whyNull(sel, i); return `<div title="${slotLabel(i)} · ${w}" style="background:${w === '누락' ? HATCH : '#fff'}"></div>`; }
+      if (est[i]) return `<div class="est" title="${esc(z.name)} ${slotLabel(i)} · ${pct(v)} · 가용 ${num(av[i])}대 · ${EST_NOTE}" style="background:${occColor(v)};background-image:${EST_HATCH}"></div>`;
       return `<div title="${esc(z.name)} ${slotLabel(i)} · ${pct(v)} · 가용 ${num(av[i])}대" style="background:${occColor(v)}"></div>`;
     }).join('');
     return `<div class="row${enabled ? '' : ' off'}" data-a="grp" data-v="${gid}" data-z="${z.id}" data-focus="${gid}" role="button" aria-pressed="${enabled}"><span class="rname"><i style="border-color:${enabled ? z.color : '#d9dce0'}"></i>${esc(z.name)}</span>${cs}</div>`;
@@ -961,7 +973,7 @@ function renderDay() {
     <section class="sec right">
       <div class="sec-head" style="align-items:baseline">
         <div class="titles"><span class="t17">${esc(title)}</span><span class="sub">주차 구역별 5분 슬롯 288개 · 장기 카테고리에 주차타워 포함 · 행을 누르면 해당 카테고리의 모든 구역을 켜거나 끕니다</span></div>
-        <div class="grad"><span class="sq hatch"></span><span>수집 누락</span></div>
+        <div class="grad"><span class="sq hatch"></span><span>수집 누락</span><span class="sq est"></span><span>보정값</span></div>
       </div>
       ${loading ? '<div class="empty">불러오는 중…</div>' : !doc ? '<div class="empty">이 날짜의 기록이 없습니다.</div>' : `
       <div class="scroll-x"><div class="dgrid"><div class="hd"><span></span>${Array.from({ length: 24 }, (_, x) => `<span>${x % 3 === 0 ? pad(x) : ''}</span>`).join('')}</div>${rows}</div></div>
@@ -970,7 +982,7 @@ function renderDay() {
         ${on.length ? `
         ${staticChartHtml(on.map(z => ({ arr: arrOf(z), color: z.color })), DAY, capacityMarkers)}
         <div class="detail-x">${[0, 6, 12, 18, 24].map(x => `<span style="left:${(x / 24 * 100).toFixed(2)}%">${pad(x)}:00</span>`).join('')}</div>
-        <div class="scroll-x"><div class="stats"><div class="r h"><span>주차장</span><span>최고</span><span>최저</span><span>평균</span><span>수집 누락</span></div>${statRows(on, arrOf, sel)}</div></div>`
+        <div class="scroll-x"><div class="stats"><div class="r h"><span>주차장</span><span>최고</span><span>최저</span><span>평균</span><span>수집 누락</span></div>${statRows(on, arrOf, sel, estOf)}</div></div>`
         : '<span class="empty">위 표에서 주차장 행을 눌러 켜세요.</span>'}
       </div>`}
     </section>
@@ -984,7 +996,7 @@ function rangeSlot(zid, date, slot) {
   const day = zoneDay(zid, date), value = day?.[vkey()][slot], occupancy = day?.[occKey()][slot];
   if (date > D.now.date || (date === D.now.date && slot > D.now.idx)) return { value: null, occupancy: null, why: '아직 없음' };
   if (D.days.get(date)?.zones[zid]?.c[slot] === 0) return { value: null, occupancy: null, why: '미운영' };
-  return value == null ? { value: null, occupancy: null, why: whyNull(date, slot) } : { value, occupancy, why: '' };
+  return value == null ? { value: null, occupancy: null, why: whyNull(date, slot) } : { value, occupancy, why: '', est: !!day.est[slot] };
 }
 function rangeHeatmapHtml(term, cfg) {
   const on = selectedZones(term), dates = Array.from({ length: cfg.nd }, (_, k) => addDays(cfg.d0, k));
@@ -996,7 +1008,7 @@ function rangeHeatmapHtml(term, cfg) {
   }).join('');
   const events = capacityEventsFor(cfg, on);
   const head = dates.map(date => `<div class="th-day-heading"><time datetime="${date}">${mdw(date)}</time>${events.some(event=>event.date===date) ? '<button class="capacity-day" type="button" data-a="capacity-note" title="이 날짜의 운영 면수 변경 참고 보기">면수 변경</button>' : ''}<span class="th-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span></span></div>`).join('');
-  return `<div class="titles"><span class="t15">기간별 날짜·시간대 ${S.metric === 'avail' ? '가용 대수' : '점유율'}</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 날짜를 좌→우로 연결한 5분 실측(평균 아님) · 가로로 이동해 날짜별 비교 · 배경은 공통 점유율 색상</span></div>
+  return `<div class="titles"><span class="t15">기간별 날짜·시간대 ${S.metric === 'avail' ? '가용 대수' : '점유율'}</span><span class="sub">${mdw(cfg.d0)}–${mdw(addDays(cfg.d0, cfg.nd - 1))} · 날짜를 좌→우로 연결한 5분 실측(평균 아님) · 연하게 보이는 칸은 수집 누락을 추정으로 메운 보정값 · 가로로 이동해 날짜별 비교 · 배경은 공통 점유율 색상</span></div>
     <div class="scroll-x"><div class="timeheat" style="--history-days:${cfg.nd}">
       <div class="th-head"><span class="th-corner">구역 / 날짜</span>${head}</div>${rows}
     </div></div><p id="range-point-detail" class="muted" role="status">칸을 가리키거나 터치하면 해당 날짜·시각의 실측을 확인합니다. 키보드는 화살표로 5분씩 이동합니다.</p>`;
@@ -1016,14 +1028,15 @@ function paintRangeHeatmap() {
       if (point.value == null && !['아직 없음', '수집 전'].includes(point.why)) continue;
       const color = point.value == null ? '#ffffff' : occColor(point.occupancy);
       if (!rgb.has(color)) rgb.set(color, color.slice(1).match(/../g).map(hex => parseInt(hex, 16)));
-      pixels.data.set([...rgb.get(color), 255], slot * 4);
+      /* 보정값은 같은 색을 흰색과 섞어 연하게 그립니다(한 칸이 1픽셀이라 사선 무늬는 쓸 수 없음) */
+      pixels.data.set(point.est ? rgb.get(color).map(v => Math.round(v * 0.45 + 255 * 0.55)).concat(255) : [...rgb.get(color), 255], slot * 4);
     }
     context.putImageData(pixels, 0, 0);
     const name = zonesOf(S.term).find(zone => zone.id === zid).name;
     const show = slot => {
       canvas.dataset.slot = String(slot);
       const point = rangeSlot(zid, date, slot);
-      const label = `${name} · ${date} ${slotLabel(slot)} KST · ${point.value == null ? point.why : `${S.metric === 'avail' ? '가용 ' + num(point.value) + '대' : '점유율 ' + pct(point.value)} · 실측`}`;
+      const label = `${name} · ${date} ${slotLabel(slot)} KST · ${point.value == null ? point.why : `${S.metric === 'avail' ? '가용 ' + num(point.value) + '대' : '점유율 ' + pct(point.value)} · ${point.est ? EST_NOTE : '실측'}`}`;
       canvas.title = label;
       canvas.setAttribute('aria-label', label);
       detail.textContent = label;
@@ -1136,7 +1149,7 @@ function renderAbout() {
     ['왜 직접 쌓나요', `API는 조회하는 순간의 현재값만 제공합니다. 그래서 ${st}부터 5분마다 호출해 저장하고 있으며, 수집 시작 이전 기록은 없습니다. 5분 간격 호출은 하루 288회로 개발 계정 한도(일 1,000회) 안에 들어갑니다.`],
     ['100%를 넘는 값', '장기주차장은 주차타워로 들어가는 길목이라 진입 대기 차량까지 집계되어 주차 대수가 면수를 넘을 때가 있습니다. 기본 화면은 구역마다 면수를 상한으로 계산해 100%에 맞추고, ‘100% 초과 표시’를 켜면 실제 값과 100% 기준선을 함께 보여줍니다. 가용 대수는 항상 0대 이상으로 계산합니다.'],
     ['모바일·데스크톱 보기', '휴대폰에서는 필터와 그래프를 화면 폭에 맞춰 재배치하고 큰 셔틀 지도는 접어서 보여줍니다. 헤더의 보기 전환 버튼으로 모바일 또는 데스크톱 구성을 직접 선택할 수 있으며 선택은 이 브라우저에 저장됩니다.'],
-    ['수집 품질', '응답이 없거나 값이 갱신되지 않은 슬롯은 “수집 누락”으로 비워 두고 보간하지 않습니다. 묶음(단기·장기·예약)과 터미널 합계는 같은 시각에 구성 구역 값이 모두 있을 때만 계산합니다. 가용 대수 = 총 주차면수 − 주차 차량 수. 터미널 합계와 날짜별 최고 점유율에서는 예약주차장을 제외합니다(카드에서 켜서 볼 수 있습니다). 비공식 서비스이므로 이용 전 공식 안내를 함께 확인하세요.'],
+    ['수집 품질', '응답이 없거나 값이 갱신되지 않은 슬롯은 “수집 누락”입니다. 앞뒤 실측이 있고 연속 30분(6칸) 이하이며 운영 면수가 같으면 두 실측 사이를 직선으로 추정해 “보정값”으로 연하게 표시하고, 그보다 길거나 앞뒤 실측이 없으면 비워 둡니다. 예상 모델은 보정값을 학습에 쓰지 않습니다. 묶음(단기·장기·예약)과 터미널 합계는 같은 시각에 구성 구역 값이 모두 있을 때만 계산합니다. 가용 대수 = 총 주차면수 − 주차 차량 수. 터미널 합계와 날짜별 최고 점유율에서는 예약주차장을 제외합니다(카드에서 켜서 볼 수 있습니다). 비공식 서비스이므로 이용 전 공식 안내를 함께 확인하세요.'],
     ['수집 현황', `수집 일수 ${days}일 · 오늘 ${today ? today.n : 0}/${Math.max(expect, 0)}슬롯 수집${D.latest && D.latest.last_ok_at ? ' · 마지막 성공 ' + kstLabel(D.latest.last_ok_at) : ''}${D.latest && D.latest.ok === false && D.latest.error ? ' · 최근 호출 실패' : ''}`]
   ];
   document.getElementById('view').innerHTML = `<section class="about">${blocks.map(([t, b]) => `<div><b>${esc(t)}</b><p>${esc(b)}</p></div>`).join('')}</section>`;

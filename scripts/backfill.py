@@ -23,8 +23,9 @@ from common.zones import registry  # noqa: E402
 
 
 def wait_for_quiet_window():
-    """Collect runs at hh:m0/m5:00; rebuild between +60s and +200s of the 5-minute cycle."""
-    while not 60 <= time.time() % 300 <= 200:
+    """Collect runs at hh:m0/m5:00 and may keep re-polling for up to COLLECT_BUDGET_S (+ the final writes), so
+    rebuild between +140s and +280s of the 5-minute cycle."""
+    while not 140 <= time.time() % 300 <= 280:
         time.sleep(5)
 
 

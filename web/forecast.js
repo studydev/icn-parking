@@ -86,6 +86,7 @@ const IGoTo = (() => {
 
   function observation(days, zoneId, date, idx) {
     const zone = days.get(date)?.zones[zoneId], p = zone?.p[idx], c = zone?.c[idx];
+    if (zone?.e?.includes(idx)) return null; /* 서버가 추정으로 메운 슬롯은 학습에 쓰지 않습니다 */
     return Number.isSafeInteger(p) && p >= 0 && Number.isSafeInteger(c) && c > 0 ? { value: p / c, parking: p, capacity: c } : null;
   }
 
