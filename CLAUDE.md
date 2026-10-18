@@ -8,6 +8,9 @@
 - 예측은 `web/app.js` forecastOf, 셔틀은 `web/shuttle.js` shNext와 결과가 같아야 한다.
 - iOS 위젯은 Apple Developer Team 서명이 없어 App Group 없이 공개 파일을 직접 받는다(확장 자체 캐시). Team이 생기면 App Group으로 앱과 캐시·설정 공유를 검토한다. Android 위젯은 앱과 같은 프로세스라 `ParkingServices`를 그대로 쓴다.
 - 앱 아이콘은 `mobile/shared/scripts/icon.mjs`가 원본(Android 벡터·`brand/icon.svg` 생성), iOS PNG는 `sh mobile/shared/scripts/icon-ios.sh`. 앱 이름은 `strings.ko.json` `app.name`. 출시 체크리스트는 `mobile/store/README.md`.
+- 예측은 지금 + 30분 × 12칸(6시간). 상세 시트 그래프는 지난 2시간 실측 + 6시간 예상, 아래는 선택 주차장이 앞에 오는 시간대별 세로 표.
+- 위젯 3종: 소 = 한 곳 숫자, 중 = 한 곳 3시간 그래프(30분 점), 대 = 터미널 × 묶음의 주차장별 지금·1·2·3시간 뒤. 고를 곳은 T1·T2 전체·묶음·19개 주차장. Android 위젯은 설정을 `provideContent` 안에서 `currentState`로 읽고(밖에서 읽으면 다시 설정해도 안 바뀜), 그래프는 알파 비트맵을 토큰 색으로 칠해 라이트·다크를 따른다.
+- 히스토리 구역별 선 색은 `tokens.json` `series`(README 토큰표에 사용자 요청으로 추가). 설정의 "웹에서 자세히 보기"는 공개 웹(`settings.webBaseUrl`) 해시 경로로만 연결한다.
 - 딥링크: `icnparking://zone/{id}`, `group/{T1|T2}/{short|long|reserved}`, `total/{T1|T2}`, `forecast/{T1|T2}`, `shuttle/{route}/{stop}` (`DeepLink`, 두 플랫폼 같은 규칙).
 - iOS 17+ SwiftUI, Android minSdk 26 Compose·Material 3. 서드파티 의존성은 먼저 물어본다.
 - 작업 후 `xcodebuild test`, `./gradlew testDebugUnitTest` 통과 확인.
