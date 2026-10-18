@@ -91,6 +91,7 @@ class AppViewModel(
     fun refresh(force: Boolean = false) {
         val client = client ?: return
         if (_state.value.refreshing) return
+        if (force) AppAnalytics.event("manual_refresh", mapOf("terminal" to _state.value.terminal.code))
         _state.update { it.copy(refreshing = true) }
         viewModelScope.launch {
             val result = runCatching { client.latest(force) }
@@ -126,11 +127,15 @@ class AppViewModel(
     /** 셔틀 탭은 15초마다 시각만 바꾼다 */
     fun touchClock() = _state.update { it.copy(now = Instant.now()) }
 
-    fun setTerminal(t: Terminal) = _state.update { it.copy(terminal = t) }
+    fun setTerminal(t: Terminal) {
+        if (_state.value.terminal != t) AppAnalytics.event("select_terminal", mapOf("terminal" to t.code))
+        _state.update { it.copy(terminal = t) }
+    }
     fun setTab(tab: AppTab) = _state.update { it.copy(tab = tab) }
 
     /** icnparking:// 딥링크를 상태에 반영(iOS AppModel.open과 같은 규칙) */
     fun open(link: DeepLink) {
+        AppAnalytics.event("open_deep_link")
         link.screenTerminal?.let { t -> _state.update { it.copy(terminal = t) } }
         when (link) {
             is DeepLink.Zone, is DeepLink.Group, is DeepLink.Total -> _state.update { it.copy(tab = AppTab.LIVE, sheet = link.sheetTarget) }

@@ -5,6 +5,8 @@ import SwiftUI
 struct ICNParkingApp: App {
     @State private var model = AppModel.live()
 
+    @UIApplicationDelegateAdaptor(AnalyticsAppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -82,6 +84,13 @@ struct RootView: View {
                 .presentationBackground(theme.p.sheet.color)
         }
         .onAppear(perform: applyDebugLaunchArguments)
+        .onChange(of: tab, initial: true) { _, value in AppAnalytics.screen(String(describing: value)) }
+        .onChange(of: model.terminal) { _, value in
+            AppAnalytics.event("select_terminal", ["terminal": value.rawValue])
+        }
+        .onChange(of: model.sheet) { _, value in
+            if let value { AppAnalytics.event("view_parking_detail", ["item_id": value.id]) }
+        }
         .onOpenURL { url in
             if let link = DeepLink(url: url) { open(link) }
         }
@@ -98,7 +107,10 @@ struct RootView: View {
 
 extension RootView {
     /// icnparking:// 딥링크(위젯 탭·외부 링크)
-    func open(_ link: DeepLink) { tab = model.open(link) }
+    func open(_ link: DeepLink) {
+        AppAnalytics.event("open_deep_link")
+        tab = model.open(link)
+    }
 
     /// 개발용: 시뮬레이터 스크린샷에서 탭·시트를 바로 연다(-ICNInitialTab forecast, -ICNInitialSheet t1-short-b2). 딥링크는 6단계
     private func applyDebugLaunchArguments() {

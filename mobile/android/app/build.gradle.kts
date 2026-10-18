@@ -4,7 +4,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services") version "4.5.0" apply false
 }
+
+// Firebase configuration is optional for local/CI builds; never reuse the web measurement ID.
+if (file("google-services.json").isFile) apply(plugin = "com.google.gms.google-services")
 
 // 데이터 주소는 저장소에 넣지 않는다: CI = 환경 변수 ICN_DATA_BASE_URL, 로컬 = local.properties(git 제외) icn.dataBaseUrl
 val localProperties = Properties().apply { rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use(::load) }
@@ -85,6 +89,8 @@ androidComponents {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:35.0.2"))
+    implementation("com.google.firebase:firebase-analytics")
     implementation(project(":core"))
     implementation(project(":widget"))
     implementation(libs.androidx.core.ktx)

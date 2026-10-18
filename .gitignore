@@ -18,3 +18,7 @@ functions/local.settings.json
 .DS_Store
 infra/*.json
 !infra/*.parameters.json
+
+# Firebase mobile configuration (supply locally / CI before generating the Xcode project)
+mobile/android/app/google-services.json
+mobile/ios/App/GoogleService-Info.plist
