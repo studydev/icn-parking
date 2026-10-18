@@ -3,18 +3,21 @@ import ICNParkingCore
 import SwiftUI
 import WidgetKit
 
-// 위젯(디자인 5m). App Group 없이 위젯이 공개 파일을 직접 받는다(확장 자체 캐시, 지난 날짜는 영구 저장).
+// 위젯 3종. App Group 없이 위젯이 공개 파일을 직접 받는다(확장 자체 캐시, 지난 날짜는 영구 저장).
 // 15분마다 다시 그린다. 누르면 icnparking:// 딥링크로 앱의 해당 시트·탭이 열린다.
+//   소: 주차장 한 곳 숫자 · 중: 주차장 한 곳 3시간 그래프 · 대: 터미널 묶음의 주차장별 표
+// 위젯을 길게 눌러 "위젯 편집"에서 주차장·터미널(T1/T2)·묶음을 고른다.
 
 @main
 struct ICNParkingWidgetBundle: WidgetBundle {
     var body: some Widget {
         SmallParkingWidget()
-        MediumParkingWidget()
+        GraphParkingWidget()
+        TableParkingWidget()
     }
 }
 
-// MARK: - 설정(위젯 길게 눌러 편집)
+// MARK: - 설정
 // App Intents 메타데이터는 컴파일할 때 문자열 상수를 읽으므로 제목은 strings.ko.json과 같은 문구를 직접 쓴다.
 
 struct ParkingTargetEntity: AppEntity {
@@ -45,16 +48,31 @@ struct SmallWidgetIntent: WidgetConfigurationIntent {
     init() {}
 }
 
+struct GraphWidgetIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "위젯에 보여 줄 주차장"
+    @Parameter(title: "주차장") var target: ParkingTargetEntity?
+
+    init() {}
+}
+
 enum TerminalOption: String, AppEnum {
     case t1 = "T1", t2 = "T2"
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "터미널"
-    static let caseDisplayRepresentations: [TerminalOption: DisplayRepresentation] = [.t1: "T1", .t2: "T2"]
+    static let caseDisplayRepresentations: [TerminalOption: DisplayRepresentation] = [.t1: "T1 제1터미널", .t2: "T2 제2터미널"]
     var terminal: Terminal { self == .t1 ? .t1 : .t2 }
 }
 
-struct MediumWidgetIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "터미널"
+enum GroupOption: String, AppEnum {
+    case short, long, reserved
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "주차장 묶음"
+    static let caseDisplayRepresentations: [GroupOption: DisplayRepresentation] = [.short: "단기주차장", .long: "장기·주차타워", .reserved: "예약주차장"]
+    var group: ZoneGroup { ZoneGroup(rawValue: rawValue) ?? .short }
+}
+
+struct TableWidgetIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "터미널과 주차장 묶음"
     @Parameter(title: "터미널", default: .t1) var terminal: TerminalOption
+    @Parameter(title: "주차장 묶음", default: .short) var group: GroupOption
 
     init() {}
 }
@@ -78,50 +96,46 @@ enum WidgetData {
     }
 
     static let refresh: TimeInterval = 15 * 60
+    static func timeline<E: TimelineEntry>(_ entry: E) -> Timeline<E> { Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(refresh))) }
 }
 
-struct SmallEntry: TimelineEntry {
+struct ParkingEntry<Model: Sendable>: TimelineEntry {
     let date: Date
-    let model: SmallWidgetModel?
-}
-
-struct MediumEntry: TimelineEntry {
-    let date: Date
-    let model: MediumWidgetModel?
+    let model: Model?
 }
 
 struct SmallProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> SmallEntry { SmallEntry(date: Date(), model: WidgetSamples.small) }
+    func placeholder(in context: Context) -> ParkingEntry<SmallWidgetModel> { ParkingEntry(date: Date(), model: WidgetSamples.small) }
+    func snapshot(for c: SmallWidgetIntent, in context: Context) async -> ParkingEntry<SmallWidgetModel> { context.isPreview ? placeholder(in: context) : await entry(c) }
+    func timeline(for c: SmallWidgetIntent, in context: Context) async -> Timeline<ParkingEntry<SmallWidgetModel>> { WidgetData.timeline(await entry(c)) }
 
-    func snapshot(for configuration: SmallWidgetIntent, in context: Context) async -> SmallEntry {
-        context.isPreview ? placeholder(in: context) : await entry(configuration)
-    }
-
-    func timeline(for configuration: SmallWidgetIntent, in context: Context) async -> Timeline<SmallEntry> {
-        Timeline(entries: [await entry(configuration)], policy: .after(Date().addingTimeInterval(WidgetData.refresh)))
-    }
-
-    private func entry(_ c: SmallWidgetIntent) async -> SmallEntry {
+    private func entry(_ c: SmallWidgetIntent) async -> ParkingEntry<SmallWidgetModel> {
         let target = c.target?.target ?? .group(.t1, .short)
-        guard let (s, ago) = await WidgetData.load() else { return SmallEntry(date: Date(), model: nil) }
-        return SmallEntry(date: Date(), model: WidgetModels.small(s, target: target, agoMinutes: ago))
+        guard let (s, ago) = await WidgetData.load() else { return ParkingEntry(date: Date(), model: nil) }
+        return ParkingEntry(date: Date(), model: WidgetModels.small(s, target: target, agoMinutes: ago))
     }
 }
 
-struct MediumProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> MediumEntry { MediumEntry(date: Date(), model: WidgetSamples.medium) }
+struct GraphProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> ParkingEntry<GraphWidgetModel> { ParkingEntry(date: Date(), model: WidgetSamples.graph) }
+    func snapshot(for c: GraphWidgetIntent, in context: Context) async -> ParkingEntry<GraphWidgetModel> { context.isPreview ? placeholder(in: context) : await entry(c) }
+    func timeline(for c: GraphWidgetIntent, in context: Context) async -> Timeline<ParkingEntry<GraphWidgetModel>> { WidgetData.timeline(await entry(c)) }
 
-    func snapshot(for configuration: MediumWidgetIntent, in context: Context) async -> MediumEntry {
-        context.isPreview ? placeholder(in: context) : await entry(configuration)
+    private func entry(_ c: GraphWidgetIntent) async -> ParkingEntry<GraphWidgetModel> {
+        let target = c.target?.target ?? .group(.t1, .short)
+        guard let (s, ago) = await WidgetData.load() else { return ParkingEntry(date: Date(), model: nil) }
+        return ParkingEntry(date: Date(), model: WidgetModels.graph(s, target: target, agoMinutes: ago))
     }
+}
 
-    func timeline(for configuration: MediumWidgetIntent, in context: Context) async -> Timeline<MediumEntry> {
-        Timeline(entries: [await entry(configuration)], policy: .after(Date().addingTimeInterval(WidgetData.refresh)))
-    }
+struct TableProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> ParkingEntry<TableWidgetModel> { ParkingEntry(date: Date(), model: WidgetSamples.table) }
+    func snapshot(for c: TableWidgetIntent, in context: Context) async -> ParkingEntry<TableWidgetModel> { context.isPreview ? placeholder(in: context) : await entry(c) }
+    func timeline(for c: TableWidgetIntent, in context: Context) async -> Timeline<ParkingEntry<TableWidgetModel>> { WidgetData.timeline(await entry(c)) }
 
-    private func entry(_ c: MediumWidgetIntent) async -> MediumEntry {
-        guard let (s, ago) = await WidgetData.load() else { return MediumEntry(date: Date(), model: nil) }
-        return MediumEntry(date: Date(), model: WidgetModels.medium(s, terminal: c.terminal.terminal, agoMinutes: ago))
+    private func entry(_ c: TableWidgetIntent) async -> ParkingEntry<TableWidgetModel> {
+        guard let (s, ago) = await WidgetData.load() else { return ParkingEntry(date: Date(), model: nil) }
+        return ParkingEntry(date: Date(), model: WidgetModels.table(s, terminal: c.terminal.terminal, group: c.group.group, agoMinutes: ago))
     }
 }
 
@@ -140,16 +154,29 @@ struct SmallParkingWidget: Widget {
     }
 }
 
-struct MediumParkingWidget: Widget {
+struct GraphParkingWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "MediumParkingWidget", intent: MediumWidgetIntent.self, provider: MediumProvider()) { entry in
-            MediumWidgetView(model: entry.model)
+        AppIntentConfiguration(kind: "GraphParkingWidget", intent: GraphWidgetIntent.self, provider: GraphProvider()) { entry in
+            GraphWidgetView(model: entry.model)
                 .widgetURL(entry.model?.link.url)
                 .containerBackground(for: .widget) { WidgetBackground() }
         }
         .configurationDisplayName(Strings.Widget.mediumName)
         .description(Strings.Widget.mediumDescription)
         .supportedFamilies([.systemMedium])
+    }
+}
+
+struct TableParkingWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "TableParkingWidget", intent: TableWidgetIntent.self, provider: TableProvider()) { entry in
+            TableWidgetView(model: entry.model)
+                .widgetURL(entry.model?.link.url)
+                .containerBackground(for: .widget) { WidgetBackground() }
+        }
+        .configurationDisplayName(Strings.Widget.largeName)
+        .description(Strings.Widget.largeDescription)
+        .supportedFamilies([.systemLarge])
     }
 }
 

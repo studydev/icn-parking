@@ -20,6 +20,15 @@ struct SettingsView: View {
                         .tint(theme.p.tint.color)
                         .padding(.init(top: 9, leading: 16, bottom: 9, trailing: 16))
                 }
+                caption(Strings.Settings.web)
+                card {
+                    let t = model.terminal.rawValue
+                    webRow(Strings.Settings.webHome, Strings.Settings.webHomeBody, path: "")
+                    webRow(Strings.Settings.webStatus, Strings.Settings.webStatusBody, path: "#week/\(t)", divider: true)
+                    webRow(Strings.Settings.webHistory, Strings.Settings.webHistoryBody, path: "#day/\(t)", divider: true)
+                    webRow(Strings.Settings.webShuttle, Strings.Settings.webShuttleBody, path: "#access/\(t)", divider: true)
+                    webRow(Strings.Settings.webFees, Strings.Settings.webFeesBody, path: "fees.html?terminal=\(t)", divider: true)
+                }
                 caption(Strings.Settings.info)
                 card {
                     row(Strings.Settings.dataSource, Strings.Settings.dataSourceBody)
@@ -60,6 +69,23 @@ struct SettingsView: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(theme.p.surface.color))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 16)
+    }
+
+    /// 웹 페이지 바로 가기(앱은 보기 편한 요약, 자세한 그래프·기록은 웹)
+    private func webRow(_ title: String, _ body: String, path: String, divider: Bool = false) -> some View {
+        Link(destination: URL(string: Strings.Settings.webBaseUrl + path)!) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).scaledFont(15).foregroundStyle(theme.p.ink.color)
+                    Text(body).scaledFont(13).foregroundStyle(theme.p.muted.color)
+                }
+                Spacer()
+                Text("↗").foregroundStyle(theme.p.faint.color)
+            }
+            .padding(.init(top: 13, leading: 16, bottom: 13, trailing: 16))
+            .overlay(alignment: .top) { if divider { Rectangle().fill(theme.p.line.color).frame(height: 1) } }
+        }
+        .accessibilityHint(Strings.Settings.webBaseUrl)
     }
 
     private func row(_ title: String, _ body: String, divider: Bool = false) -> some View {
