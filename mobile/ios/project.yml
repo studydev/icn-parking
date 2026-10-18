@@ -1,0 +1,103 @@
+# xcodegen 원본. ICNParking.xcodeproj는 생성물(git 제외): cd mobile/ios && xcodegen
+name: ICNParking
+options:
+  bundleIdPrefix: com.studydev
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: ko
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/App.xcconfig
+  Release: Config/App.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+packages:
+  ICNParkingCore:
+    path: ICNParkingCore
+targets:
+  ICNParking:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: [PrivacyInfo.xcprivacy]
+      - path: App/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - Widget/WidgetViews.swift
+      - Widget/WidgetSamples.swift
+      - path: ../shared/shuttle.json
+        buildPhase: resources
+    dependencies:
+      - package: ICNParkingCore
+      - target: ICNParkingWidget
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: $(APP_DISPLAY_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ICNDataBaseURL: $(ICN_DATA_BASE_URL)
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.studydev.icnparking
+            CFBundleURLSchemes: [icnparking]
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.studydev.icnparking
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  ICNParkingWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+        excludes: [PrivacyInfo.xcprivacy]
+      - path: Widget/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - App/Theme.swift
+    dependencies:
+      - package: ICNParkingCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: AppIntents.framework
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: $(APP_DISPLAY_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ICNDataBaseURL: $(ICN_DATA_BASE_URL)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.studydev.icnparking.widget
+  ICNParkingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: ICNParking
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.studydev.icnparking.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  ICNParking:
+    build:
+      targets:
+        ICNParking: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ICNParkingTests
+        - package: ICNParkingCore/ICNParkingCoreTests
