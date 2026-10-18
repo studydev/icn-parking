@@ -225,6 +225,54 @@
             "baseParking": 443.2,
             "available": 62.80000000000001,
             "occupancy": 0.8792307692307693
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 216,
+            "parking": 460,
+            "baseParking": 446,
+            "available": 60,
+            "occupancy": 0.8846153846153846
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 222,
+            "parking": 455.4,
+            "baseParking": 441.4,
+            "available": 64.60000000000002,
+            "occupancy": 0.8757692307692307
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 228,
+            "parking": 439.6,
+            "baseParking": 425.6,
+            "available": 80.39999999999998,
+            "occupancy": 0.8453846153846154
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 234,
+            "parking": 439,
+            "baseParking": 425,
+            "available": 81,
+            "occupancy": 0.8442307692307692
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 240,
+            "parking": 430.2,
+            "baseParking": 416.2,
+            "available": 89.80000000000001,
+            "occupancy": 0.8273076923076923
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 246,
+            "parking": 424,
+            "baseParking": 410,
+            "available": 96,
+            "occupancy": 0.8153846153846154
           }
         ]
       },
@@ -290,6 +338,54 @@
             "baseParking": 3065.2,
             "available": 102,
             "occupancy": 0.968125
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 216,
+            "parking": 3034.2000000000003,
+            "baseParking": 3001.4,
+            "available": 165.79999999999973,
+            "occupancy": 0.9481875000000001
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 222,
+            "parking": 2985,
+            "baseParking": 2952.2,
+            "available": 215,
+            "occupancy": 0.9328125
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 228,
+            "parking": 2920.6000000000004,
+            "baseParking": 2887.8,
+            "available": 279.39999999999964,
+            "occupancy": 0.9126875000000001
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 234,
+            "parking": 2871.4,
+            "baseParking": 2838.6,
+            "available": 328.5999999999999,
+            "occupancy": 0.8973125000000001
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 240,
+            "parking": 2796.2000000000003,
+            "baseParking": 2763.4,
+            "available": 403.7999999999997,
+            "occupancy": 0.8738125000000001
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 246,
+            "parking": 2811.6000000000004,
+            "baseParking": 2778.8,
+            "available": 388.39999999999964,
+            "occupancy": 0.8786250000000001
           }
         ]
       },
@@ -355,6 +451,54 @@
             "baseParking": 1897.4,
             "available": 83,
             "occupancy": 0.9585
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 216,
+            "parking": 1870.3999999999999,
+            "baseParking": 1850.8,
+            "available": 129.60000000000014,
+            "occupancy": 0.9351999999999999
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 222,
+            "parking": 1854.3999999999999,
+            "baseParking": 1834.8,
+            "available": 145.60000000000014,
+            "occupancy": 0.9271999999999999
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 228,
+            "parking": 1852.6,
+            "baseParking": 1833,
+            "available": 147.4000000000001,
+            "occupancy": 0.9262999999999999
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 234,
+            "parking": 1813.8,
+            "baseParking": 1794.2,
+            "available": 186.20000000000005,
+            "occupancy": 0.9068999999999999
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 240,
+            "parking": 1777.6,
+            "baseParking": 1758,
+            "available": 222.4000000000001,
+            "occupancy": 0.8887999999999999
+          },
+          {
+            "date": "2026-10-17",
+            "slot": 246,
+            "parking": 1775,
+            "baseParking": 1755.4,
+            "available": 225,
+            "occupancy": 0.8875
           }
         ]
       }
@@ -588,6 +732,30 @@
           {
             "available": 62.80000000000001,
             "occupancy": 0.8792307692307693
+          },
+          {
+            "available": 60,
+            "occupancy": 0.8846153846153846
+          },
+          {
+            "available": 64.60000000000002,
+            "occupancy": 0.8757692307692307
+          },
+          {
+            "available": 80.39999999999998,
+            "occupancy": 0.8453846153846154
+          },
+          {
+            "available": 81,
+            "occupancy": 0.8442307692307692
+          },
+          {
+            "available": 89.80000000000001,
+            "occupancy": 0.8273076923076923
+          },
+          {
+            "available": 96,
+            "occupancy": 0.8153846153846154
           }
         ]
       },
@@ -622,6 +790,30 @@
           {
             "available": 185,
             "occupancy": 0.9644230769230769
+          },
+          {
+            "available": 295.39999999999986,
+            "occupancy": 0.9431923076923078
+          },
+          {
+            "available": 360.60000000000014,
+            "occupancy": 0.930653846153846
+          },
+          {
+            "available": 426.7999999999997,
+            "occupancy": 0.9179230769230771
+          },
+          {
+            "available": 514.8,
+            "occupancy": 0.9009999999999999
+          },
+          {
+            "available": 626.1999999999998,
+            "occupancy": 0.8795769230769231
+          },
+          {
+            "available": 613.3999999999996,
+            "occupancy": 0.8820384615384617
           }
         ]
       },
@@ -665,6 +857,30 @@
           {
             "available": 247.8,
             "occupancy": 0.9566783216783217
+          },
+          {
+            "available": 355.39999999999986,
+            "occupancy": 0.937867132867133
+          },
+          {
+            "available": 425.20000000000016,
+            "occupancy": 0.9256643356643357
+          },
+          {
+            "available": 507.1999999999997,
+            "occupancy": 0.9113286713286713
+          },
+          {
+            "available": 595.8,
+            "occupancy": 0.8958391608391608
+          },
+          {
+            "available": 715.9999999999998,
+            "occupancy": 0.8748251748251749
+          },
+          {
+            "available": 709.3999999999996,
+            "occupancy": 0.875979020979021
           }
         ]
       }

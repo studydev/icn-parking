@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 생성 파일 — 직접 고치지 마세요. 원본: mobile/shared/strings.ko.json · node mobile/shared/scripts/generate.mjs -->
 <resources>
-    <string name="app_name" formatted="false">ICN 주차</string>
+    <string name="app_name" formatted="false">ICN 공항 주차</string>
     <string name="tab_live" formatted="false">실시간</string>
     <string name="tab_forecast" formatted="false">예측</string>
     <string name="tab_history" formatted="false">히스토리</string>
@@ -53,11 +53,13 @@
     <string name="forecast_changeNone" formatted="false">변화 없음</string>
     <string name="sheet_close" formatted="false">닫기</string>
     <string name="sheet_remaining" formatted="false">남은</string>
-    <string name="sheet_legendActual" formatted="false">지난 3시간 실측</string>
-    <string name="sheet_legendForecast" formatted="false">3시간 예상</string>
+    <string name="sheet_legendActual" formatted="false">지난 2시간 실측</string>
+    <string name="sheet_legendForecast" formatted="false">6시간 예상</string>
     <string name="sheet_legendLastWeek" formatted="false">지난주 같은 시각</string>
     <string name="sheet_lastWeek" formatted="false">지난주</string>
     <string name="sheet_explainGroup" formatted="false">구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요.</string>
+    <string name="sheet_timelineTitle" formatted="false">시간대별 예상 남은 면수</string>
+    <string name="sheet_timelineNote" formatted="false">앞 열이 선택한 곳이에요. 칸을 누르면 그 주차장을 봐요.</string>
     <string name="sheet_footerGroupSuffix" formatted="false"> · 운영 중단·현재값 없는 구역 제외</string>
     <string name="history_groupShort" formatted="false">단기</string>
     <string name="history_groupLong" formatted="false">장기</string>
@@ -83,20 +85,38 @@
     <string name="settings_affiliationBody" formatted="false">인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요.</string>
     <string name="settings_forecastLimit" formatted="false">예상의 한계</string>
     <string name="settings_forecastLimitBody" formatted="false">지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요.</string>
-    <string name="settings_openSource" formatted="false">오픈소스</string>
+    <string name="settings_openSource" formatted="false">소스 코드 (GitHub)</string>
     <string name="settings_openSourceLabel" formatted="false">github.com/studydev/icn-parking</string>
     <string name="settings_openSourceUrl" formatted="false">https://github.com/studydev/icn-parking</string>
+    <string name="settings_web" formatted="false">웹에서 자세히 보기</string>
+    <string name="settings_webBaseUrl" formatted="false">https://icn.igotobook.com/</string>
+    <string name="settings_webHome" formatted="false">웹사이트 열기</string>
+    <string name="settings_webHomeBody" formatted="false">icn.igotobook.com · 실제 운영 중인 서비스</string>
+    <string name="settings_webStatus" formatted="false">주차장 현황·예측 그래프</string>
+    <string name="settings_webStatusBody" formatted="false">구역별 그래프, 비교 주, IGoTo 예측</string>
+    <string name="settings_webHistory" formatted="false">날짜별·기간별 기록</string>
+    <string name="settings_webHistoryBody" formatted="false">지난 기록을 날짜·기간으로 비교</string>
+    <string name="settings_webShuttle" formatted="false">터미널 이동·셔틀 노선도</string>
+    <string name="settings_webShuttleBody" formatted="false">노선도와 정류장별 시간표</string>
+    <string name="settings_webFees" formatted="false">주차요금 계산</string>
+    <string name="settings_webFeesBody" formatted="false">주차 기간·차종별 요금 계산</string>
     <string name="error_notConfigured" formatted="false">데이터 주소가 설정되지 않았어요</string>
     <string name="error_unavailable" formatted="false">주차 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="error_retry" formatted="false">다시 시도</string>
-    <string name="widget_galleryName" formatted="false">ICN 주차</string>
-    <string name="widget_galleryDescription" formatted="false">터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상</string>
-    <string name="widget_smallName" formatted="false">ICN 주차</string>
+    <string name="widget_galleryName" formatted="false">ICN 공항 주차</string>
+    <string name="widget_galleryDescription" formatted="false">주차장 남은 면수와 30분 간격 참고 예상</string>
+    <string name="widget_smallName" formatted="false">주차장 남은 면수</string>
     <string name="widget_smallDescription" formatted="false">주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상</string>
-    <string name="widget_mediumName" formatted="false">ICN 주차 예상</string>
-    <string name="widget_mediumDescription" formatted="false">터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤</string>
+    <string name="widget_mediumName" formatted="false">3시간 예상 그래프</string>
+    <string name="widget_mediumDescription" formatted="false">주차장 한 곳의 30분 간격 3시간 예상 남은 면수</string>
+    <string name="widget_largeName" formatted="false">주차장별 예상</string>
+    <string name="widget_largeDescription" formatted="false">터미널 단기·장기 주차장별 지금과 1·2·3시간 뒤</string>
+    <string name="widget_graphSubtitle" formatted="false">3시간 예상 · 30분 간격</string>
+    <string name="widget_tableSubtitle" formatted="false">지금 · 1·2·3시간 뒤</string>
+    <string name="widget_groupParameter" formatted="false">주차장 묶음</string>
     <string name="widget_configTitle" formatted="false">위젯에 보여 줄 주차장</string>
     <string name="widget_targetParameter" formatted="false">주차장</string>
     <string name="widget_terminalParameter" formatted="false">터미널</string>
     <string name="widget_inOneHourPrefix" formatted="false">1시간 뒤</string>
+    <string name="widget_total" formatted="false">전체</string>
 </resources>
