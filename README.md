@@ -95,3 +95,5 @@ tests/            Node 내장 테스트와 pytest
 공개 파일의 예시 URL은 예약된 `example.org` 도메인을 사용합니다. 공개 데이터 제공자 주소(`data.go.kr`, `airport.kr`)와 Azure 표준 역할 정의 ID는 운영 리소스 정보가 아닙니다.
 
 원본 비공개 배포 이력이나 로컬 원자료는 이 저장소에 포함되지 않습니다.
+
+모바일 사용자 액티비티 분석: [GA4 / Firebase 등록 및 검증](docs/MOBILE_ANALYTICS.md).
