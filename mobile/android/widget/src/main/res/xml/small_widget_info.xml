@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 디자인 5m. 갱신은 WorkManager 15분(시스템 updatePeriodMillis 최소 30분이라 쓰지 않음) -->
+<!-- 디자인 5m. 놓을 때 설정 화면을 연다(configuration_optional 없음). 갱신은 WorkManager 15분(시스템 updatePeriodMillis 최소 30분이라 쓰지 않음) -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.studydev.icnparking.widget.ParkingWidgetConfigActivity"
     android:description="@string/widget_smallDescription"
@@ -11,4 +11,4 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable|configuration_optional" />
+    android:widgetFeatures="reconfigurable" />
