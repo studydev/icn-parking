@@ -12,6 +12,7 @@
 - 위젯 3종: 소 = 한 곳 숫자, 중 = 한 곳 3시간 그래프(30분 점), 대 = 터미널 × 묶음의 주차장별 지금·1·2·3시간 뒤. 고를 곳은 T1·T2 전체·묶음·19개 주차장. Android 위젯은 설정을 `provideContent` 안에서 `currentState`로 읽고(밖에서 읽으면 다시 설정해도 안 바뀜), 그래프는 알파 비트맵을 토큰 색으로 칠해 라이트·다크를 따른다.
 - 히스토리 구역별 선 색은 `tokens.json` `series`(README 토큰표에 사용자 요청으로 추가). 설정의 "웹에서 자세히 보기"는 공개 웹(`settings.webBaseUrl`) 해시 경로로만 연결한다.
 - 딥링크: `icnparking://zone/{id}`, `group/{T1|T2}/{short|long|reserved}`, `total/{T1|T2}`, `forecast/{T1|T2}`, `shuttle/{route}/{stop}` (`DeepLink`, 두 플랫폼 같은 규칙).
+- 출시 도구(업로드 키, 아카이브·업로드, 스토어 이미지, 스크린샷)와 순서는 `mobile/store/RELEASE.md`. 시스템 디스크가 작으므로 빌드 산출물은 `mobile/ios/.build/`(외장 디스크, git 제외)에 둔다. 시뮬레이터 서비스는 외장 디스크에 직접 쓰지 못해 스크린샷은 임시 폴더를 거친다.
 - 앱 이용 분석은 Firebase Analytics로 웹과 같은 GA4 속성에 보낸다. 설정 파일(`mobile/android/app/google-services.json`, `mobile/ios/App/GoogleService-Info.plist`, git 제외)이 없으면 아무것도 전송하지 않는다. 광고 ID·광고 개인화는 끄고 이벤트에 URL·사용자 ID·위치를 넣지 않는다. 등록·검증은 `docs/MOBILE_ANALYTICS.md`.
 - iOS는 iPhone 전용이다. xcodegen이 타깃마다 `TARGETED_DEVICE_FAMILY = "1,2"`를 기본으로 넣어 최상단 설정을 덮어쓰므로 앱·위젯 타깃에 각각 `"1"`을 적어 둔다(iPad를 지원하면 iPad 스크린샷이 필요하고 세로 전용 설정이 업로드 검증에 걸린다).
 - iOS 17+ SwiftUI, Android minSdk 26 Compose·Material 3. 서드파티 의존성은 먼저 물어본다.
