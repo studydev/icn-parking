@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>body{margin:0;background:#e9ecef;font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#16181a}a{color:#2d6c9b}a:hover{color:#16181a}.dv-turn{padding:40px 44px 40px;scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 18px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font-weight:700;font-size:18px;color:#16181a}.dv-opts{display:flex;flex-wrap:wrap;gap:36px 28px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.3;color:rgba(0,0,0,.6);max-width:390px}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:30px 0 0;font-size:12.5px;line-height:1.5;color:rgba(0,0,0,.55)}</style>
+</helmet>
+<section class="dv-turn" id="t5">
+  <div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">진한 상태색 · 단기는 층별 건물, 장기는 구역 지도 · 히스토리 · 셔틀 탭 추가</span></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px 32px;max-width:1240px;margin:0 0 24px;font-size:12.5px;line-height:1.55;color:#3a3f45">
+    <div><b>색</b> · 상태별 단계색(여유 초록 · 보통 파랑 · 혼잡 주황 · 매우 혼잡 다홍 · 만차 빨강)을 진하게. 실시간·예측·위젯 공통</div>
+    <div><b>단기</b> · 층을 기울인 슬래브로 쌓아 건물처럼. 슬래브 두께면은 상태색, 지상과 지하 사이에 지면선</div>
+    <div><b>장기</b> · 노면 주차장은 주차칸 선이 있는 구역, 주차타워는 두께가 있는 블록으로 구분</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:0 0 20px;font-size:12px;color:#5b6168">
+    <span style="font-weight:600;color:#16181a;display:flex;gap:6px;align-items:baseline"><a class="dv-oid" href="#5a">5a</a><a class="dv-oid" href="#5b">5b</a>인터랙티브 — 두 기기가 같은 상태를 공유해요</span>
+    <div style="display:flex;flex-wrap:wrap;gap:4px"><sc-for list="{{ scenarios }}" as="s" hint-placeholder-count="5"><button onClick="{{ s.onClick }}" style="{{ s.style }}">{{ s.label }}</button></sc-for></div>
+    <div style="display:flex;gap:4px"><sc-for list="{{ themes }}" as="s" hint-placeholder-count="2"><button onClick="{{ s.onClick }}" style="{{ s.style }}">{{ s.label }}</button></sc-for></div>
+  </div>
+  <div class="dv-opts">
+    <sc-for list="{{ phones }}" as="d" hint-placeholder-count="2">
+      <div class="dv-opt" id="{{ d.oid }}">
+        <div class="dv-olabel"><a class="dv-oid" href="{{ d.href }}">{{ d.oid }}</a><span>{{ d.label }}</span></div>
+        <div style="{{ d.vars }}">
+          <div style="{{ d.frameStyle }}">
+            <div data-screen-label="{{ d.oid }}" style="{{ d.screenStyle }}">
+              <sc-if value="{{ d.ios }}"><div style="height:50px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:4px 30px 0 36px;font-size:15px;font-weight:600;position:relative"><span>14:32</span><div style="position:absolute;left:50%;top:11px;width:118px;height:34px;margin-left:-59px;border-radius:20px;background:#000"></div><span style="font-size:12px">5G 100%</span></div></sc-if>
+              <sc-if value="{{ d.android }}"><div style="height:34px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:500;position:relative"><span>14:32</span><div style="position:absolute;left:50%;top:10px;width:13px;height:13px;margin-left:-6px;border-radius:50%;background:#000"></div><span style="font-size:11.5px">5G 100%</span></div></sc-if>
+
+              <div style="flex:none;display:flex;align-items:center;gap:8px;height:50px;padding:0 16px 0 18px">
+                <span style="flex:1;min-width:0;font-size:20px;font-weight:700;letter-spacing:-.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.title }}</span>
+                <sc-if value="{{ d.showUnits }}"><div style="{{ d.trackStyle }}"><sc-for list="{{ d.units }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for></div></sc-if>
+                <sc-if value="{{ d.showSeg }}"><div style="{{ d.trackStyle }}"><sc-for list="{{ d.terms }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for></div></sc-if>
+              </div>
+              <sc-if value="{{ d.showSeg }}"><div style="{{ d.metaStyle }}"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.ago }}</span><sc-if value="{{ d.showLegend }}"><span aria-label="색 범례: 여유에서 만차" style="flex:none;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600"><span>여유</span><span style="{{ d.scaleStyle }}"></span><span>만차</span></span></sc-if><button onClick="{{ d.refresh }}" style="border:0;background:none;color:inherit;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 0 6px 10px">{{ d.refreshText }}</button></div></sc-if>
+
+              <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:6px 16px 12px">
+                <sc-if value="{{ d.loading }}">
+                  <div style="height:26px;width:60%;border-radius:8px;background:var(--track);margin:2px 4px 10px"></div>
+                  <div style="flex:1.1;border-radius:14px;background:var(--track)"></div>
+                  <div style="flex:1;border-radius:14px;background:var(--track);margin-top:8px"></div>
+                  <div style="text-align:center;font-size:13px;color:var(--muted);padding-top:10px">최신 주차 정보를 불러오고 있어요</div>
+                </sc-if>
+
+                <sc-if value="{{ d.showLive }}">
+                  <button onClick="{{ d.sum.onOpen }}" style="flex:none;display:flex;align-items:flex-end;gap:10px;padding:4px 2px 16px;border:0;background:none;color:var(--ink);font-family:inherit;cursor:pointer;text-align:left">
+                    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:600;color:var(--muted)">{{ d.sum.title }} · 예약 제외</span><span style="display:flex;align-items:baseline;gap:4px"><span style="font-size:44px;line-height:1;font-weight:800;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">{{ d.sum.avail }}</span><span style="font-size:16px;font-weight:700">{{ d.sum.unit }}</span></span></span>
+                    <span style="{{ d.sum.chipStyle }}">{{ d.sum.band }}</span>
+                  </button>
+                  <div style="flex:1.3;min-height:0;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px;border-radius:20px;background:var(--gS)">
+                    <div style="flex:none;display:flex;justify-content:center;align-items:baseline;gap:6px;padding:0 2px 4px"><span style="font-size:13px;font-weight:700;color:var(--gSInk)">단기주차장</span><span style="font-size:16px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums">{{ d.gShort.val }}</span><span style="font-size:12px;font-weight:600;color:var(--ink2)">{{ d.gShort.unit }}</span></div>
+                    <sc-for list="{{ d.floors }}" as="f" hint-placeholder-count="4">
+                      <button onClick="{{ f.onOpen }}" aria-label="{{ f.aria }}" style="{{ f.style }}">
+                        <span style="{{ f.slabStyle }}"></span>
+                        <span style="{{ f.chipStyle }}">{{ f.label }}</span>
+                        <span style="position:relative;grid-column:3;justify-self:start;display:flex;align-items:baseline;gap:2px"><span style="{{ f.numStyle }}">{{ f.num }}</span><sc-if value="{{ f.showUnit }}"><span style="{{ f.unitStyle }}">{{ f.unit }}</span></sc-if></span>
+                      </button>
+                      <sc-if value="{{ f.ground }}"><div style="flex:none;display:flex;align-items:center;gap:8px;margin:0 4px;font-size:10.5px;font-weight:700;color:var(--muted)"><span style="flex:1;height:0;border-top:2px solid var(--outline)"></span><span>지면</span><span style="flex:1;height:0;border-top:2px solid var(--outline)"></span></div></sc-if>
+                    </sc-for>
+                  </div>
+                  <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;margin-top:12px;padding:10px;border-radius:20px;background:var(--gL)">
+                    <div style="flex:none;display:flex;justify-content:center;align-items:baseline;gap:6px;padding:0 2px 4px"><span style="font-size:13px;font-weight:700;color:var(--gLInk)">장기주차장 · 주차타워</span><span style="font-size:16px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums">{{ d.gLong.val }}</span><span style="font-size:12px;font-weight:600;color:var(--ink2)">{{ d.gLong.unit }}</span></div>
+                    <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:8px">
+                      <sc-for list="{{ d.tiles }}" as="t" hint-placeholder-count="6">
+                        <button onClick="{{ t.onOpen }}" aria-label="{{ t.aria }}" style="{{ t.style }}">
+                          <span style="font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap">{{ t.label }}</span>
+                          <span style="display:flex;align-items:baseline;gap:2px"><span style="{{ t.numStyle }}">{{ t.num }}</span><sc-if value="{{ t.showUnit }}"><span style="font-size:13px;font-weight:600">{{ t.unit }}</span></sc-if></span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ d.showFc }}">
+                  <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+                    <div style="flex:none;display:grid;grid-template-columns:50px 1.15fr repeat(6,minmax(0,1fr));gap:3px;height:26px;align-items:center;font-size:12px;font-weight:600;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums"><sc-for list="{{ d.heads }}" as="h" hint-placeholder-count="8"><span style="{{ h.style }}">{{ h.label }}</span></sc-for></div>
+                    <sc-for list="{{ d.frows }}" as="r" hint-placeholder-count="10">
+                      <sc-if value="{{ r.isLabel }}"><div style="flex:none;font-size:12px;font-weight:700;color:var(--ink2);padding:12px 2px 4px">{{ r.label }}</div></sc-if>
+                      <sc-if value="{{ r.isRow }}">
+                        <div onClick="{{ r.onOpen }}" aria-label="{{ r.aria }}" style="{{ r.style }}">
+                          <span style="{{ r.nameStyle }}">{{ r.name }}</span>
+                          <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7"><div aria-label="{{ c.aria }}" style="{{ c.style }}"><span style="{{ c.numStyle }}">{{ c.avail }}</span><sc-if value="{{ c.hasDelta }}"><span style="{{ c.deltaStyle }}">{{ c.delta }}</span></sc-if></div></sc-for>
+                        </div>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ d.showHist }}">
+                  <div style="flex:none;display:flex;justify-content:space-between;gap:8px;padding:2px 0 10px">
+                    <div style="{{ d.trackStyle }}"><sc-for list="{{ d.hv.periods }}" as="t" hint-placeholder-count="3"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for></div>
+                    <div style="{{ d.trackStyle }}"><sc-for list="{{ d.hv.groups }}" as="t" hint-placeholder-count="3"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for></div>
+                  </div>
+                  <div style="flex:none;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:8px"><sc-for list="{{ d.hv.chips }}" as="c" hint-placeholder-count="5"><button onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</button></sc-for></div>
+                  <div style="position:relative;flex:none">
+                    <svg viewBox="0 0 334 184" width="100%" style="display:block;overflow:visible">
+                      <path d="{{ d.hv.bandD }}" style="fill:var(--band)"></path>
+                      <path d="{{ d.hv.wkD }}" style="fill:var(--wk)"></path>
+                      <path d="{{ d.hv.gridD }}" style="fill:none;stroke:var(--line);stroke-width:1"></path>
+                      <path d="{{ d.hv.fullD }}" style="fill:none;stroke:var(--up);stroke-width:1.2;stroke-dasharray:4 3"></path>
+                      <path d="{{ d.hv.otherD }}" style="fill:none;stroke:var(--faint);stroke-width:1;stroke-linejoin:round;opacity:.6"></path>
+                      <path d="{{ d.hv.focusD }}" style="fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"></path>
+                      <line x1="330" x2="330" y1="8" y2="176" style="stroke:var(--ink);stroke-width:1.2"></line>
+                    </svg>
+                    <sc-for list="{{ d.hv.ylabels }}" as="y" hint-placeholder-count="3"><span style="{{ y.style }}">{{ y.label }}</span></sc-for>
+                    <span style="position:absolute;right:6px;top:10px;padding:2px 6px;border-radius:4px;background:var(--ink);color:var(--bg);font-size:10.5px;font-weight:700">지금</span>
+                  </div>
+                  <div style="position:relative;flex:none;height:18px"><sc-for list="{{ d.hv.xlabels }}" as="x" hint-placeholder-count="7"><span style="{{ x.style }}">{{ x.label }}</span></sc-for></div>
+                  <div style="flex:none;padding:6px 2px 0;font-size:12.5px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums">{{ d.hv.summary }}</div>
+                  <div style="flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:18px 2px 6px"><span style="font-size:13px;font-weight:700">{{ d.hv.heatTitle }}</span><span style="font-size:11px;color:var(--muted)">{{ d.hv.range }}</span></div>
+                  <div style="{{ d.hv.headStyle }}"><span></span><sc-for list="{{ d.hv.heads }}" as="x" hint-placeholder-count="7"><span style="{{ x.style }}">{{ x.label }}</span></sc-for></div>
+                  <sc-for list="{{ d.hv.rows }}" as="r" hint-placeholder-count="4"><div onClick="{{ r.onClick }}" style="{{ r.style }}"><span style="{{ r.nameStyle }}">{{ r.name }}</span><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7"><span style="{{ c.style }}">{{ c.label }}</span></sc-for></div></sc-for>
+                </sc-if>
+
+                <sc-if value="{{ d.shLoading }}"><div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)">셔틀 시간표를 불러오고 있어요</div></sc-if>
+                <sc-if value="{{ d.showShuttle }}">
+                  <div style="flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:2px 0 8px"><sc-for list="{{ d.sv.routes }}" as="r" hint-placeholder-count="5"><button onClick="{{ r.onClick }}" aria-label="{{ r.aria }}" style="{{ r.style }}"><span style="{{ r.dotStyle }}"></span><span>{{ r.label }}</span></button></sc-for></div>
+                  <div style="flex:none;font-size:12px;color:var(--muted);padding:0 2px 10px;line-height:1.45;text-wrap:pretty">{{ d.sv.desc }}</div>
+                  <div style="{{ d.sv.cardStyle }}">
+                    <div style="display:flex;align-items:baseline;gap:6px;font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap;overflow:hidden"><span>{{ d.sv.stopName }}</span><span style="font-size:11.5px;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis">{{ d.sv.stopNote }}</span></div>
+                    <div style="display:flex;align-items:flex-end;gap:18px;margin-top:8px">
+                      <div style="display:flex;flex-direction:column"><span style="font-size:38px;line-height:1;font-weight:800;letter-spacing:-1.2px;font-variant-numeric:tabular-nums;white-space:nowrap">{{ d.sv.w1 }}</span><span style="font-size:12.5px;font-weight:600;color:var(--ink2);margin-top:6px;font-variant-numeric:tabular-nums">{{ d.sv.at1 }}</span></div>
+                      <div style="display:flex;flex-direction:column;padding-bottom:1px"><span style="font-size:20px;line-height:1;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap">{{ d.sv.w2 }}</span><span style="font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums">{{ d.sv.at2 }}</span></div>
+                    </div>
+                    <sc-if value="{{ d.sv.hasMark }}"><div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--warnInk)">{{ d.sv.mark }}</div></sc-if>
+                    <div style="margin-top:10px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums">{{ d.sv.span }}</div>
+                  </div>
+                  <div style="flex:none;display:flex;justify-content:space-between;padding:14px 12px 4px 6px;font-size:12px;color:var(--muted)"><span style="font-weight:700;color:var(--ink2);white-space:nowrap">정차 순서 · {{ d.sv.count }}개 승강장</span><span style="white-space:nowrap">다음 도착</span></div>
+                  <div style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:none">
+                    <sc-for list="{{ d.sv.stops }}" as="s" hint-placeholder-count="8">
+                      <button onClick="{{ s.onClick }}" style="{{ s.style }}">
+                        <span style="position:relative;align-self:stretch;width:20px;flex:none"><span style="{{ s.lineStyle }}"></span><span style="{{ s.dotStyle }}"></span></span>
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left"><span style="{{ s.nameStyle }}">{{ s.label }}</span><sc-if value="{{ s.hasNote }}"><span style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.note }}</span></sc-if></span>
+                        <span style="{{ s.waitStyle }}">{{ s.wait }}</span>
+                      </button>
+                    </sc-for>
+                    <div style="padding:8px 2px 4px 36px;font-size:11.5px;color:var(--muted)">{{ d.sv.tail }}</div>
+                  </div>
+                  <div style="flex:none;padding:8px 2px 0;font-size:11px;color:var(--faint)">{{ d.sv.asOf }}</div>
+                </sc-if>
+
+                <sc-if value="{{ d.isSettings }}">
+                  <div style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;margin:0 -16px">
+                    <div style="{{ d.capStyle }}">기본 터미널</div>
+                    <div style="padding:0 16px"><div style="{{ d.trackWide }}"><sc-for list="{{ d.defTerms }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for></div></div>
+                    <div style="{{ d.capStyle }}">안내</div>
+                    <div style="{{ d.cardStyle }}">
+                      <div style="padding:13px 16px"><div style="font-size:15px">데이터 출처</div><div style="font-size:13px;color:var(--muted);margin-top:2px;line-height:1.5">공공데이터포털 · 인천국제공항공사 주차장 정보 (5분 간격)</div></div>
+                      <div style="padding:13px 16px;border-top:1px solid var(--line)"><div style="font-size:15px">비공식 서비스</div><div style="font-size:13px;color:var(--muted);margin-top:2px;line-height:1.5">인천국제공항공사와 관계없는 개인 프로젝트예요.</div></div>
+                      <div style="padding:13px 16px;border-top:1px solid var(--line)"><div style="font-size:15px">예상의 한계</div><div style="font-size:13px;color:var(--muted);margin-top:2px;line-height:1.5">지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요.</div></div>
+                      <div style="padding:13px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px">오픈소스</div><div style="font-size:13px;color:var(--muted);margin-top:2px">github.com/studydev/icn-parking</div></div><span style="color:var(--faint)">↗</span></div>
+                    </div>
+                    <div style="padding:14px 20px 8px;font-size:12px;color:var(--faint)">로그인·위치 정보를 사용하지 않아요 · 1.0.0 (1)</div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="{{ d.tabBarStyle }}">
+                <sc-for list="{{ d.tabs }}" as="tb" hint-placeholder-count="3">
+                  <button onClick="{{ tb.onClick }}" style="{{ tb.style }}"><span style="{{ tb.markStyle }}"><sc-if value="{{ tb.isLive }}"><svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"></rect><path d="M10 16.5v-9h2.75a2.75 2.75 0 0 1 0 5.5H10"></path></svg></sc-if><sc-if value="{{ tb.isFc }}"><svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg></sc-if><sc-if value="{{ tb.isHist }}"><svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M4 4v16h16"></path><path d="M8 15l3.5-4.5 3 3L19 8"></path></svg></sc-if><sc-if value="{{ tb.isBus }}"><svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M6 17V6.5A2.5 2.5 0 0 1 8.5 4h7A2.5 2.5 0 0 1 18 6.5V17z"></path><path d="M6 11.5h12M8.5 20v-3M15.5 20v-3"></path></svg></sc-if><sc-if value="{{ tb.isSet }}"><svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M4 7.5h9M17 7.5h3M4 16.5h3M11 16.5h9"></path><circle cx="15" cy="7.5" r="2"></circle><circle cx="9" cy="16.5" r="2"></circle></svg></sc-if></span><span>{{ tb.label }}</span></button>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ d.hasSheet }}">
+                <div onClick="{{ d.closeSheet }}" style="position:absolute;inset:0;background:var(--scrim);z-index:5"></div>
+                <div style="{{ d.sheetStyle }}">
+                  <div style="{{ d.grabStyle }}"></div>
+                  <div style="display:flex;align-items:flex-start;gap:4px;padding:6px 12px 0 20px">
+                    <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--muted)">{{ d.sh.kicker }}</div><div style="font-size:22px;font-weight:700;margin-top:2px;letter-spacing:-.3px">{{ d.sh.name }}</div></div>
+                    
+                    <button onClick="{{ d.closeSheet }}" style="{{ d.sh.closeStyle }}">{{ d.sh.closeText }}</button>
+                  </div>
+                  <div style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:6px 20px 40px">
+                    <div style="display:flex;align-items:baseline;gap:4px;font-variant-numeric:tabular-nums"><span style="font-size:13px;color:var(--muted)">남은</span><span style="font-size:30px;font-weight:700;letter-spacing:-.6px">{{ d.sh.avail }}</span><span style="font-size:14px;color:var(--muted)">/ 전체 {{ d.sh.cap }}대</span><span style="margin-left:auto;font-size:13px;font-weight:600">{{ d.sh.band }}</span></div>
+                    <div style="margin-top:14px;padding:12px 12px 6px;border:1px solid var(--line);border-radius:12px">
+                      <svg viewBox="0 0 318 150" width="100%" height="150" style="display:block;overflow:visible">
+                        <line x1="0" x2="318" y1="128" y2="128" style="stroke:var(--line);stroke-width:1"></line>
+                        <line x1="{{ d.sh.nowX }}" x2="{{ d.sh.nowX }}" y1="4" y2="128" style="stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3"></line>
+                        <path d="{{ d.sh.baseD }}" style="fill:none;stroke:var(--faint);stroke-width:1.6;stroke-dasharray:1 4;stroke-linecap:round"></path>
+                        <path d="{{ d.sh.actualD }}" style="fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round"></path>
+                        <path d="{{ d.sh.fcD }}" style="fill:none;stroke:var(--tint);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round"></path>
+                        <circle cx="{{ d.sh.nowX }}" cy="{{ d.sh.nowY }}" r="4" style="fill:var(--sheet);stroke:var(--ink);stroke-width:2"></circle>
+                        <text x="0" y="145" style="fill:var(--faint);font-size:10px">{{ d.sh.t0 }}</text>
+                        <text x="159" y="145" text-anchor="middle" style="fill:var(--ink);font-size:10px;font-weight:600">지금 {{ d.sh.t6 }}</text>
+                        <text x="318" y="145" text-anchor="end" style="fill:var(--faint);font-size:10px">{{ d.sh.t12 }}</text>
+                      </svg>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:11.5px;color:var(--muted)">
+                        <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:0;border-top:2px solid var(--ink)"></span>지난 3시간 실측</span>
+                        <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:0;border-top:2px solid var(--tint)"></span>3시간 예상</span>
+                        <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;height:0;border-top:2px dotted var(--faint)"></span>지난주 같은 시각</span>
+                      </div>
+                    </div>
+                    <div style="margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--chip);font-size:13px;line-height:1.55">{{ d.sh.explain }}</div>
+                    <sc-if value="{{ d.sh.hasFc }}"><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px"><sc-for list="{{ d.sh.cells }}" as="c" hint-placeholder-count="6"><div aria-label="{{ c.aria }}" style="{{ c.style }}"><span style="font-size:11.5px;color:var(--ink2);font-variant-numeric:tabular-nums">{{ c.label }}</span><span style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">{{ c.avail }}<span style="font-size:13px;font-weight:600">대</span></span><span style="{{ c.deltaStyle }}">{{ c.delta }}</span></div></sc-for></div></sc-if>
+                    <div style="margin-top:12px;font-size:12px;color:var(--faint);line-height:1.5">{{ d.sh.foot }}</div>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="{{ d.homeStyle }}"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div class="dv-opts" style="margin-top:44px">
+    <div class="dv-opt" id="5m">
+      <div class="dv-olabel"><a class="dv-oid" href="#5m">5m</a><span>위젯 소 · 중 (iOS WidgetKit / Android Glance), 이전 안과 동일</span></div>
+      <div style="width:820px;max-width:100%;box-sizing:border-box;padding:28px;border-radius:18px;background:repeating-linear-gradient(135deg,#cfd5db 0 10px,#c8ced4 10px 20px);display:flex;flex-wrap:wrap;gap:22px 20px;align-items:flex-start">
+        <sc-for list="{{ widgets }}" as="w" hint-placeholder-count="8">
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div style="{{ w.vars }}"><div style="{{ w.box }}">
+              <sc-if value="{{ w.small }}">
+                <div style="display:flex;flex-direction:column;height:100%">
+                  <div style="font-size:13px;font-weight:700">{{ w.title }}</div>
+                  <div style="margin-top:auto;display:flex;align-items:baseline;gap:2px;font-variant-numeric:tabular-nums"><span style="font-size:34px;font-weight:700;letter-spacing:-1px">{{ w.avail }}</span><span style="font-size:14px;font-weight:600">대</span></div>
+                  <div style="height:5px;border-radius:3px;background:var(--track);overflow:hidden;margin:4px 0 8px"><div style="{{ w.bar }}"></div></div>
+                  <div style="font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums">1시간 뒤 <span style="{{ w.deltaStyle }}">{{ w.delta }}</span></div>
+                  <div style="font-size:11px;color:var(--faint);margin-top:2px">{{ w.ago }}</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ w.medium }}">
+                <div style="display:flex;flex-direction:column;height:100%;gap:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;font-weight:700">{{ w.title }}</span><span style="font-size:11px;color:var(--faint)">{{ w.ago }}</span></div>
+                  <sc-for list="{{ w.rows }}" as="r" hint-placeholder-count="2">
+                    <div style="display:grid;grid-template-columns:92px repeat(3,minmax(0,1fr));gap:5px;align-items:stretch;flex:1">
+                      <div style="display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;color:var(--muted)">{{ r.name }}</span><span style="font-size:20px;font-weight:700;letter-spacing:-.4px;font-variant-numeric:tabular-nums">{{ r.avail }}<span style="font-size:12px;font-weight:600">대</span></span></div>
+                      <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3"><div style="{{ c.style }}"><span style="font-size:9.5px;color:var(--ink2)">{{ c.time }}</span><span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">{{ c.avail }}</span><span style="{{ c.deltaStyle }}">{{ c.delta }}</span></div></sc-for>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div></div>
+            <span style="font-size:11.5px;color:#3a3f45;font-family:ui-monospace,Menlo,monospace">{{ w.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <p class="dv-next">이전 안: ICN Parking App v4 · 다음에 시도해 볼 것: "<a class="dv-oid" href="#5c">5c</a> 장기 구역을 실제 위치 비율로" · "탭 아이콘 채움(선택) / 선(미선택) 구분"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showDelta&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;label&quot;:&quot;예측 칸에 ▲▼ 변화량 표시&quot;}}">
+class Component extends DCLogic {
+  static H = (() => {
+    const STOPS = [[0,'#12b76a'],[0.70,'#12b76a'],[0.84,'#2f80ed'],[0.90,'#2f80ed'],[0.925,'#f79009'],[0.95,'#f04438'],[0.975,'#e5303f'],[1,'#d92d3a']];
+    const lin = x => { x /= 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+    const srgb = x => Math.round(255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055));
+    const rgb = h => h.slice(1).match(/../g).map(x => parseInt(x, 16));
+    const hex = a => '#' + a.map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('');
+    const color = v => v >= 0.98 ? '#e5303f' : v >= 0.95 ? '#f4622a' : v >= 0.90 ? '#f5a524' : v >= 0.70 ? '#2f80ed' : '#12b76a';
+    const mix = (h, base, w) => { const a = rgb(h), b = rgb(base); return hex(a.map((x, k) => x * w + b[k] * (1 - w))); };
+    const tint = (o, theme) => theme === 'dark' ? mix(color(o), '#141619', 0.58) : mix(color(o), '#ffffff', 0.42);
+    const edge = (o, theme) => theme === 'dark' ? mix(color(o), '#000000', 0.78) : mix(color(o), '#000000', 0.86);
+    const BANDS = [[0.98,'만차'],[0.95,'매우 혼잡'],[0.90,'혼잡'],[0.70,'보통'],[0,'여유']];
+    const band = o => BANDS.find(b => o >= b[0])[1];
+    const fmt = n => Math.round(n).toLocaleString('ko-KR');
+    const sty = s => Object.fromEntries(s.split(';').map(p => p.trim()).filter(Boolean).map(p => { const i = p.indexOf(':'), k = p.slice(0, i).trim(); return [k.startsWith('--') ? k : k.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), p.slice(i + 1).trim()]; }));
+    const THEMES = {
+      light: {'--bg':'#ffffff','--surface':'#f2f4f7','--sheet':'#ffffff','--ink':'#111316','--ink2':'#2c3137','--muted':'#5d646c','--faint':'#8a9199','--line':'#eaedf0','--track':'#eef0f3','--chip':'#f2f4f6','--thumb':'#ffffff','--tonal':'#dde8ff','--outline':'#cdd2d8','--tint':'#2f6fed','--wk':'#fdeceb','--band':'#f5f7f9','--stall':'rgba(255,255,255,.8)','--fullInk':'#a1121f','--gS':'#e3e9f0','--gSInk':'#2f4256','--gL':'#f8f0e4','--gLInk':'#8a5410','--up':'#d92d3a','--down':'#1f5fd6','--scrim':'rgba(16,18,20,.36)','--warnBg':'#fff3dc','--warnInk':'#8a4b00','--warnLine':'#f7c768','--frame':'#1c1f22','--wbg':'#eef3ff','--bar':'#ffffff'},
+      dark: {'--bg':'#0b0c0e','--surface':'#17191c','--sheet':'#1a1c20','--ink':'#f2f4f6','--ink2':'#d6dade','--muted':'#a7aeb5','--faint':'#80878f','--line':'#25292d','--track':'#24272b','--chip':'#1d2023','--thumb':'#5b6067','--tonal':'#26375a','--outline':'#454b52','--tint':'#7aa7ff','--wk':'#221819','--band':'#121417','--stall':'rgba(0,0,0,.32)','--fullInk':'#ffe1e1','--gS':'#19212b','--gSInk':'#a8bdd4','--gL':'#251f16','--gLInk':'#f0bf7a','--up':'#ff6b6b','--down':'#34d17f','--scrim':'rgba(0,0,0,.55)','--warnBg':'#33250c','--warnInk':'#ffc76b','--warnLine':'#6b4b12','--frame':'#050607','--wbg':'#1b2130','--bar':'#0b0c0e'}
+    };
+    const ZONES = [
+      ['t1-short-b1','T1','단기','단기 지하1층',520,0.983,0.002],['t1-short-b2','T1','단기','단기 지하2층',1050,0.93,0.006],['t1-short-b3','T1','단기','단기 지하3층',1050,0.88,0.008],['t1-short-gf','T1','단기','단기 지상층',600,0.74,0.011],
+      ['t1-long-p1','T1','장기','장기 P1',3200,0.91,0.004],['t1-long-p2','T1','장기','장기 P2',3800,0.86,0.005],['t1-long-p3','T1','장기','장기 P3',2000,0.64,0.007],['t1-tower-p1','T1','타워','주차타워 P1',1200,0.95,0.003],['t1-tower-p2','T1','타워','주차타워 P2',900,0.89,0.004],['t1-resv-p5','T1','예약','예약 P5',600,0.71,0.002],
+      ['t2-short-bm','T2','단기','단기 지하M층',450,0.9,0.007],['t2-short-1f','T2','단기','단기 지상1층',1100,0.96,0.004],['t2-short-2f','T2','단기','단기 지상2층',1100,0.85,0.007],['t2-short-3f','T2','단기','단기 지상3층',1100,0.78,0.008],['t2-short-4f','T2','단기','단기 지상4층',900,0.985,0.001],
+      ['t2-long','T2','장기','장기주차장',6000,0.83,0.005],['t2-tower-p1','T2','타워','주차타워 P1',2500,0.92,0.003],['t2-tower-p2','T2','타워','주차타워 P2',2400,0.88,0.004],['t2-resv','T2','예약','예약주차장',1200,0.66,0.003]
+    ].map(([id, term, cat, name, cap, occ, slope], i) => ({ id, term, cat, name, cap, occ, slope, i }));
+    const SHORT = { 't1-short-gf': '지상', 't1-short-b1': 'B1', 't1-short-b2': 'B2', 't1-short-b3': 'B3', 't1-long-p1': '장기 P1', 't1-long-p2': '장기 P2', 't1-long-p3': '장기 P3', 't1-tower-p1': 'P1 타워', 't1-tower-p2': 'P2 타워', 't1-resv-p5': '예약 P5', 't2-short-4f': '4층', 't2-short-3f': '3층', 't2-short-2f': '2층', 't2-short-1f': '1층', 't2-short-bm': 'M층', 't2-long': '장기', 't2-tower-p1': 'P1 타워', 't2-tower-p2': 'P2 타워', 't2-resv': '예약' };
+    const LAYOUT = {
+      T1: { floors: ['t1-short-gf', 't1-short-b1', 't1-short-b2', 't1-short-b3'], tiles: [['t1-tower-p2', 1], ['t1-tower-p1', 1], ['t1-long-p2', 1], ['t1-long-p1', 1], ['t1-resv-p5', 1], ['t1-long-p3', 1]], long: ['t1-tower-p1', 't1-tower-p2', 't1-long-p1', 't1-long-p2', 't1-long-p3'], resv: 't1-resv-p5' },
+      T2: { floors: ['t2-short-4f', 't2-short-3f', 't2-short-2f', 't2-short-1f', 't2-short-bm'], tiles: [['t2-resv', 2], ['t2-long', 2], ['t2-tower-p1', 1], ['t2-tower-p2', 1]], long: ['t2-long', 't2-tower-p1', 't2-tower-p2'], resv: 't2-resv' }
+    };
+    const GROUPS = [{ id: '단기', label: '단기주차장', cats: ['단기'], inTotal: true }, { id: '장기', label: '장기·주차타워', cats: ['장기', '타워'], inTotal: true }, { id: '예약', label: '예약주차장', cats: ['예약'], inTotal: false }];
+    const hhmm = m => { m = (m + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+    const TIMES = Array.from({ length: 13 }, (_, j) => hhmm(14 * 60 + 30 + (j - 6) * 30));
+    function zoneSeries(z, sc) {
+      const occAt = k => Math.max(0, Math.min(1, z.occ + z.slope * k + 0.004 * Math.sin(k * 1.3 + z.i)));
+      let vals = Array.from({ length: 13 }, (_, j) => Math.round(z.cap * (1 - occAt((j - 6) * (j < 6 ? 0.9 : 1)))));
+      const off = ((z.i * 37) % 60) - 25 || 12;
+      const base = vals.map((v, j) => Math.max(0, v - off + (j < 6 ? Math.round(z.cap * 0.006 * Math.sin(j * 2.1 + z.i)) : 0)));
+      let state = 'ok', why = null, fc = true, cap = z.cap;
+      if (sc === 'issues') {
+        if (z.id === 't1-short-b3') { state = 'closed'; fc = false; why = '운영 중단 구역이에요. 지금은 주차할 수 없어요.'; }
+        if (z.id === 't1-short-gf') { state = 'missing'; fc = false; why = '현재값이 들어오지 않아 남은 대수와 예상을 보여드릴 수 없어요.'; }
+        if (z.id === 't1-long-p1') { fc = false; why = '예측 불가 · 지난 4주 같은 요일·시각 기록이 없어요.'; }
+        if (z.id === 't1-short-b2') { state = 'capacity_mismatch'; fc = false; cap = 980; vals = vals.map(v => Math.max(0, v - 70)); why = '운영 면수가 바뀐 직후(1,050 → 980대)라 예상을 잠시 멈췄어요.'; }
+      }
+      return { key: z.id, term: z.term, cat: z.cat, name: z.name, cap, vals, base, state, why, fc, isGroup: false };
+    }
+    function groupSeries(term, g, zs) {
+      const m = zs.filter(s => s.term === term && g.cats.includes(s.cat) && s.state !== 'closed' && s.state !== 'missing');
+      const vals = TIMES.map((_, j) => m.reduce((a, s) => a + (j > 6 && !s.fc ? s.vals[6] : s.vals[j]), 0));
+      const base = TIMES.map((_, j) => m.reduce((a, s) => a + s.base[j], 0));
+      return { key: 'g:' + term + ':' + g.id, term, cat: g.id, name: term + ' ' + g.label, short: g.label, cap: m.reduce((a, s) => a + s.cap, 0), vals, base, state: 'ok', why: null, fc: m.some(s => s.fc), isGroup: true, inTotal: g.inTotal };
+    }
+    const cache = {};
+    function dataset(sc) {
+      if (cache[sc]) return cache[sc];
+      const zones = ZONES.map(z => zoneSeries(z, sc)), groups = [];
+      ['T1', 'T2'].forEach(t => GROUPS.forEach(g => groups.push(groupSeries(t, g, zones))));
+      return (cache[sc] = { zones, groups, byKey: Object.fromEntries([...zones, ...groups].map(s => [s.key, s])) });
+    }
+    const NOWMS = Date.UTC(2026, 9, 17, 14), HOLS = new Set(['9-24', '9-25', '9-26', '10-3', '10-5', '10-9']), HC = {};
+    const dayInfo = ms => { const d = new Date(ms), m = d.getUTCMonth() + 1, dd = d.getUTCDate(), w = d.getUTCDay(), hol = HOLS.has(m + '-' + dd); return { m, dd, red: w === 0 || w === 6 || hol, wk: hol || w === 6 ? 1 : w === 0 ? 0.8 : w === 5 ? 0.55 : 0 }; };
+    const hist = id => {
+      if (HC[id]) return HC[id];
+      const z = ZONES.find(q => q.id === id), N = 720, occ = []; let wkS = 0.3;
+      for (let i = 0; i <= N; i++) {
+        const ms = NOWMS - (N - i) * 3600e3, hr = new Date(ms).getUTCHours(), info = dayInfo(ms);
+        wkS += (info.wk - wkS) * 0.04;
+        const cyc = -Math.cos((hr - 3) / 24 * 2 * Math.PI), nz = 0.025 * Math.sin(i * 0.37 + z.i * 1.7) + 0.02 * Math.sin(i * 0.093 + z.i * 2.3);
+        const o = z.cat === '단기' ? z.occ - 0.07 + 0.08 * cyc + 0.06 * info.wk + nz : z.cat === '예약' ? z.occ - 0.1 + 0.25 * wkS + 0.02 * cyc + nz : z.occ - 0.14 + 0.3 * wkS + 0.02 * cyc + nz;
+        occ.push(Math.max(0.04, Math.min(1, o)));
+      }
+      return (HC[id] = { occ, cap: z.cap });
+    };
+    const delta = d => d < 0 ? '▼' + fmt(-d) : d > 0 ? '▲' + fmt(d) : '±0';
+    const dcol = d => d > 0 ? 'var(--up)' : d < 0 ? 'var(--down)' : 'var(--muted)';
+    const dsty = (d, px) => sty(`font-size:${px}px;font-weight:700;font-variant-numeric:tabular-nums;color:${dcol(d)}`);
+    const deltaSay = d => d < 0 ? fmt(-d) + '대 감소' : d > 0 ? fmt(d) + '대 증가' : '변화 없음';
+    const cellStyle = (o, theme, pad) => sty(`display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:${pad};border-radius:7px;min-width:0;background:${tint(o, theme)};color:var(--ink)`);
+    return { mix, hist, dayInfo, NOWMS, edge, dsty, color, tint, band, fmt, sty, THEMES, TIMES, GROUPS, SHORT, LAYOUT, dataset, delta, deltaSay, cellStyle };
+  })();
+
+  state = { sh: null, shRoute: { T1: '01', T2: '02' }, shStop: {}, hDays: 7, hGroup: '단기', hFocus: 'all', unit: 'avail', term: 'T1', tab: 'live', theme: 'light', scenario: 'normal', sheet: null, favs: ['t1-short-b1', 'g:T1:장기', 't2-short-1f'], defaultTerm: 'T1', refreshing: false, refreshed: false };
+
+  componentDidMount() {
+    fetch('./data/shuttle.json').then(r => r.json()).then(d => {
+      for (const r of d.routes) for (const s of r.stops) { s.deps = s.t.map(x => { const m = +x.slice(0, 2) * 60 + +x.slice(3, 5); return { m, mod: m % 1440, mark: x.endsWith('*') }; }); s.sorted = s.deps.slice().sort((a, b) => a.mod - b.mod); }
+      d.byId = Object.fromEntries(d.routes.map(r => [r.id, r]));
+      this.setState({ sh: d });
+    }).catch(e => console.warn('shuttle.json', e));
+  }
+
+  phone(cfg) {
+    const H = Component.H, live = !!cfg.live, S = this.state, sty = H.sty;
+    const st = live ? S : { shRoute: { T1: cfg.shRoute || '01', T2: cfg.shRoute || '02' }, shStop: cfg.shStop ? { [cfg.shRoute]: cfg.shStop } : {}, hDays: cfg.hDays || 7, hGroup: cfg.hGroup || '단기', hFocus: cfg.hFocus || 'all', unit: cfg.unit || 'avail', term: cfg.term || 'T1', tab: cfg.tab || 'live', sheet: cfg.sheet || null, favs: ['t1-short-b1', 'g:T1:장기', 't2-short-1f'], defaultTerm: 'T1', refreshing: false, refreshed: false };
+    const theme = live ? S.theme : (cfg.theme || 'light'), sc = live ? S.scenario : (cfg.scenario || 'normal');
+    const ios = cfg.platform === 'ios', noop = () => {}, act = f => live ? f : noop;
+    const ds = H.dataset(sc === 'issues' ? 'issues' : 'normal'), term = st.term, T = H.TIMES, L = H.LAYOUT[term];
+    const toggle = key => () => this.setState(s => ({ favs: s.favs.includes(key) ? s.favs.filter(x => x !== key) : [...s.favs, key] }));
+    const open = key => act(() => this.setState({ sheet: key }));
+    const warn = 'background:var(--warnBg);color:var(--warnInk);box-shadow:inset 0 0 0 1px var(--warnLine)';
+    const red = H.color(1), occM = st.unit === 'occ', pct = o => String(Math.round(o * 100)), uLabel = occM ? '%' : '대', valOf = x => occM ? pct(x.o) : H.fmt(x.now);
+    const stat = s => {
+      const now = s.vals[6], o = s.cap ? 1 - now / s.cap : 0, closed = s.state === 'closed', missing = s.state === 'missing';
+      const word = closed ? '운영 중단' : missing ? '확인 필요' : o >= 0.98 ? '만차' : null;
+      return { now, o, closed, missing, dead: closed || missing, word, full: !closed && !missing && o >= 0.98 };
+    };
+    const blockBg = (x, extra) => x.dead ? `background:var(--chip);color:var(--muted);${extra || ''}` : `background:${H.tint(x.o, theme)};color:var(--ink)${extra ? ';' + extra : ''}`;
+    const numStyle = (x, px) => sty(x.word ? `font-size:${Math.round(px * 0.78)}px;font-weight:800;color:${x.full ? 'var(--fullInk)' : 'var(--muted)'}` : `font-size:${px}px;font-weight:800;letter-spacing:-.6px;font-variant-numeric:tabular-nums`);
+    const cpt = L.floors.length >= 5;
+    const floors = L.floors.map(id => {
+      const s = ds.byKey[id], x = stat(s);
+      return { label: H.SHORT[id], num: x.word || valOf(x), unit: uLabel, showUnit: !x.word, fav: st.favs.includes(id), onOpen: open(id), aria: `${s.name}, ${x.word || '남은 ' + x.now + '대'}`,
+        ground: id === 't1-short-gf' || id === 't2-short-1f',
+        style: sty(`position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 56px 112px minmax(0,1fr);column-gap:12px;align-items:center;padding:0 18px ${cpt ? 5 : 6}px;min-height:${cpt ? 34 : 0}px;border:0;background:none;color:var(--ink);font-family:inherit;cursor:pointer;text-align:left`),
+        slabStyle: sty(`position:absolute;left:14px;right:14px;top:0;bottom:${cpt ? 5 : 6}px;transform:skewX(-20deg);border-radius:5px;${x.dead ? `background:var(--chip);box-shadow:0 ${cpt ? 5 : 6}px 0 var(--outline)` : `background:${H.tint(x.o, theme)};box-shadow:0 ${cpt ? 5 : 6}px 0 ${H.edge(x.o, theme)}`}`),
+        chipStyle: sty(`position:relative;grid-column:2;justify-self:end;min-width:40px;height:${cpt ? 20 : 24}px;padding:0 6px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:12px;font-size:${cpt ? 11.5 : 12.5}px;font-weight:700;background:var(--bg);color:var(--ink2)`),
+        numStyle: numStyle(x, cpt ? 19 : 24), unitStyle: sty(`font-size:${cpt ? 12 : 14}px;font-weight:600`) };
+    });
+    const tiles = L.tiles.map(([id, span]) => {
+      const s = ds.byKey[id], x = stat(s), resv = s.cat === '예약';
+      return { label: H.SHORT[id], num: x.word || valOf(x), unit: uLabel, showUnit: !x.word, onOpen: open(id), aria: `${s.name}, ${x.word || '남은 ' + x.now + '대'}`,
+        style: sty(`grid-column:span ${span};min-height:0;display:flex;flex-direction:row;justify-content:center;align-items:center;gap:8px;padding:0 10px;border:0;font-family:inherit;cursor:pointer;text-align:center;color:var(--ink);${resv ? 'border-radius:8px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--outline)' : x.dead ? 'border-radius:8px;background:var(--chip);color:var(--muted)' : s.cat === '타워' ? `border-radius:8px;margin-bottom:5px;background:${H.tint(x.o, theme)};box-shadow:0 5px 0 ${H.edge(x.o, theme)}` : `border-radius:6px;background:repeating-linear-gradient(90deg,var(--stall) 0 1.5px,transparent 1.5px 15px) left top/100% 9px no-repeat,repeating-linear-gradient(90deg,var(--stall) 0 1.5px,transparent 1.5px 15px) left bottom/100% 9px no-repeat,${H.tint(x.o, theme)}`}`),
+        numStyle: numStyle(x, 20) };
+    });
+    // forecast table
+    const showDelta = !!this.props.showDelta, n = v => String(Math.round(v));
+    const fcCells = (s, curPx, fcPx, shortWhy) => {
+      const x = stat(s), strip = !x.dead && s.fc;
+      const cur = { avail: x.dead ? '—' : occM ? pct(x.o) + '%' : n(x.now), hasDelta: false, numStyle: sty(`font-size:${curPx}px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;white-space:nowrap`), style: sty(`display:flex;align-items:center;justify-content:center;border-radius:6px;min-width:0;overflow:hidden;${x.dead ? 'background:var(--chip);color:var(--muted)' : `background:${H.tint(x.o, theme)};color:var(--ink)`}`), aria: x.dead ? shortWhy : `지금 남은 ${x.now}대` };
+      if (!strip) return [cur, { avail: shortWhy, hasDelta: false, numStyle: sty('font-size:12px;font-weight:600;white-space:nowrap'), style: sty('grid-column:3 / -1;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--chip);color:var(--muted)'), aria: s.why || shortWhy }];
+      return [cur, ...[7, 8, 9, 10, 11, 12].map(j => { const v = s.vals[j], oo = 1 - v / s.cap, d = v - x.now; const dd = occM ? Math.round(oo * 100) - Math.round(x.o * 100) : d; return { avail: occM ? pct(oo) + '%' : n(v), hasDelta: showDelta, delta: H.delta(dd), deltaStyle: H.dsty(dd, 9.5), numStyle: sty(`font-size:${fcPx}px;font-weight:700;letter-spacing:-.4px;font-variant-numeric:tabular-nums;white-space:nowrap`), style: sty(`display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;min-width:0;overflow:hidden;background:${H.tint(oo, theme)};color:var(--ink)`), aria: `${T[j]} 예상 남은 ${v}대, 지금보다 ${H.deltaSay(d)}` }; })];
+    };
+    const rowStyle = (strong) => sty(`flex:1;min-height:0;max-height:52px;display:grid;grid-template-columns:50px 1.15fr repeat(6,minmax(0,1fr));gap:3px;padding:1.5px 0;cursor:pointer;${strong ? 'margin-bottom:2px' : ''}`);
+    const nameStyle = (strong) => sty(`display:flex;align-items:center;padding-left:4px;font-size:${strong ? 13.5 : 12.5}px;font-weight:${strong ? 800 : 600};color:var(--ink2);white-space:nowrap;overflow:hidden`);
+    const zrow = id => {
+      const s = ds.byKey[id], short = s.state === 'closed' ? '운영 중단' : s.state === 'missing' ? '현재값 없음' : s.state === 'capacity_mismatch' ? '면수 변경 · 예상 중지' : '예측 불가';
+      return { isRow: true, isLabel: false, name: H.SHORT[id], nameStyle: nameStyle(false), style: rowStyle(false), onOpen: open(id), aria: s.name, cells: occM ? fcCells(s, 13.5, 12.5, short) : fcCells(s, 14.5, 13.5, short) };
+    };
+    const tot = ds.groups.filter(g => g.term === term && g.inTotal), sumv = T.map((_, j) => tot.reduce((a, g) => a + g.vals[j], 0)), cap = tot.reduce((a, g) => a + g.cap, 0), so = 1 - sumv[6] / cap;
+    const frows = [
+      { isRow: true, isLabel: false, name: '전체', nameStyle: nameStyle(true), style: rowStyle(true), onOpen: open('g:' + term + ':장기'), aria: term + ' 전체', cells: occM ? fcCells({ vals: sumv, cap, state: 'ok', fc: true }, 13.5, 12.5, '') : fcCells({ vals: sumv, cap, state: 'ok', fc: true }, 14.5, 13.5, '') },
+      { isLabel: true, isRow: false, label: '단기주차장' }, ...L.floors.map(zrow),
+      { isLabel: true, isRow: false, label: '장기주차장 · 주차타워' }, ...L.long.map(zrow), zrow(L.resv)
+    ];
+    // sheet
+    let sh = null;
+    const ss = st.sheet && ds.byKey[st.sheet];
+    const agoMap = { normal: st.refreshed ? '14:32 기준 · 방금' : '14:30 기준 · 2분 전', issues: '14:30 기준 · 2분 전', delay: '수집 18분 지연 · 14:12 기준', offline: '오프라인 · 14:28 저장본', loading: '불러오는 중…' };
+    if (ss) {
+      const now = ss.vals[6], o = 1 - now / ss.cap, on = st.favs.includes(ss.key), max = Math.max(...ss.vals, ...ss.base, 1) * 1.08;
+      const X = j => +(j * 318 / 12).toFixed(1), Y = v => +(128 - 120 * (v / max)).toFixed(1);
+      const path = (arr, a, b) => arr.slice(a, b + 1).map((v, k) => (k ? 'L' : 'M') + X(a + k) + ' ' + Y(v)).join(' ');
+      const diff = now - ss.base[6];
+      sh = {
+        kicker: ss.isGroup ? `${ss.term} · 그룹 합계` : `${ss.term} · ${ss.cat === '타워' ? '장기 주차타워' : ss.cat + '주차장'}`, name: ss.isGroup ? ss.short + ' 전체' : ss.name,
+        avail: H.fmt(now), cap: H.fmt(ss.cap), band: `${H.band(o)} · ${Math.round(o * 100)}%`,
+        star: on ? '★' : '☆', starStyle: sty(`flex:none;width:40px;height:40px;border:0;background:none;font-size:20px;cursor:pointer;color:${on ? '#d4930f' : 'var(--faint)'}`), onStar: act(toggle(ss.key)),
+        closeText: ios ? '닫기' : '✕', closeStyle: ios ? sty('flex:none;height:36px;border:0;background:none;color:var(--tint);font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;padding:0 8px') : sty('flex:none;width:36px;height:36px;border-radius:18px;border:0;background:var(--chip);color:var(--ink);font-size:15px;cursor:pointer'),
+        actualD: path(ss.vals, 0, 6), fcD: ss.fc ? path(ss.vals, 6, 12) : '', baseD: path(ss.base, 0, 12), nowX: X(6), nowY: Y(now), t0: T[0], t6: T[6], t12: T[12],
+        hasFc: ss.fc, explain: ss.fc ? `지난주 토요일(10/10) 같은 시각 흐름에 지금 차이(${diff >= 0 ? '+' : '−'}${H.fmt(Math.abs(diff))}대)를 더한 참고 예상이에요.` : ss.why,
+        cells: ss.fc ? [7, 8, 9, 10, 11, 12].map((j, k) => { const v = ss.vals[j], d = v - now, oo = 1 - v / ss.cap; return { label: `${T[j]}`, avail: H.fmt(v), delta: H.delta(d), deltaStyle: H.dsty(d, 12), style: sty(`display:flex;flex-direction:column;gap:2px;padding:10px 10px 9px;border-radius:10px;background:${H.tint(oo, theme)}`), aria: `${T[j]} 예상 남은 ${v}대, 지금보다 ${H.deltaSay(d)}` }; }) : [],
+        foot: `${agoMap[sc]} · 30분 간격 · 비교 주 2026-10-10(토)` + (ss.isGroup ? ' · 운영 중단·현재값 없는 구역 제외' : '')
+      };
+    }
+    const segBtn = (sel, i, wide) => ios
+      ? sty(`flex:1;white-space:nowrap;height:${wide ? 32 : 30}px;padding:0 ${wide ? 0 : 10}px;border:0;border-radius:7px;font-family:inherit;font-size:${wide ? 14 : 13}px;font-weight:700;color:var(--ink);cursor:pointer;background:${sel ? 'var(--thumb)' : 'transparent'};box-shadow:${sel ? '0 1px 4px rgba(0,0,0,.16)' : 'none'}`)
+      : sty(`flex:${wide ? 1 : 'none'};white-space:nowrap;height:${wide ? 40 : 34}px;padding:0 ${wide ? 0 : 11}px;border:1px solid var(--outline);border-radius:${i ? '0 17px 17px 0' : '17px 0 0 17px'};margin-left:${i ? '-1px' : '0'};font-family:inherit;font-size:${wide ? 14 : 13}px;font-weight:700;color:var(--ink);cursor:pointer;background:${sel ? 'var(--tonal)' : 'transparent'}`);
+    const track = ios ? 'display:flex;padding:2px;border-radius:9px;background:var(--track)' : 'display:flex';
+    let hv = {};
+    if (st.tab === 'hist' && sc !== 'loading') {
+      const hDays = st.hDays, hGroup = st.hGroup, N = hDays * 24, off = 720 - N;
+      const ids = hGroup === '단기' ? L.floors : hGroup === '장기' ? L.long : [L.resv];
+      const zs = ids.map(id => { const hs = H.hist(id), occ = hs.occ.slice(off); return { id, name: H.SHORT[id], cap: hs.cap, occ, avail: occ.map(o => hs.cap * (1 - o)) }; });
+      let lines = zs;
+      if (zs.length > 1) { const cap = zs.reduce((a, z) => a + z.cap, 0), avail = zs[0].avail.map((_, k) => zs.reduce((a, z) => a + z.avail[k], 0)); lines = [{ id: 'all', name: '전체', cap, avail, occ: avail.map(a => 1 - a / cap) }, ...zs]; }
+      const fid = lines.some(l => l.id === st.hFocus) ? st.hFocus : lines[0].id, focus = lines.find(l => l.id === fid);
+      const val = l => occM ? l.occ.map(o => o * 100) : l.avail;
+      const nice = v => { const p = 10 ** Math.floor(Math.log10(Math.max(v, 1))); return Math.ceil(v / p) * p; };
+      const ymax = occM ? 100 : nice(Math.max(...lines.map(l => Math.max(...l.avail))));
+      const X0 = 30, X1 = 330, Y0 = 8, Y1 = 176, X = k => +(X0 + (X1 - X0) * k / N).toFixed(1), Y = v => +(Y1 - (Y1 - Y0) * v / ymax).toFixed(1), step = hDays >= 30 ? 2 : 1;
+      const path = arr => arr.map((v, k) => [k, v]).filter(([k]) => k % step === 0 || k === N).map(([k, v], j) => (j ? 'L' : 'M') + X(k) + ' ' + Y(v)).join(' ');
+      const segs = []; let ks = 0;
+      for (let k = 1; k <= N; k++) { const hr = new Date(H.NOWMS - (N - k) * 3600e3).getUTCHours(); if (hr === 0 || k === N) { segs.push({ a: ks, b: k, ...H.dayInfo(H.NOWMS - (N - ks) * 3600e3 + 1) }); ks = k; } }
+      const rect = s => `M${X(s.a)} ${Y0}H${X(s.b)}V${Y1}H${X(s.a)}Z`;
+      const days = segs.slice(-hDays), showN = hDays === 7, everyN = hDays >= 30 ? 5 : 1;
+      const lbl = (s, i, arr) => i > 0 && (arr.length - 1 - i) % everyN === 0;
+      const stats = l => { const o = l.occ; return { avg: o.reduce((a, b) => a + b, 0) / o.length, max: Math.max(...o), minA: Math.min(...l.avail), avgA: l.avail.reduce((a, b) => a + b, 0) / o.length, full: o.filter(x => x >= 0.98).length }; };
+      const fs = stats(focus);
+      const hBtn = (sel, i, n) => ios ? segBtn(sel, i, false) : sty(`flex:none;white-space:nowrap;height:34px;padding:0 11px;border:1px solid var(--outline);border-radius:${i === 0 ? '17px 0 0 17px' : i === n - 1 ? '0 17px 17px 0' : '0'};margin-left:${i ? '-1px' : '0'};font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;background:${sel ? 'var(--tonal)' : 'transparent'}`);
+      const cols = `46px repeat(${hDays},minmax(0,1fr))`, cg = hDays > 14 ? 1 : 2;
+      hv = {
+        periods: [7, 14, 30].map((n, i) => ({ label: n + '일', style: hBtn(hDays === n, i, 3), onClick: act(() => this.setState({ hDays: n })) })),
+        groups: ['단기', '장기', '예약'].map((g, i) => ({ label: g, style: hBtn(hGroup === g, i, 3), onClick: act(() => this.setState({ hGroup: g, hFocus: 'all' })) })),
+        chips: lines.length > 1 ? lines.map(l => ({ label: l.name, onClick: act(() => this.setState({ hFocus: l.id })), style: sty(`flex:none;height:30px;padding:0 12px;border-radius:15px;border:0;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;${l.id === fid ? 'background:var(--ink);color:var(--bg)' : 'background:var(--chip);color:var(--ink2)'}`) })) : [],
+        wkD: segs.filter(s => s.red).map(rect).join(' '), bandD: segs.filter((s, i) => !s.red && i % 2).map(rect).join(' '),
+        gridD: [0, 0.5, 1].map(f => `M${X0} ${Y(ymax * f)}H${X1}`).join(' '), fullD: occM ? `M${X0} ${Y(98)}H${X1}` : '',
+        otherD: lines.filter(l => l.id !== fid).map(l => path(val(l))).join(' '), focusD: path(val(focus)),
+        ylabels: [0, 0.5, 1].map(f => ({ label: occM ? Math.round(100 * f) + '%' : H.fmt(ymax * f), style: sty(`position:absolute;left:0;width:26px;text-align:right;top:${(Y(ymax * f) / 184 * 100).toFixed(2)}%;transform:translateY(-50%);font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums`) })),
+        xlabels: segs.filter(lbl).map(s => ({ label: hDays === 7 ? s.m + '/' + s.dd : String(s.dd), style: sty(`position:absolute;top:2px;left:${((X(s.a) + X(s.b)) / 2 / 334 * 100).toFixed(2)}%;transform:translateX(-50%);font-size:10.5px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;color:${s.red ? 'var(--up)' : 'var(--muted)'}`) })),
+        summary: occM ? `${focus.name} · 평균 ${pct(fs.avg)}% · 최고 ${pct(fs.max)}% · 만차 ${fs.full}시간` : `${focus.name} · 평균 ${H.fmt(fs.avgA)}대 · 최저 ${H.fmt(fs.minA)}대 · 만차 ${fs.full}시간`,
+        heatTitle: occM ? '일별 최고 점유율' : '일별 최저 남은 면수', range: `${days[0].m}/${days[0].dd} – ${days[days.length - 1].m}/${days[days.length - 1].dd} · 탭하면 그래프 강조`,
+        headStyle: sty(`flex:none;display:grid;grid-template-columns:${cols};column-gap:${cg}px;height:16px;align-items:center`),
+        heads: days.map((s, i) => ({ label: hDays <= 14 || (days.length - 1 - i) % 5 === 0 ? String(s.dd) : '', style: sty(`text-align:center;font-size:${hDays > 7 ? 9.5 : 10.5}px;font-weight:600;font-variant-numeric:tabular-nums;color:${s.red ? 'var(--up)' : 'var(--muted)'}`) })),
+        rows: lines.map(l => ({ name: l.name, onClick: act(() => this.setState({ hFocus: l.id })),
+          style: sty(`flex:none;display:grid;grid-template-columns:${cols};column-gap:${cg}px;height:24px;margin-top:3px;cursor:pointer`),
+          nameStyle: sty(`display:flex;align-items:center;font-size:12px;white-space:nowrap;overflow:hidden;font-weight:${l.id === fid ? 800 : 600};color:${l.id === fid ? 'var(--ink)' : 'var(--muted)'}`),
+          cells: days.map(s => { const o = Math.max(...l.occ.slice(s.a, s.b + 1)), a = Math.min(...l.avail.slice(s.a, s.b + 1)); return { label: showN ? (occM ? pct(o) : n(a)) : '', style: sty(`display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;border-radius:${hDays > 14 ? 2 : 4}px;background:${H.tint(o, theme)};color:var(--ink);font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums`) }; }) }))
+      };
+    }
+    let sv = {};
+    const SHD = this.state.sh;
+    if (st.tab === 'shuttle' && SHD) {
+      const SC = { '01': '#2f6fed', '02': '#12a150', '03': '#e8870b', '04': '#7c4dff', '05': '#5f6670' }, ORDER = { T1: ['01', '02', '03', '04', '05'], T2: ['02', '01', '03', '04', '05'] };
+      const rid = ORDER[term].includes(st.shRoute[term]) ? st.shRoute[term] : ORDER[term][0], route = SHD.byId[rid], col = SC[rid];
+      const sid = st.shStop[rid] || route.default, stop = route.stops.find(s => s.id === sid) || route.stops[0];
+      const NOW = (14 * 60 + 32) * 60, hm = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+      const next = (s, k) => { const out = []; for (let day = 0; day < 2 && out.length < k; day++) for (const d of s.sorted) { const at = (d.mod + day * 1440) * 60; if (at > NOW) { out.push({ ...d, wait: Math.floor((at - NOW) / 60), tomorrow: day > 0 }); if (out.length >= k) break; } } return out; };
+      const wTxt = d => !d ? '—' : d.tomorrow ? '내일 ' + hm(d.mod) : d.wait <= 0 ? '곧 도착' : d.wait < 60 ? d.wait + '분' : Math.floor(d.wait / 60) + '시간 ' + (d.wait % 60) + '분';
+      const [d1, d2] = next(stop, 2), soft = H.mix(col, theme === 'dark' ? '#141619' : '#ffffff', theme === 'dark' ? 0.3 : 0.12), n = route.stops.length;
+      sv = {
+        routes: ORDER[term].map(id => { const on = id === rid, r = SHD.byId[id]; return { label: r.name, aria: r.name + ' · ' + r.desc, onClick: act(() => this.setState(s => ({ shRoute: { ...s.shRoute, [term]: id } }))),
+          style: sty(`display:flex;align-items:center;justify-content:center;gap:5px;height:34px;padding:0;border:0;border-radius:10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;${on ? `background:${SC[id]};color:#fff` : 'background:var(--chip);color:var(--ink2)'}`),
+          dotStyle: sty(`width:7px;height:7px;border-radius:50%;flex:none;background:${on ? '#fff' : SC[id]}`) }; }),
+        desc: `${route.desc} · 배차 ${route.headway} · ${route.hours}`,
+        cardStyle: sty(`flex:none;padding:14px 16px 12px;border-radius:16px;background:${soft}`),
+        stopName: stop.label, stopNote: stop.note,
+        w1: d1 ? (d1.tomorrow ? '내일' : wTxt(d1) === '곧 도착' ? '곧 도착' : wTxt(d1) + ' 후') : '—', at1: d1 ? hm(d1.mod) + ' 도착 예정' : '',
+        w2: d2 ? (d2.tomorrow ? '내일 ' + hm(d2.mod) : wTxt(d2) + ' 후') : '', at2: d2 ? (d2.tomorrow ? '그다음 차' : hm(d2.mod) + ' 그다음 차') : '',
+        hasMark: !!(d1 && d1.mark && stop.mark), mark: d1 && stop.mark ? '※ 이번 차는 ' + stop.mark : '',
+        span: route.hours === '24시간' ? '24시간 운행 · 심야엔 배차가 길어요' : `첫차 ${hm(stop.deps[0].m)} · 막차 ${hm(stop.deps[stop.deps.length - 1].m)}`,
+        count: n,
+        stops: route.stops.map((s, i) => { const on = s.id === stop.id, nx = next(s, 1)[0], first = i === 0 && !route.loop, last = i === n - 1 && !route.loop && !route.after;
+          return { label: s.label, note: s.note, hasNote: !!s.note, wait: nx ? wTxt(nx) : '—', onClick: act(() => this.setState(st0 => ({ shStop: { ...st0.shStop, [rid]: s.id } }))),
+            style: sty(`display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:0 12px 0 6px;border:0;border-radius:12px;font-family:inherit;cursor:pointer;color:var(--ink);background:${on ? soft : 'transparent'}`),
+            lineStyle: sty(`position:absolute;left:9px;width:2px;top:${first ? '50%' : '0'};bottom:${last ? '50%' : '0'};background:${col}`),
+            dotStyle: sty(`position:absolute;left:4px;top:50%;margin-top:-6px;width:12px;height:12px;border-radius:50%;box-sizing:border-box;border:2.5px solid ${col};background:${on ? col : 'var(--bg)'}`),
+            nameStyle: sty(`font-size:14px;font-weight:${on ? 800 : 600};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`),
+            waitStyle: sty(`flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;${nx && !nx.tomorrow ? `font-size:15px;font-weight:${on ? 800 : 700};color:var(--ink)` : 'font-size:12px;font-weight:600;color:var(--muted)'}`) }; }),
+        tail: route.loop ? `↻ ${route.stops[0].label}(으)로 돌아와 순환 · ${route.duration}` : route.after ? `… ${route.after}` : route.duration,
+        asOf: `${SHD.as_of} 시간표 기준 · 실제 운행과 차이가 날 수 있어요`
+      };
+    }
+    const T1T2 = ['T1', 'T2'];
+    const tabsDef = [['live', '실시간'], ['fc', '예측'], ['hist', '히스토리'], ['shuttle', '셔틀'], ['settings', '설정']];
+    const metaWarn = sc === 'delay' || sc === 'offline';
+    const refreshing = live && S.refreshing;
+    const favList = st.favs.map(k => ds.byKey[k]).filter(Boolean).map((s, i) => ({ label: s.isGroup ? `${s.term} ${s.short} 전체` : `${s.term} ${s.name}`, onRemove: act(toggle(s.key)), style: sty(`display:flex;align-items:center;gap:10px;padding:10px 14px 10px 16px;${i ? 'border-top:1px solid var(--line)' : ''}`) }));
+    const titles = { live: '실시간 현황', fc: '시간별 예측', hist: '히스토리', shuttle: '셔틀', settings: '설정' };
+    return {
+      oid: cfg.oid, href: '#' + cfg.oid, label: cfg.label, ios, android: !ios,
+      vars: { ...H.THEMES[theme] },
+      frameStyle: sty(`width:390px;height:820px;box-sizing:border-box;padding:${ios ? 10 : 8}px;background:var(--frame);border-radius:${ios ? 56 : 40}px;box-shadow:0 24px 60px rgba(20,24,28,.22)`),
+      screenStyle: sty(`position:relative;width:100%;height:100%;overflow:hidden;border-radius:${ios ? 46 : 32}px;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif`),
+      homeStyle: sty(`position:absolute;left:50%;bottom:${ios ? 8 : 6}px;width:${ios ? 134 : 108}px;height:${ios ? 5 : 4}px;margin-left:-${ios ? 67 : 54}px;border-radius:3px;background:var(--ink);opacity:.8;z-index:9;pointer-events:none`),
+      title: titles[st.tab], showSeg: st.tab !== 'settings',
+      trackStyle: sty(track), trackWide: sty(track),
+      units: [['occ', '점유율'], ['avail', '주차면']].map(([k, l], i) => ({ label: l, style: segBtn(st.unit === k, i, false), onClick: act(() => this.setState({ unit: k })) })),
+      terms: T1T2.map((t, i) => ({ label: t, style: segBtn(term === t, i, false), onClick: act(() => this.setState({ term: t })) })),
+      defTerms: T1T2.map((t, i) => ({ label: (!ios && st.defaultTerm === t ? '✓ ' : '') + (t === 'T1' ? '제1터미널' : '제2터미널'), style: segBtn(st.defaultTerm === t, i, true), onClick: act(() => this.setState({ defaultTerm: t })) })),
+      ago: st.tab === 'shuttle' ? '시간표 기준 · 지금 14:32' : agoMap[sc], refreshText: refreshing ? '갱신 중…' : '↻ 새로고침',
+      refresh: act(() => { if (this.state.refreshing) return; this.setState({ refreshing: true }); clearTimeout(this._rt); this._rt = setTimeout(() => this.setState({ refreshing: false, refreshed: true }), 900); }),
+      metaStyle: sty(`flex:none;display:flex;align-items:center;gap:10px;margin:0 16px 4px;padding:0 10px;height:30px;border-radius:9px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;${metaWarn ? warn : 'color:var(--muted)'}`),
+      loading: sc === 'loading' && st.tab !== 'settings' && st.tab !== 'shuttle',
+      showLive: sc !== 'loading' && st.tab === 'live', showShuttle: st.tab === 'shuttle' && !!SHD, shLoading: st.tab === 'shuttle' && !SHD, sv, showUnits: st.tab !== 'settings' && st.tab !== 'shuttle', showLegend: st.tab !== 'shuttle', showHist: sc !== 'loading' && st.tab === 'hist', hv, showFc: sc !== 'loading' && st.tab === 'fc', isSettings: st.tab === 'settings',
+      sum: { title: `${term} 전체`, avail: occM ? pct(so) : H.fmt(sumv[6]), unit: occM ? '% 사용 중' : '대 남음', band: H.band(so), onOpen: open('g:' + term + ':장기'), chipStyle: sty(`flex:none;margin-bottom:3px;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;color:var(--ink);background:${H.tint(so, theme)}`) },
+      floors, tiles,
+      ...Object.fromEntries([['gShort', '단기'], ['gLong', '장기']].map(([k, g]) => { const s = ds.byKey[`g:${term}:${g}`], o = s.cap ? 1 - s.vals[6] / s.cap : 0; return [k, { val: occM ? pct(o) : H.fmt(s.vals[6]), unit: occM ? '% 사용 중' : '대 남음' }]; })),
+      heads: ['', '지금', ...T.slice(7)].map((l, k) => ({ label: l, style: sty(k === 1 ? 'color:var(--ink);font-weight:800' : '') })),
+      frows,
+      scaleStyle: sty(`width:36px;height:6px;border-radius:3px;background:linear-gradient(90deg,${[0.6, 0.7, 0.8, 0.86, 0.9, 0.925, 0.95, 0.975, 1].map(v => H.tint(v, theme)).join(',')})`),
+      capStyle: ios ? sty('font-size:13px;color:var(--muted);padding:18px 32px 7px') : sty('font-size:14px;font-weight:600;color:var(--tint);padding:20px 28px 9px'),
+      cardStyle: ios ? sty('margin:0 16px;background:var(--surface);border-radius:12px;overflow:hidden') : sty('margin:0 16px;background:var(--surface);border-radius:20px;overflow:hidden;border:1px solid var(--line)'),
+      favList, noFav: !favList.length,
+      tabBarStyle: ios ? sty('flex:none;display:flex;height:80px;padding-bottom:26px;box-sizing:border-box;border-top:1px solid var(--line);background:var(--bar)') : sty('flex:none;display:flex;height:80px;padding-bottom:12px;box-sizing:border-box;background:var(--chip)'),
+      tabs: tabsDef.map(([k, l]) => { const on = st.tab === k; return { label: l, onClick: act(() => this.setState({ tab: k, sheet: null })),
+        style: sty(`flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${ios ? 3 : 4}px;border:0;background:none;font-family:inherit;font-size:${ios ? 11 : 12}px;font-weight:${on ? 700 : 600};cursor:pointer;color:${on ? (ios ? 'var(--tint)' : 'var(--ink)') : 'var(--faint)'}`),
+        isLive: k === 'live', isFc: k === 'fc', isHist: k === 'hist', isBus: k === 'shuttle', isSet: k === 'settings',
+        markStyle: ios ? sty('width:30px;height:26px;display:flex;align-items:center;justify-content:center') : sty(`width:56px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:15px;background:${on ? 'var(--tonal)' : 'transparent'}`) }; }),
+      hasSheet: !!sh, sh: sh || {}, closeSheet: act(() => this.setState({ sheet: null })),
+      sheetStyle: sty(`position:absolute;left:0;right:0;bottom:0;height:88%;z-index:6;display:flex;flex-direction:column;background:var(--sheet);border-radius:${ios ? '14px 14px 0 0' : '28px 28px 0 0'};box-shadow:0 -8px 30px rgba(0,0,0,.18)`),
+      grabStyle: ios ? sty('flex:none;width:36px;height:5px;border-radius:3px;background:var(--outline);margin:6px auto 6px') : sty('flex:none;width:32px;height:4px;border-radius:2px;background:var(--outline);margin:14px auto 8px')
+    };
+  }
+
+  widget(cfg) {
+    const H = Component.H, sty = H.sty, ds = H.dataset('normal'), ios = cfg.platform === 'ios', small = cfg.size === 'small', theme = cfg.theme, T = H.TIMES;
+    const box = sty(`width:${small ? (ios ? 158 : 168) : (ios ? 338 : 352)}px;height:${ios ? 158 : 168}px;box-sizing:border-box;padding:${ios ? '14px 15px' : '16px 18px'};border-radius:${ios ? 22 : 26}px;background:${ios ? 'var(--surface)' : 'var(--wbg)'};color:var(--ink);font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.14);overflow:hidden`);
+    const base = { vars: { ...H.THEMES[theme] }, box, small, medium: !small, label: cfg.label, ago: '2분 전 기준' };
+    if (small) {
+      const s = ds.byKey[cfg.src], now = s.vals[6], o = 1 - now / s.cap;
+      return { ...base, title: s.isGroup ? `${s.term} ${s.short}` : `${s.term} ${s.name}`, avail: H.fmt(now), bar: sty(`height:100%;width:${Math.round(o * 100)}%;background:${H.color(o)};border-radius:3px`), delta: H.delta(s.vals[8] - now) + '대', deltaStyle: H.dsty(s.vals[8] - now, 12.5), rows: [] };
+    }
+    const rows = ['단기', '장기'].map(g => { const s = ds.byKey[`g:${cfg.term}:${g}`], now = s.vals[6]; return { name: s.short, avail: H.fmt(now), cells: [8, 10, 12].map(j => ({ time: T[j], avail: H.fmt(s.vals[j]), delta: H.delta(s.vals[j] - now), deltaStyle: H.dsty(s.vals[j] - now, 9.5), style: H.cellStyle(1 - s.vals[j] / s.cap, theme, '4px 0') })) }; });
+    return { ...base, title: `${cfg.term} 주차 · 1·2·3시간 뒤`, rows };
+  }
+
+  renderVals() {
+    const S = this.state, sty = Component.H.sty;
+    const chip = sel => sty(`border:1px solid ${sel ? '#16181a' : '#c3c9cf'};background:${sel ? '#16181a' : '#fff'};color:${sel ? '#fff' : '#16181a'};border-radius:14px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer`);
+    const P = [
+      { oid: '5a', platform: 'ios', live: true, label: 'iOS · 인터랙티브 (하단 탭: 실시간 / 예측 / 설정)' },
+      { oid: '5b', platform: 'android', live: true, label: 'Android · 인터랙티브' },
+      { oid: '5c', platform: 'ios', tab: 'live', label: 'iOS · 실시간 T1' },
+      { oid: '5d', platform: 'ios', tab: 'fc', label: 'iOS · 예측 T1' },
+      { oid: '5e', platform: 'android', theme: 'dark', tab: 'live', term: 'T2', label: 'Android · 다크 · 실시간 T2' },
+      { oid: '5f', platform: 'android', theme: 'dark', tab: 'fc', term: 'T2', label: 'Android · 다크 · 예측 T2' },
+      { oid: '5g', platform: 'ios', tab: 'live', scenario: 'issues', label: 'iOS · 실시간 · 운영 중단 / 현재값 없음 / 면수 변경' },
+      { oid: '5h', platform: 'android', tab: 'fc', scenario: 'issues', label: 'Android · 예측 · 예측 불가 사유' },
+      { oid: '5i', platform: 'ios', tab: 'live', sheet: 't1-short-b2', label: 'iOS · 구역 상세 시트' },
+      { oid: '5j', platform: 'android', tab: 'live', scenario: 'delay', label: 'Android · 수집 지연' },
+      { oid: '5k', platform: 'ios', theme: 'dark', tab: 'fc', scenario: 'offline', label: 'iOS · 다크 · 오프라인' },
+      { oid: '5l', platform: 'android', tab: 'live', scenario: 'loading', label: 'Android · 첫 로딩' },
+      { oid: '5n', platform: 'ios', tab: 'live', unit: 'occ', label: 'iOS · 실시간 · 점유율 보기' },
+      { oid: '5o', platform: 'android', tab: 'fc', unit: 'occ', label: 'Android · 예측 · 점유율 보기' },
+      { oid: '5p', platform: 'ios', tab: 'hist', label: 'iOS · 히스토리 · 7일 · 단기' },
+      { oid: '5q', platform: 'android', theme: 'dark', tab: 'hist', hDays: 30, hGroup: '장기', unit: 'occ', hFocus: 't1-long-p1', label: 'Android · 다크 · 히스토리 · 30일 · 장기 · 점유율' },
+      { oid: '5r', platform: 'ios', tab: 'shuttle', label: 'iOS · 셔틀 · T1 공항01 · 장기탑승장 1' },
+      { oid: '5s', platform: 'android', theme: 'dark', tab: 'shuttle', term: 'T2', shRoute: '03', shStop: 'D00343', label: 'Android · 다크 · 셔틀 · T2 공항03 · 3층 7번 출입구' }
+    ];
+    const W = [
+      { platform: 'ios', theme: 'light', size: 'small', src: 'g:T1:단기', label: 'iOS 소 · 그룹' },
+      { platform: 'ios', theme: 'light', size: 'medium', term: 'T1', label: 'iOS 중 · T1' },
+      { platform: 'ios', theme: 'dark', size: 'small', src: 't1-short-b1', label: 'iOS 소 · 구역 · 다크' },
+      { platform: 'ios', theme: 'dark', size: 'medium', term: 'T2', label: 'iOS 중 · T2 · 다크' },
+      { platform: 'android', theme: 'light', size: 'small', src: 'g:T2:장기', label: 'Android 소 · 그룹' },
+      { platform: 'android', theme: 'light', size: 'medium', term: 'T1', label: 'Android 중 · T1' },
+      { platform: 'android', theme: 'dark', size: 'small', src: 't2-short-1f', label: 'Android 소 · 구역 · 다크' },
+      { platform: 'android', theme: 'dark', size: 'medium', term: 'T2', label: 'Android 중 · T2 · 다크' }
+    ];
+    const SC = [['normal', '정상'], ['loading', '첫 로딩'], ['offline', '오프라인'], ['delay', '수집 지연'], ['issues', '구역 이상']];
+    return {
+      phones: P.map(c => this.phone(c)),
+      widgets: W.map(c => this.widget(c)),
+      scenarios: SC.map(([k, l]) => ({ label: l, style: chip(S.scenario === k), onClick: () => this.setState({ scenario: k, refreshed: false, sheet: null }) })),
+      themes: [['light', '라이트'], ['dark', '다크']].map(([k, l]) => ({ label: l, style: chip(S.theme === k), onClick: () => this.setState({ theme: k }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>
