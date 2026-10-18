@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 생성 파일 — mobile/shared/scripts/icon.mjs -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient android:angle="270" android:startColor="#2f6fed" android:endColor="#1f5fd6" />
+</shape>
