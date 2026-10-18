@@ -1,0 +1,4 @@
+app/src/main/res/drawable/ic_tab_*.xml
+Material Symbols (Outlined, 24px) by Google — Apache License 2.0
+https://github.com/google/material-design-icons
+Change: android:tint uses ?android:attr/colorControlNormal (no AppCompat).

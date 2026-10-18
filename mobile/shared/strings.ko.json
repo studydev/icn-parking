@@ -1,0 +1,189 @@
+{
+  "$comment": "화면 문구(mobile/design/README.md · ICN Parking App v5.dc.html). {name}은 생성 코드에서 String 매개변수가 된다. 숫자·시각 서식은 호출하는 쪽에서 맞춘다.",
+  "app": {
+    "name": "ICN 주차"
+  },
+  "tab": {
+    "live": "실시간",
+    "forecast": "예측",
+    "history": "히스토리",
+    "shuttle": "셔틀",
+    "settings": "설정"
+  },
+  "title": {
+    "live": "실시간 현황",
+    "forecast": "시간별 예측",
+    "history": "히스토리",
+    "shuttle": "셔틀",
+    "settings": "설정"
+  },
+  "header": {
+    "unitOccupancy": "점유율",
+    "unitAvailable": "주차면",
+    "terminal1": "T1",
+    "terminal2": "T2",
+    "terminal1Long": "제1터미널",
+    "terminal2Long": "제2터미널"
+  },
+  "meta": {
+    "updated": "{time} 기준 · {ago}",
+    "justNow": "방금",
+    "minutesAgo": "{minutes}분 전",
+    "delayed": "수집 {minutes}분 지연 · {time} 기준",
+    "offline": "오프라인 · {time} 저장본",
+    "loading": "불러오는 중…",
+    "refresh": "↻ 새로고침",
+    "refreshing": "갱신 중…",
+    "legendLow": "여유",
+    "legendHigh": "만차",
+    "legendA11y": "색 범례: 여유에서 만차",
+    "shuttleNow": "시간표 기준 · 지금 {time}"
+  },
+  "loading": {
+    "parking": "최신 주차 정보를 불러오고 있어요",
+    "shuttle": "셔틀 시간표를 불러오고 있어요"
+  },
+  "unit": {
+    "cars": "대",
+    "percent": "%",
+    "carsLeft": "대 남음",
+    "percentUsed": "% 사용 중"
+  },
+  "zone": {
+    "closed": "운영 중단",
+    "missing": "확인 필요",
+    "full": "만차",
+    "ground": "지면",
+    "a11yAvailable": "{name}, 남은 {cars}대",
+    "a11yState": "{name}, {state}"
+  },
+  "live": {
+    "totalTitle": "{terminal} 전체 · 예약 제외",
+    "groupShort": "단기주차장",
+    "groupLong": "장기주차장 · 주차타워"
+  },
+  "forecast": {
+    "now": "지금",
+    "total": "전체",
+    "totalA11y": "{terminal} 전체",
+    "sectionShort": "단기주차장",
+    "sectionLong": "장기주차장 · 주차타워",
+    "reasonUnavailable": "예측 불가",
+    "reasonCapacityChanged": "면수 변경 · 예상 중지",
+    "reasonClosed": "운영 중단",
+    "reasonMissing": "현재값 없음",
+    "whyClosed": "운영 중단 구역이에요. 지금은 주차할 수 없어요.",
+    "whyMissing": "현재값이 들어오지 않아 남은 대수와 예상을 보여드릴 수 없어요.",
+    "whyNoHistory": "예측 불가 · 지난 4주 같은 요일·시각 기록이 없어요.",
+    "whyCapacityChanged": "운영 면수가 바뀐 직후({from} → {to}대)라 예상을 잠시 멈췄어요.",
+    "whyCapacityUnknown": "지금 운영 면수를 확인할 수 없어 예상을 만들 수 없어요.",
+    "deltaUp": "▲{amount}",
+    "deltaDown": "▼{amount}",
+    "deltaZero": "±0",
+    "a11yNow": "지금 남은 {cars}대",
+    "a11yCell": "{time} 예상 남은 {cars}대, 지금보다 {change}",
+    "changeUp": "{cars}대 증가",
+    "changeDown": "{cars}대 감소",
+    "changeNone": "변화 없음"
+  },
+  "sheet": {
+    "close": "닫기",
+    "kickerGroup": "{terminal} · 그룹 합계",
+    "kickerZone": "{terminal} · {category}주차장",
+    "kickerTower": "{terminal} · 장기 주차타워",
+    "groupName": "{group} 전체",
+    "remaining": "남은",
+    "ofTotal": "/ 전체 {cars}대",
+    "bandPercent": "{band} · {percent}%",
+    "legendActual": "지난 3시간 실측",
+    "legendForecast": "3시간 예상",
+    "legendLastWeek": "지난주 같은 시각",
+    "nowMarker": "지금 {time}",
+    "explain": "{weeksAgo} {weekday}({date}) 같은 시각 흐름에 지금 차이({diff}대)를 더한 참고 예상이에요.",
+    "lastWeek": "지난주",
+    "weeksAgo": "{weeks}주 전",
+    "explainGroup": "구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요.",
+    "footerGroup": "{updated} · 30분 간격",
+    "a11yGraph": "지금 남은 {now}대, 3시간 뒤 {later}대 예상",
+    "footer": "{updated} · 30분 간격 · 비교 주 {date}({weekday})",
+    "footerGroupSuffix": " · 운영 중단·현재값 없는 구역 제외"
+  },
+  "weekday": {
+    "long": ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],
+    "short": ["일", "월", "화", "수", "목", "금", "토"]
+  },
+  "history": {
+    "days": "{count}일",
+    "groupShort": "단기",
+    "groupLong": "장기",
+    "groupReserved": "예약",
+    "all": "전체",
+    "now": "지금",
+    "summaryOccupancy": "{name} · 평균 {average}% · 최고 {max}% · 만차 {fullHours}시간",
+    "summaryAvailable": "{name} · 평균 {average}대 · 최저 {min}대 · 만차 {fullHours}시간",
+    "dailyMaxOccupancy": "일별 최고 점유율",
+    "dailyMinAvailable": "일별 최저 남은 면수",
+    "dailyRange": "{from} – {to} · 탭하면 그래프 강조",
+    "noData": "이 기간 기록이 없어요",
+    "a11yCellOccupancy": "{date} 최고 점유율 {percent}%",
+    "a11yCellAvailable": "{date} 최저 남은 면수 {cars}대"
+  },
+  "shuttle": {
+    "routeInfo": "{desc} · 배차 {headway} · {hours}",
+    "minutes": "{minutes}분",
+    "hoursMinutes": "{hours}시간 {minutes}분",
+    "after": "{wait} 후",
+    "arriving": "곧 도착",
+    "tomorrow": "내일",
+    "tomorrowAt": "내일 {time}",
+    "arrivalAt": "{time} 도착 예정",
+    "nextBus": "그다음 차",
+    "nextBusAt": "{time} 그다음 차",
+    "markNotice": "※ 이번 차는 {mark}",
+    "firstLast": "첫차 {first} · 막차 {last}",
+    "allDay": "24시간 운행 · 심야엔 배차가 길어요",
+    "stopsHeader": "정차 순서 · {count}개 승강장",
+    "nextArrival": "다음 도착",
+    "none": "—",
+    "loopTail": "↻ {stop}(으)로 돌아와 순환 · {duration}",
+    "afterTail": "… {after}",
+    "asOf": "{asOf} 시간표 기준 · 실제 운행과 차이가 날 수 있어요",
+    "a11yStop": "{route} {stop}, {wait} 후 {time} 도착 예정"
+  },
+  "settings": {
+    "defaultTerminal": "기본 터미널",
+    "display": "표시",
+    "showDelta": "예측 칸에 ▲▼ 변화량 표시",
+    "info": "안내",
+    "dataSource": "데이터 출처",
+    "dataSourceBody": "공공데이터포털 · 인천국제공항공사 주차장 정보 (5분 간격)",
+    "affiliation": "운영 주체",
+    "affiliationBody": "인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요.",
+    "forecastLimit": "예상의 한계",
+    "forecastLimitBody": "지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요.",
+    "openSource": "오픈소스",
+    "openSourceLabel": "github.com/studydev/icn-parking",
+    "openSourceUrl": "https://github.com/studydev/icn-parking",
+    "privacy": "로그인·위치 정보를 사용하지 않아요 · {version}"
+  },
+  "error": {
+    "notConfigured": "데이터 주소가 설정되지 않았어요",
+    "unavailable": "주차 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "retry": "다시 시도"
+  },
+  "widget": {
+    "galleryName": "ICN 주차",
+    "galleryDescription": "터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상",
+    "smallName": "ICN 주차",
+    "smallDescription": "주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상",
+    "mediumName": "ICN 주차 예상",
+    "mediumDescription": "터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤",
+    "configTitle": "위젯에 보여 줄 주차장",
+    "targetParameter": "주차장",
+    "terminalParameter": "터미널",
+    "inOneHourPrefix": "1시간 뒤",
+    "inOneHour": "1시간 뒤 {delta}대",
+    "updatedAgo": "{ago} 기준",
+    "mediumTitle": "{terminal} 주차 · 1·2·3시간 뒤"
+  }
+}

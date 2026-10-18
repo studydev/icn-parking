@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 생성 파일 — mobile/shared/scripts/icon.mjs -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group android:pivotX="512" android:pivotY="512" android:scaleX="0.64" android:scaleY="0.64" android:translateX="-35.2">
+        <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M230 260H500A185 185 0 0 1 500 630H360V800H230Z M360 385H490A60 60 0 0 1 490 505H360Z" />
+        <group android:translateX="815" android:translateY="265" android:rotation="-35" android:scaleX="0.78" android:scaleY="0.78">
+            <path android:fillColor="#FFFFFF" android:pathData="M150 0C150 -16 130 -24 110 -24H-120C-135 -24 -150 -14 -150 0C-150 14 -135 24 -120 24H110C130 24 150 16 150 0Z" />
+            <path android:fillColor="#FFFFFF" android:pathData="M50 -20L-40 -170L-75 -170L-20 -20Z" />
+            <path android:fillColor="#FFFFFF" android:pathData="M50 20L-40 170L-75 170L-20 20Z" />
+            <path android:fillColor="#FFFFFF" android:pathData="M-100 -20L-140 -80L-160 -80L-140 -20Z" />
+            <path android:fillColor="#FFFFFF" android:pathData="M-100 20L-140 80L-160 80L-140 20Z" />
+        </group>
+    </group>
+</vector>

@@ -1,0 +1,297 @@
+{
+  "$comment": "생성 파일 — functions/config/zones.yaml + mobile/shared/layout.json. node mobile/shared/scripts/generate.mjs",
+  "version": 1,
+  "zones": [
+    {
+      "id": "t1-short-b1",
+      "terminal": "T1",
+      "category": "단기",
+      "name": "단기 지하1층",
+      "short": "B1",
+      "order": 1,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-short-b2",
+      "terminal": "T1",
+      "category": "단기",
+      "name": "단기 지하2층",
+      "short": "B2",
+      "order": 2,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-short-b3",
+      "terminal": "T1",
+      "category": "단기",
+      "name": "단기 지하3층",
+      "short": "B3",
+      "order": 3,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-short-gf",
+      "terminal": "T1",
+      "category": "단기",
+      "name": "단기 지상층",
+      "short": "지상",
+      "order": 4,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-long-p1",
+      "terminal": "T1",
+      "category": "장기",
+      "name": "장기 P1",
+      "short": "장기 P1",
+      "order": 5,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-long-p2",
+      "terminal": "T1",
+      "category": "장기",
+      "name": "장기 P2",
+      "short": "장기 P2",
+      "order": 6,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-long-p3",
+      "terminal": "T1",
+      "category": "장기",
+      "name": "장기 P3",
+      "short": "장기 P3",
+      "order": 7,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-tower-p1",
+      "terminal": "T1",
+      "category": "타워",
+      "name": "주차타워 P1",
+      "short": "P1 타워",
+      "order": 8,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-tower-p2",
+      "terminal": "T1",
+      "category": "타워",
+      "name": "주차타워 P2",
+      "short": "P2 타워",
+      "order": 9,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t1-resv-p5",
+      "terminal": "T1",
+      "category": "예약",
+      "name": "예약 P5",
+      "short": "예약 P5",
+      "order": 10,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-short-bm",
+      "terminal": "T2",
+      "category": "단기",
+      "name": "단기 지하M층",
+      "short": "M층",
+      "order": 1,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-short-1f",
+      "terminal": "T2",
+      "category": "단기",
+      "name": "단기 지상1층",
+      "short": "1층",
+      "order": 2,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-short-2f",
+      "terminal": "T2",
+      "category": "단기",
+      "name": "단기 지상2층",
+      "short": "2층",
+      "order": 3,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-short-3f",
+      "terminal": "T2",
+      "category": "단기",
+      "name": "단기 지상3층",
+      "short": "3층",
+      "order": 4,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-short-4f",
+      "terminal": "T2",
+      "category": "단기",
+      "name": "단기 지상4층",
+      "short": "4층",
+      "order": 5,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-long",
+      "terminal": "T2",
+      "category": "장기",
+      "name": "장기주차장",
+      "short": "장기",
+      "order": 6,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-tower-p1",
+      "terminal": "T2",
+      "category": "타워",
+      "name": "주차타워 P1",
+      "short": "P1 타워",
+      "order": 7,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-tower-p2",
+      "terminal": "T2",
+      "category": "타워",
+      "name": "주차타워 P2",
+      "short": "P2 타워",
+      "order": 8,
+      "activeFrom": "2026-10-01"
+    },
+    {
+      "id": "t2-resv",
+      "terminal": "T2",
+      "category": "예약",
+      "name": "예약주차장",
+      "short": "예약",
+      "order": 9,
+      "activeFrom": "2026-10-01"
+    }
+  ],
+  "groups": [
+    {
+      "id": "short",
+      "label": "단기주차장",
+      "categories": [
+        "단기"
+      ],
+      "inTotal": true
+    },
+    {
+      "id": "long",
+      "label": "장기·주차타워",
+      "categories": [
+        "장기",
+        "타워"
+      ],
+      "inTotal": true
+    },
+    {
+      "id": "reserved",
+      "label": "예약주차장",
+      "categories": [
+        "예약"
+      ],
+      "inTotal": false
+    }
+  ],
+  "terminals": {
+    "T1": {
+      "floors": [
+        "t1-short-gf",
+        "t1-short-b1",
+        "t1-short-b2",
+        "t1-short-b3"
+      ],
+      "groundAfter": "t1-short-gf",
+      "tiles": [
+        {
+          "id": "t1-tower-p2",
+          "span": 1
+        },
+        {
+          "id": "t1-tower-p1",
+          "span": 1
+        },
+        {
+          "id": "t1-long-p2",
+          "span": 1
+        },
+        {
+          "id": "t1-long-p1",
+          "span": 1
+        },
+        {
+          "id": "t1-resv-p5",
+          "span": 1
+        },
+        {
+          "id": "t1-long-p3",
+          "span": 1
+        }
+      ],
+      "long": [
+        "t1-tower-p1",
+        "t1-tower-p2",
+        "t1-long-p1",
+        "t1-long-p2",
+        "t1-long-p3"
+      ],
+      "reserved": "t1-resv-p5",
+      "shuttleRoutes": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05"
+      ]
+    },
+    "T2": {
+      "floors": [
+        "t2-short-4f",
+        "t2-short-3f",
+        "t2-short-2f",
+        "t2-short-1f",
+        "t2-short-bm"
+      ],
+      "groundAfter": "t2-short-1f",
+      "tiles": [
+        {
+          "id": "t2-resv",
+          "span": 2
+        },
+        {
+          "id": "t2-long",
+          "span": 2
+        },
+        {
+          "id": "t2-tower-p1",
+          "span": 1
+        },
+        {
+          "id": "t2-tower-p2",
+          "span": 1
+        }
+      ],
+      "long": [
+        "t2-long",
+        "t2-tower-p1",
+        "t2-tower-p2"
+      ],
+      "reserved": "t2-resv",
+      "shuttleRoutes": [
+        "02",
+        "01",
+        "03",
+        "04",
+        "05"
+      ]
+    }
+  }
+}

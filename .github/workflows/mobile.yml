@@ -1,0 +1,46 @@
+name: Mobile
+
+on:
+  pull_request:
+    paths: ['mobile/**', 'web/app.js', 'web/shuttle.js', 'web/shuttle.json', 'functions/config/zones.yaml', '.github/workflows/mobile.yml']
+  push:
+    branches: [main]
+    paths: ['mobile/**', 'web/app.js', 'web/shuttle.js', 'web/shuttle.json', 'functions/config/zones.yaml', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 공통 생성 파일·웹 동등성 픽스처는 ci.yml의 npm test가 검사한다.
+# 테스트는 픽스처만 쓰므로 데이터 주소(ICN_DATA_BASE_URL)·서명이 필요 없다.
+jobs:
+  android:
+    name: Android unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and test (runner JDK 21 · Android SDK)
+        working-directory: mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew --no-daemon assembleDebug testDebugUnitTest
+
+  ios:
+    name: iOS build and tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Shared core tests (macOS)
+        working-directory: mobile/ios/ICNParkingCore
+        run: xcodebuild test -scheme ICNParkingCore -destination 'platform=macOS'
+      - name: App and widget build (iOS Simulator, unsigned)
+        working-directory: mobile/ios
+        run: |
+          brew install xcodegen
+          xcodegen
+          xcodebuild build -scheme ICNParking -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO

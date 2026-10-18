@@ -1,0 +1,56 @@
+{
+  "$comment": "zones.yaml에 없는 화면 배치 정보(mobile/design/README.md · 실시간). generate.mjs가 zones.yaml과 합쳐 zones.json을 만든다.",
+  "shortNames": {
+    "t1-short-gf": "지상",
+    "t1-short-b1": "B1",
+    "t1-short-b2": "B2",
+    "t1-short-b3": "B3",
+    "t1-long-p1": "장기 P1",
+    "t1-long-p2": "장기 P2",
+    "t1-long-p3": "장기 P3",
+    "t1-tower-p1": "P1 타워",
+    "t1-tower-p2": "P2 타워",
+    "t1-resv-p5": "예약 P5",
+    "t2-short-4f": "4층",
+    "t2-short-3f": "3층",
+    "t2-short-2f": "2층",
+    "t2-short-1f": "1층",
+    "t2-short-bm": "M층",
+    "t2-long": "장기",
+    "t2-tower-p1": "P1 타워",
+    "t2-tower-p2": "P2 타워",
+    "t2-resv": "예약"
+  },
+  "groups": [
+    { "id": "short", "label": "단기주차장", "categories": ["단기"], "inTotal": true },
+    { "id": "long", "label": "장기·주차타워", "categories": ["장기", "타워"], "inTotal": true },
+    { "id": "reserved", "label": "예약주차장", "categories": ["예약"], "inTotal": false }
+  ],
+  "terminals": {
+    "T1": {
+      "$comment": "floors = 위에서부터 건물 층 순, groundAfter 행 아래에 지면선. tiles = 2열 그리드 순서(span 2 = 한 줄 전체). long = 예측 표·히스토리 칩 순서.",
+      "floors": ["t1-short-gf", "t1-short-b1", "t1-short-b2", "t1-short-b3"],
+      "groundAfter": "t1-short-gf",
+      "tiles": [
+        { "id": "t1-tower-p2", "span": 1 }, { "id": "t1-tower-p1", "span": 1 },
+        { "id": "t1-long-p2", "span": 1 }, { "id": "t1-long-p1", "span": 1 },
+        { "id": "t1-resv-p5", "span": 1 }, { "id": "t1-long-p3", "span": 1 }
+      ],
+      "long": ["t1-tower-p1", "t1-tower-p2", "t1-long-p1", "t1-long-p2", "t1-long-p3"],
+      "reserved": "t1-resv-p5",
+      "shuttleRoutes": ["01", "02", "03", "04", "05"]
+    },
+    "T2": {
+      "floors": ["t2-short-4f", "t2-short-3f", "t2-short-2f", "t2-short-1f", "t2-short-bm"],
+      "groundAfter": "t2-short-1f",
+      "tiles": [
+        { "id": "t2-resv", "span": 2 },
+        { "id": "t2-long", "span": 2 },
+        { "id": "t2-tower-p1", "span": 1 }, { "id": "t2-tower-p2", "span": 1 }
+      ],
+      "long": ["t2-long", "t2-tower-p1", "t2-tower-p2"],
+      "reserved": "t2-resv",
+      "shuttleRoutes": ["02", "01", "03", "04", "05"]
+    }
+  }
+}
