@@ -78,6 +78,18 @@ fun RootScreen(model: AppViewModel) {
     val tab = state.tab
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
+    LaunchedEffect(state.sheet) {
+        state.sheet?.let { target ->
+            val id = when (target) {
+                is SheetTarget.Zone -> target.id
+                is SheetTarget.Group -> "g:${target.terminal.code}:${target.group.id}"
+                is SheetTarget.Total -> "t:${target.terminal.code}"
+            }
+            AppAnalytics.event("view_parking_detail", mapOf("item_id" to id))
+        }
+    }
+    LaunchedEffect(tab) { AppAnalytics.screen(tab.name.lowercase(java.util.Locale.ROOT)) }
+
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             model.refresh()
