@@ -18,6 +18,7 @@ import com.studydev.icnparking.core.shuttle.ShuttleSchedule
 import com.studydev.icnparking.core.time.SlotTime
 import kotlinx.serialization.Serializable
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,7 +104,7 @@ class PresentationTest {
     @Test
     fun forecastTableOrderAndReasons() {
         val table = ForecastTable(snapshot("closed"), Terminal.T1)
-        assertEquals(listOf("15:00", "15:30", "16:00", "16:30", "17:00", "17:30"), table.times.map { it.label })
+        assertEquals(listOf("15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"), table.times.map { it.label })
         val rows = table.items.filterIsInstance<ForecastTableItem.Row>().map { it.row }
         assertEquals(
             listOf("total", "t1-short-gf", "t1-short-b1", "t1-short-b2", "t1-short-b3", "t1-tower-p1", "t1-tower-p2", "t1-long-p1", "t1-long-p2", "t1-long-p3", "t1-resv-p5"),
@@ -113,7 +114,7 @@ class PresentationTest {
         assertEquals(ForecastRowReason.CLOSED, byId.getValue("t1-short-b2").reason)
         assertEquals(ForecastRowReason.CLOSED, byId.getValue("t1-short-b3").reason)
         assertNull(byId.getValue("t1-short-b1").reason)
-        assertEquals(6, byId.getValue("t1-short-b1").cells.size)
+        assertEquals(12, byId.getValue("t1-short-b1").cells.size)
         assertEquals(ForecastRowReason.MISSING, byId.getValue("t1-long-p1").reason)
         assertEquals(listOf(Strings.Forecast.sectionShort, Strings.Forecast.sectionLong), table.items.filterIsInstance<ForecastTableItem.Label>().map { it.text })
     }
@@ -123,17 +124,35 @@ class PresentationTest {
         val s = snapshot("capacity-changed")
         val ok = SheetModel.of(s, SheetTarget.Zone("t1-short-b1"))
         assertEquals("T1 · 단기주차장", ok.kicker)
-        assertEquals(6, ok.cells.size)
-        assertEquals(7, ok.forecast.size)
-        assertEquals(13, ok.base.size)
+        // 지난 2시간 실측 5점(30분) · 지금 + 6시간 예상 13점 · 비교 주 17점
+        assertEquals(listOf(-24, -18, -12, -6, 0), ok.actual.map { it.offset })
+        assertEquals((0..72 step 6).toList(), ok.forecast.map { it.offset })
+        assertEquals(17, ok.base.size)
+        assertEquals("12:30", ok.axis.first().label)
+        assertEquals("지금 14:30", ok.axis.first { it.isNow }.label)
+        // 시간대별 표: 선택 구역이 앞, 같은 단기 묶음의 다른 층이 뒤. 지금 + 12행
+        assertEquals(listOf("B1", "지상", "B2", "B3"), ok.timeline.columns.map { it.name })
+        assertEquals(listOf(true, false, false, false), ok.timeline.columns.map { it.selected })
+        assertEquals(13, ok.timeline.rows.size)
+        assertTrue(ok.timeline.rows[0].isNow)
+        assertEquals("15:00", ok.timeline.rows[1].time.label)
+        assertNotNull(ok.timeline.rows[12].values[0])
+        // 면수 변경 구역 열(B2)은 지금 값만 있고 예상은 빈칸, 기록 없는 열(지상·B3)은 모두 빈칸
+        assertNotNull(ok.timeline.rows[0].values[2])
+        assertNull(ok.timeline.rows[1].values[2])
+        assertNull(ok.timeline.rows[0].values[1])
         assertTrue(ok.explain, ok.explain.startsWith("지난주 토요일(10/10) 같은 시각 흐름에 지금 차이("))
         assertEquals("14:30 기준 · 2분 전 · 30분 간격 · 비교 주 2026-10-10(토)", ok.footer("14:30 기준 · 2분 전"))
         val stopped = SheetModel.of(s, SheetTarget.Zone("t1-short-b2"))
         assertEquals("운영 면수가 바뀐 직후(1,050 → 980대)라 예상을 잠시 멈췄어요.", stopped.explain)
-        assertTrue(stopped.cells.isEmpty())
+        assertTrue(stopped.forecast.isEmpty())
+        assertEquals("B2", stopped.timeline.columns.first().name)
         val group = SheetModel.of(s, SheetTarget.Group(Terminal.T1, ZoneGroup.SHORT))
         assertEquals("단기주차장 전체", group.name)
-        assertEquals(6, group.cells.size)
+        assertEquals(13, group.forecast.size)
+        assertEquals(listOf("전체", "지상", "B1", "B2", "B3"), group.timeline.columns.map { it.name })
+        val total = SheetModel.of(s, SheetTarget.Total(Terminal.T1))
+        assertEquals(listOf("전체", "단기", "장기"), total.timeline.columns.map { it.name })
         assertTrue(group.footer("x").endsWith(Strings.Sheet.footerGroupSuffix))
     }
 

@@ -121,6 +121,13 @@ public struct ShuttleRouteColor: Hashable, Sendable {
     public func soft(_ theme: ThemeMode) -> TokenColor { theme == .dark ? softDark : softLight }
 }
 
+/// 히스토리 구역별 선 색(라이트·다크)
+public struct SeriesColor: Hashable, Sendable {
+    let light: TokenColor
+    let dark: TokenColor
+    public func color(_ theme: ThemeMode) -> TokenColor { theme == .dark ? dark : light }
+}
+
 public struct Shadow: Hashable, Sendable {
     public let x: Double
     public let y: Double
@@ -208,6 +215,16 @@ public enum Tokens {
         "03": ShuttleRouteColor(color: TokenColor(0xFFE8870B), softLight: TokenColor(0xFFFCF1E2), softDark: TokenColor(0xFF543815)),
         "04": ShuttleRouteColor(color: TokenColor(0xFF7C4DFF), softLight: TokenColor(0xFFEFEAFF), softDark: TokenColor(0xFF33275E)),
         "05": ShuttleRouteColor(color: TokenColor(0xFF5F6670), softLight: TokenColor(0xFFECEDEE), softDark: TokenColor(0xFF2B2E33))
+    ]
+
+    /// 히스토리 구역별 선 색(순서 = 그룹 구역 순서)
+    public static let series: [SeriesColor] = [
+        SeriesColor(light: TokenColor(0xFF2F6FED), dark: TokenColor(0xFF7AA7FF)),
+        SeriesColor(light: TokenColor(0xFF12A150), dark: TokenColor(0xFF34D17F)),
+        SeriesColor(light: TokenColor(0xFFE8870B), dark: TokenColor(0xFFFFA94D)),
+        SeriesColor(light: TokenColor(0xFF7C4DFF), dark: TokenColor(0xFFB197FC)),
+        SeriesColor(light: TokenColor(0xFFD6336C), dark: TokenColor(0xFFF783AC)),
+        SeriesColor(light: TokenColor(0xFF0B9FA8), dark: TokenColor(0xFF3BC9DB))
     ]
 
     public enum Spacing {

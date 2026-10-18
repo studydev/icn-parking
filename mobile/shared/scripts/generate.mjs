@@ -224,6 +224,13 @@ public struct ShuttleRouteColor: Hashable, Sendable {
     public func soft(_ theme: ThemeMode) -> TokenColor { theme == .dark ? softDark : softLight }
 }
 
+/// 히스토리 구역별 선 색(라이트·다크)
+public struct SeriesColor: Hashable, Sendable {
+    let light: TokenColor
+    let dark: TokenColor
+    public func color(_ theme: ThemeMode) -> TokenColor { theme == .dark ? dark : light }
+}
+
 public struct Shadow: Hashable, Sendable {
     public let x: Double
     public let y: Double
@@ -245,6 +252,11 @@ ${palette('dark')}
 
     public static let shuttleRoutes: [String: ShuttleRouteColor] = [
 ${routes.map(([id, c]) => `        ${swiftStr(id)}: ShuttleRouteColor(color: TokenColor(${argb(parseColor(c))}), softLight: TokenColor(${argb(mix(c, tokens.mix.shuttleSoft.light))}), softDark: TokenColor(${argb(mix(c, tokens.mix.shuttleSoft.dark))}))`).join(',\n')}
+    ]
+
+    /// 히스토리 구역별 선 색(순서 = 그룹 구역 순서)
+    public static let series: [SeriesColor] = [
+${tokens.series.light.map((c, i) => `        SeriesColor(light: TokenColor(${argb(parseColor(c))}), dark: TokenColor(${argb(parseColor(tokens.series.dark[i]))}))`).join(',\n')}
     ]
 
     public enum Spacing {
@@ -318,6 +330,11 @@ data class ShuttleRouteColor(
     fun soft(theme: ThemeMode): TokenColor = if (theme == ThemeMode.DARK) softDark else softLight
 }
 
+/** 히스토리 구역별 선 색(라이트·다크) */
+data class SeriesColor(private val light: TokenColor, private val dark: TokenColor) {
+    fun color(theme: ThemeMode): TokenColor = if (theme == ThemeMode.DARK) dark else light
+}
+
 data class Shadow(val x: Float, val y: Float, val blur: Float, val color: TokenColor)
 
 object Tokens {
@@ -334,6 +351,11 @@ ${palette('dark')}
 
     val shuttleRoutes: Map<String, ShuttleRouteColor> = mapOf(
 ${routes.map(([id, col]) => `        ${ktStr(id)} to ShuttleRouteColor(${c(parseColor(col))}, ${c(mix(col, tokens.mix.shuttleSoft.light))}, ${c(mix(col, tokens.mix.shuttleSoft.dark))}),`).join('\n')}
+    )
+
+    /** 히스토리 구역별 선 색(순서 = 그룹 구역 순서) */
+    val series: List<SeriesColor> = listOf(
+${tokens.series.light.map((hex, i) => `        SeriesColor(${c(parseColor(hex))}, ${c(parseColor(tokens.series.dark[i]))}),`).join('\n')}
     )
 
     object Spacing {

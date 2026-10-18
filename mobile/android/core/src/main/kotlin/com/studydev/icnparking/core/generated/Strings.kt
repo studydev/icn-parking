@@ -4,7 +4,7 @@ package com.studydev.icnparking.core.generated
 
 object Strings {
     object App {
-        const val name = "ICN 주차"
+        const val name = "ICN 공항 주차"
     }
     object Tab {
         const val live = "실시간"
@@ -98,8 +98,8 @@ object Strings {
         const val remaining = "남은"
         fun ofTotal(cars: String): String = "/ 전체 ${cars}대"
         fun bandPercent(band: String, percent: String): String = "${band} · ${percent}%"
-        const val legendActual = "지난 3시간 실측"
-        const val legendForecast = "3시간 예상"
+        const val legendActual = "지난 2시간 실측"
+        const val legendForecast = "6시간 예상"
         const val legendLastWeek = "지난주 같은 시각"
         fun nowMarker(time: String): String = "지금 ${time}"
         fun explain(weeksAgo: String, weekday: String, date: String, diff: String): String = "${weeksAgo} ${weekday}(${date}) 같은 시각 흐름에 지금 차이(${diff}대)를 더한 참고 예상이에요."
@@ -107,7 +107,9 @@ object Strings {
         fun weeksAgo(weeks: String): String = "${weeks}주 전"
         const val explainGroup = "구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요."
         fun footerGroup(updated: String): String = "${updated} · 30분 간격"
-        fun a11yGraph(now: String, later: String): String = "지금 남은 ${now}대, 3시간 뒤 ${later}대 예상"
+        fun a11yGraph(now: String, later: String): String = "지금 남은 ${now}대, 6시간 뒤 ${later}대 예상"
+        const val timelineTitle = "시간대별 예상 남은 면수"
+        const val timelineNote = "앞 열이 선택한 곳이에요. 칸을 누르면 그 주차장을 봐요."
         fun footer(updated: String, date: String, weekday: String): String = "${updated} · 30분 간격 · 비교 주 ${date}(${weekday})"
         const val footerGroupSuffix = " · 운영 중단·현재값 없는 구역 제외"
     }
@@ -164,9 +166,21 @@ object Strings {
         const val affiliationBody = "인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요."
         const val forecastLimit = "예상의 한계"
         const val forecastLimitBody = "지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요."
-        const val openSource = "오픈소스"
+        const val openSource = "소스 코드 (GitHub)"
         const val openSourceLabel = "github.com/studydev/icn-parking"
         const val openSourceUrl = "https://github.com/studydev/icn-parking"
+        const val web = "웹에서 자세히 보기"
+        const val webBaseUrl = "https://icn.igotobook.com/"
+        const val webHome = "웹사이트 열기"
+        const val webHomeBody = "icn.igotobook.com · 실제 운영 중인 서비스"
+        const val webStatus = "주차장 현황·예측 그래프"
+        const val webStatusBody = "구역별 그래프, 비교 주, IGoTo 예측"
+        const val webHistory = "날짜별·기간별 기록"
+        const val webHistoryBody = "지난 기록을 날짜·기간으로 비교"
+        const val webShuttle = "터미널 이동·셔틀 노선도"
+        const val webShuttleBody = "노선도와 정류장별 시간표"
+        const val webFees = "주차요금 계산"
+        const val webFeesBody = "주차 기간·차종별 요금 계산"
         fun privacy(version: String): String = "로그인·위치 정보를 사용하지 않아요 · ${version}"
     }
     object Error {
@@ -175,18 +189,23 @@ object Strings {
         const val retry = "다시 시도"
     }
     object Widget {
-        const val galleryName = "ICN 주차"
-        const val galleryDescription = "터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상"
-        const val smallName = "ICN 주차"
+        const val galleryName = "ICN 공항 주차"
+        const val galleryDescription = "주차장 남은 면수와 30분 간격 참고 예상"
+        const val smallName = "주차장 남은 면수"
         const val smallDescription = "주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상"
-        const val mediumName = "ICN 주차 예상"
-        const val mediumDescription = "터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤"
+        const val mediumName = "3시간 예상 그래프"
+        const val mediumDescription = "주차장 한 곳의 30분 간격 3시간 예상 남은 면수"
+        const val largeName = "주차장별 예상"
+        const val largeDescription = "터미널 단기·장기 주차장별 지금과 1·2·3시간 뒤"
+        const val graphSubtitle = "3시간 예상 · 30분 간격"
+        const val tableSubtitle = "지금 · 1·2·3시간 뒤"
+        const val groupParameter = "주차장 묶음"
         const val configTitle = "위젯에 보여 줄 주차장"
         const val targetParameter = "주차장"
         const val terminalParameter = "터미널"
         const val inOneHourPrefix = "1시간 뒤"
         fun inOneHour(delta: String): String = "1시간 뒤 ${delta}대"
         fun updatedAgo(ago: String): String = "${ago} 기준"
-        fun mediumTitle(terminal: String): String = "${terminal} 주차 · 1·2·3시간 뒤"
+        const val total = "전체"
     }
 }

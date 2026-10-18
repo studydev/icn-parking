@@ -84,6 +84,11 @@ data class ShuttleRouteColor(
     fun soft(theme: ThemeMode): TokenColor = if (theme == ThemeMode.DARK) softDark else softLight
 }
 
+/** 히스토리 구역별 선 색(라이트·다크) */
+data class SeriesColor(private val light: TokenColor, private val dark: TokenColor) {
+    fun color(theme: ThemeMode): TokenColor = if (theme == ThemeMode.DARK) dark else light
+}
+
 data class Shadow(val x: Float, val y: Float, val blur: Float, val color: TokenColor)
 
 object Tokens {
@@ -166,6 +171,16 @@ object Tokens {
         "03" to ShuttleRouteColor(TokenColor(0xFFE8870BL), TokenColor(0xFFFCF1E2L), TokenColor(0xFF543815L)),
         "04" to ShuttleRouteColor(TokenColor(0xFF7C4DFFL), TokenColor(0xFFEFEAFFL), TokenColor(0xFF33275EL)),
         "05" to ShuttleRouteColor(TokenColor(0xFF5F6670L), TokenColor(0xFFECEDEEL), TokenColor(0xFF2B2E33L)),
+    )
+
+    /** 히스토리 구역별 선 색(순서 = 그룹 구역 순서) */
+    val series: List<SeriesColor> = listOf(
+        SeriesColor(TokenColor(0xFF2F6FEDL), TokenColor(0xFF7AA7FFL)),
+        SeriesColor(TokenColor(0xFF12A150L), TokenColor(0xFF34D17FL)),
+        SeriesColor(TokenColor(0xFFE8870BL), TokenColor(0xFFFFA94DL)),
+        SeriesColor(TokenColor(0xFF7C4DFFL), TokenColor(0xFFB197FCL)),
+        SeriesColor(TokenColor(0xFFD6336CL), TokenColor(0xFFF783ACL)),
+        SeriesColor(TokenColor(0xFF0B9FA8L), TokenColor(0xFF3BC9DBL)),
     )
 
     object Spacing {

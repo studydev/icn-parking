@@ -12,6 +12,7 @@ struct HistoryView: View {
             let ids = Self.zoneIds(model.terminal, model.historyGroup)
             let h = HistoryModel(days: s.days, zoneIds: ids, now: s.now, nDays: model.historyDays, holidays: s.holidays)
             let focus = h.lines.first { $0.id == model.historyFocus } ?? h.lines[0]
+            let colors = Self.colors(ids, theme)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
@@ -24,14 +25,14 @@ struct HistoryView: View {
                     if h.lines.count > 1 {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
-                                ForEach(h.lines) { line in chip(line, selected: line.id == focus.id) }
+                                ForEach(h.lines) { line in chip(line, selected: line.id == focus.id, color: colors[line.id] ?? theme.p.ink.color) }
                             }
                         }
                         .padding(.bottom, 8)
                     }
-                    HistoryChart(model: h, focusId: focus.id, unit: model.unit, nDays: model.historyDays, label: summaryText(focus, unit: model.unit))
+                    HistoryChart(model: h, focusId: focus.id, unit: model.unit, nDays: model.historyDays, label: summaryText(focus, unit: model.unit), colors: colors)
                     summary(focus, unit: model.unit)
-                    heatTable(h, focusId: focus.id, unit: model.unit)
+                    heatTable(h, focusId: focus.id, unit: model.unit, colors: colors)
                 }
                 .padding(.init(top: 6, leading: 16, bottom: 12, trailing: 16))
             }
@@ -39,20 +40,24 @@ struct HistoryView: View {
         }
     }
 
-    static func zoneIds(_ t: Terminal, _ g: ZoneGroup) -> [String] {
-        let layout = Zones.layout(t)
-        switch g {
-        case .short: return layout.floors
-        case .long: return layout.long
-        case .reserved: return [layout.reserved]
-        }
+    static func zoneIds(_ t: Terminal, _ g: ZoneGroup) -> [String] { Zones.layout(t).ids(g) }
+
+    /// 구역별 선 색(토큰 series, 그룹 구역 순서). 그룹 전체 = ink
+    static func colors(_ ids: [String], _ theme: Theme) -> [String: Color] {
+        var out = [HistoryModel.allId: theme.p.ink.color]
+        for (i, id) in ids.enumerated() { out[id] = Tokens.series[i % Tokens.series.count].color(theme.mode).color }
+        return out
     }
 
     static func name(_ id: String) -> String { id == HistoryModel.allId ? Strings.History.all : Zones.byId[id]?.shortName ?? id }
 
-    private func chip(_ line: HistoryModel.Line, selected: Bool) -> some View {
+    private func chip(_ line: HistoryModel.Line, selected: Bool, color: Color) -> some View {
         Button { model.historyFocus = line.id } label: {
-            Text(Self.name(line.id))
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                    .overlay(Circle().strokeBorder(theme.p.bg.color.opacity(selected ? 0.9 : 0), lineWidth: 1))
+                Text(Self.name(line.id))
+            }
                 .font(.system(size: 12.5, weight: .bold))
                 .foregroundStyle(selected ? theme.p.bg.color : theme.p.ink2.color)
                 .padding(.horizontal, 12)
@@ -78,7 +83,7 @@ struct HistoryView: View {
             .padding(.init(top: 6, leading: 2, bottom: 0, trailing: 2))
     }
 
-    private func heatTable(_ h: HistoryModel, focusId: String, unit: DisplayUnit) -> some View {
+    private func heatTable(_ h: HistoryModel, focusId: String, unit: DisplayUnit, colors: [String: Color]) -> some View {
         let n = h.dates.count, gap: CGFloat = n > 14 ? 1 : 2
         return VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
@@ -103,7 +108,7 @@ struct HistoryView: View {
                     HStack(spacing: gap) {
                         Text(Self.name(line.id))
                             .font(.system(size: 12, weight: line.id == focusId ? .heavy : .semibold))
-                            .foregroundStyle(line.id == focusId ? theme.p.ink.color : theme.p.muted.color)
+                            .foregroundStyle((colors[line.id] ?? theme.p.ink.color).opacity(line.id == focusId ? 1 : 0.75))
                             .lineLimit(1)
                             .frame(width: 46, alignment: .leading)
                         ForEach(Array(line.daily.enumerated()), id: \.offset) { i, d in
@@ -139,6 +144,8 @@ struct HistoryChart: View {
     let nDays: Int
     /// 그래프 대신 읽어 줄 요약
     let label: String
+    /// 선 색(HistoryView.colors)
+    let colors: [String: Color]
 
     private static let x0: CGFloat = 30, x1: CGFloat = 330, y0: CGFloat = 8, y1: CGFloat = 176
 
@@ -164,11 +171,14 @@ struct HistoryChart: View {
                         if occ {
                             ctx.stroke(line(Self.x0 * sx, Y(98), Self.x1 * sx, Y(98)), with: .color(theme.p.up.color), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
                         }
+                        // 강조 선은 굵게, 나머지는 같은 색으로 가늘고 옅게(전체 강조일 때는 구역 선을 또렷하게)
+                        let allFocused = focusId == HistoryModel.allId
                         for l in model.lines where l.id != focusId {
-                            ctx.stroke(path(l, X, Y, occ), with: .color(theme.p.faint.color.opacity(0.6)), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
+                            let color = colors[l.id] ?? theme.p.faint.color
+                            ctx.stroke(path(l, X, Y, occ), with: .color(color.opacity(allFocused ? 0.85 : 0.4)), style: StrokeStyle(lineWidth: 1.3, lineJoin: .round))
                         }
                         if let f = model.lines.first(where: { $0.id == focusId }) {
-                            ctx.stroke(path(f, X, Y, occ), with: .color(theme.p.ink.color), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                            ctx.stroke(path(f, X, Y, occ), with: .color(colors[f.id] ?? theme.p.ink.color), style: StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
                         }
                         ctx.stroke(line(Self.x1 * sx, Self.y0 * sy, Self.x1 * sx, Self.y1 * sy), with: .color(theme.p.ink.color), lineWidth: 1.2)
                     }

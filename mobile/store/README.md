@@ -1,6 +1,6 @@
 # 출시 준비
 
-앱 이름 **ICN 주차** · iOS 번들 ID `com.studydev.icnparking`(위젯 `.widget`) · Android 패키지 `com.studydev.icnparking` · 버전 1.0.0 (1)
+앱 이름 **ICN 공항 주차** · iOS 번들 ID `com.studydev.icnparking`(위젯 `.widget`) · Android 패키지 `com.studydev.icnparking` · 버전 1.0.0 (1)
 
 ## 지금 끝난 것
 

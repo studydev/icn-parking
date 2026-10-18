@@ -26,18 +26,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.studydev.icnparking.core.generated.Strings
 import com.studydev.icnparking.core.generated.Terminal
 import com.studydev.icnparking.core.generated.Tokens
+import com.studydev.icnparking.core.generated.ZoneGroup
+import com.studydev.icnparking.core.presentation.SheetTarget
 import com.studydev.icnparking.core.presentation.SheetTargets
 import com.studydev.icnparking.core.presentation.id
 import com.studydev.icnparking.core.presentation.title
 import kotlinx.coroutines.launch
 
-/** 위젯을 놓을 때·길게 눌러 다시 설정할 때: 소 = 주차장 한 곳, 중 = 터미널 */
+/** 위젯을 놓을 때·길게 눌러 다시 설정할 때: 소·중 = 주차장 한 곳(T1·T2 전체·묶음·19개 주차장), 대 = 터미널 × 묶음 */
 class ParkingWidgetConfigActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,9 +48,15 @@ class ParkingWidgetConfigActivity : ComponentActivity() {
         val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         setResult(Activity.RESULT_CANCELED, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return }
-        val medium = AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className == MediumParkingWidgetReceiver::class.java.name
+        val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className
+        val large = provider == TableParkingWidgetReceiver::class.java.name
+        val widget: GlanceAppWidget = when (provider) {
+            TableParkingWidgetReceiver::class.java.name -> TableParkingWidget()
+            GraphParkingWidgetReceiver::class.java.name -> GraphParkingWidget()
+            else -> SmallParkingWidget()
+        }
         val choices: List<Pair<String, String>> =
-            if (medium) Terminal.entries.map { it.code to if (it == Terminal.T1) Strings.Header.terminal1Long else Strings.Header.terminal2Long }
+            if (large) Terminal.entries.flatMap { t -> ZoneGroup.entries.map { g -> SheetTarget.Group(t, g) } }.map { it.id to it.title }
             else SheetTargets.widgetChoices.map { it.id to it.title }
 
         setContent {
@@ -57,7 +66,7 @@ class ParkingWidgetConfigActivity : ComponentActivity() {
             LazyColumn(Modifier.fillMaxSize().background(Color(p.bg.argb)).safeDrawingPadding()) {
                 item {
                     Text(
-                        if (medium) Strings.Widget.terminalParameter else Strings.Widget.configTitle,
+                        if (large) "${Strings.Widget.terminalParameter} · ${Strings.Widget.groupParameter}" else Strings.Widget.configTitle,
                         fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(p.ink.argb), modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                     )
                 }
@@ -69,7 +78,7 @@ class ParkingWidgetConfigActivity : ComponentActivity() {
                                 updateAppWidgetState(this@ParkingWidgetConfigActivity, PreferencesGlanceStateDefinition, glanceId) { prefs ->
                                     prefs.toMutablePreferences().apply { this[WidgetConfigKey] = value }
                                 }
-                                (if (medium) MediumParkingWidget() else SmallParkingWidget()).update(this@ParkingWidgetConfigActivity, glanceId)
+                                widget.update(this@ParkingWidgetConfigActivity, glanceId)
                                 WidgetRefresh.schedule(this@ParkingWidgetConfigActivity)
                                 setResult(Activity.RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
                                 finish()

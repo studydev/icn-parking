@@ -1,12 +1,12 @@
 // 앱 계산의 참조 구현. web/app.js forecastOf·nowAgg·capacityPredictionIssue를 그대로 옮기고 두 가지만 바꿨다.
-//  1) 예측 칸 위치를 cellSlots로 받는다(웹 = 정시 1시간 칸 webCells, 앱 = 지금 + 30분씩 appCells).
+//  1) 예측 칸 위치를 cellSlots로 받는다(웹 = 정시 1시간 6칸 webCells, 앱 = 지금 + 30분씩 12칸(6시간) appCells).
 //  2) 지표(avail/occ)와 무관하게 주차 대수(parking)로 내고 available·occupancy를 함께 준다. 앱은 100% 초과 표시가 없어 over=false.
 // scripts/fixtures.mjs가 webCells 결과를 실제 웹 출력과 대조한 뒤 appCells 결과를 앱 테스트 기대값으로 쓴다.
 export const DAY = 288;
 export const addDays = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 export const slotRange = (date, i) => ({ date: addDays(date, Math.floor(i / DAY)), slot: ((i % DAY) + DAY) % DAY });
 export const webCells = idx => Array.from({ length: 6 }, (_, k) => (Math.floor(idx / 12) + 1 + k) * 12);
-export const appCells = idx => Array.from({ length: 6 }, (_, k) => idx + 6 * (k + 1));
+export const appCells = idx => Array.from({ length: 12 }, (_, k) => idx + 6 * (k + 1));
 const available = (parking, capacity) => Math.max(capacity - parking, 0);
 const occupancy = (parking, capacity) => Math.min(parking / capacity, 1);
 
@@ -86,7 +86,8 @@ export function groupNow(latestZones, zoneIds) {
 export function groupForecast(latestZones, zoneIds, results) {
   const now = groupNow(latestZones, zoneIds);
   const hasForecast = now.included.some(id => results[id].ok);
-  const cells = hasForecast ? Array.from({ length: 6 }, (_, k) => {
+  const n = Math.max(0, ...now.included.map(id => results[id].ok ? results[id].cells.length : 0));
+  const cells = hasForecast ? Array.from({ length: n }, (_, k) => {
     let sum = 0;
     for (const id of now.included) {
       const x = latestZones.find(z => z.id === id), r = results[id], cell = r.ok ? r.cells[k] : null;

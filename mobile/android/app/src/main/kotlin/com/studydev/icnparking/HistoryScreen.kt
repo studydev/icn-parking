@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -38,16 +40,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.studydev.icnparking.core.generated.Strings
 import com.studydev.icnparking.core.generated.Terminal
+import com.studydev.icnparking.core.generated.Tokens
 import com.studydev.icnparking.core.generated.ZoneGroup
 import com.studydev.icnparking.core.generated.Zones
 import com.studydev.icnparking.core.presentation.HistoryModel
 import com.studydev.icnparking.core.presentation.NumberText
+import com.studydev.icnparking.core.presentation.ids
 import com.studydev.icnparking.core.settings.DisplayUnit
 import com.studydev.icnparking.core.time.LocalDates
 import kotlin.math.ceil
@@ -67,6 +72,7 @@ fun HistoryScreen(state: AppViewModel.UiState, model: AppViewModel) {
         state.snapshot?.let { HistoryModel(it.days, ids, it.now, state.historyDays, it.holidays) }
     } ?: return
     val focus = h.lines.firstOrNull { it.id == state.historyFocus } ?: h.lines.first()
+    val colors = historyColors(ids, theme)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Segmented(listOf(7, 14, 30).map { it to Strings.History.days(it.toString()) }, state.historyDays, model::setHistoryDays)
@@ -79,7 +85,12 @@ fun HistoryScreen(state: AppViewModel.UiState, model: AppViewModel) {
                     Box(
                         Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(if (on) theme.p.ink.toColor() else theme.p.chip.toColor()).clickable { model.setHistoryFocus(line.id) }.padding(horizontal = 12.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text(historyName(line.id), style = style(12.5f, FontWeight.Bold, if (on) theme.p.bg.toColor() else theme.p.ink2.toColor())) }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(colors.getValue(line.id)))
+                            Text(historyName(line.id), style = style(12.5f, FontWeight.Bold, if (on) theme.p.bg.toColor() else theme.p.ink2.toColor()))
+                        }
+                    }
                 }
             }
         }
@@ -90,24 +101,21 @@ fun HistoryScreen(state: AppViewModel.UiState, model: AppViewModel) {
             state.unit == DisplayUnit.OCCUPANCY -> Strings.History.summaryOccupancy(name, NumberText.percent(st.averageOccupancy), NumberText.percent(st.maxOccupancy), st.fullHours.toString())
             else -> Strings.History.summaryAvailable(name, NumberText.grouped(st.averageAvailable), NumberText.grouped(st.minAvailable), st.fullHours.toString())
         }
-        HistoryChart(h, focus.id, state.unit, state.historyDays, summary)
+        HistoryChart(h, focus.id, state.unit, state.historyDays, summary, colors)
         Text(
             summary,
             style = style(12.5f, FontWeight.SemiBold, theme.p.ink2.toColor(), tabular = true),
             modifier = Modifier.padding(start = 2.dp, end = 2.dp, top = 6.dp),
         )
-        HeatTable(h, focus.id, state.unit, model::setHistoryFocus)
+        HeatTable(h, focus.id, state.unit, colors, model::setHistoryFocus)
     }
 }
 
-fun historyZoneIds(t: Terminal, g: ZoneGroup): List<String> {
-    val layout = Zones.layout(t)
-    return when (g) {
-        ZoneGroup.SHORT -> layout.floors
-        ZoneGroup.LONG -> layout.long
-        ZoneGroup.RESERVED -> listOf(layout.reserved)
-    }
-}
+fun historyZoneIds(t: Terminal, g: ZoneGroup): List<String> = Zones.layout(t).ids(g)
+
+/** 구역별 선 색(토큰 series, 그룹 구역 순서). 그룹 전체 = ink */
+fun historyColors(ids: List<String>, theme: Theme): Map<String, Color> =
+    mapOf(HistoryModel.ALL_ID to theme.p.ink.toColor()) + ids.mapIndexed { i, id -> id to Tokens.series[i % Tokens.series.size].color(theme.mode).toColor() }
 
 fun historyName(id: String): String = if (id == HistoryModel.ALL_ID) Strings.History.all else Zones.byId[id]?.shortName ?: id
 
@@ -135,7 +143,7 @@ private fun nice(v: Double): Double {
 
 /** 디자인 좌표(334×184, 플롯 x 30~330 · y 8~176)를 폭에 맞춰 그린다 */
 @Composable
-private fun HistoryChart(h: HistoryModel, focusId: String, unit: DisplayUnit, nDays: Int, label: String) {
+private fun HistoryChart(h: HistoryModel, focusId: String, unit: DisplayUnit, nDays: Int, label: String, colors: Map<String, Color>) {
     val theme = LocalTheme.current
     val occ = unit == DisplayUnit.OCCUPANCY
     val n = h.points.size - 1
@@ -173,8 +181,12 @@ private fun HistoryChart(h: HistoryModel, focusId: String, unit: DisplayUnit, nD
                             if (drawing) lineTo(px, py) else { moveTo(px, py); drawing = true }
                         }
                     }
-                    h.lines.filter { it.id != focusId }.forEach { drawPath(path(it), faint.copy(alpha = 0.6f), style = Stroke(1.dp.toPx(), join = StrokeJoin.Round)) }
-                    h.lines.firstOrNull { it.id == focusId }?.let { drawPath(path(it), ink, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)) }
+                    // 강조 선은 굵게, 나머지는 같은 색으로 가늘고 옅게(전체 강조일 때는 구역 선을 또렷하게)
+                    val allFocused = focusId == HistoryModel.ALL_ID
+                    h.lines.filter { it.id != focusId }.forEach {
+                        drawPath(path(it), (colors[it.id] ?: faint).copy(alpha = if (allFocused) 0.85f else 0.4f), style = Stroke(1.3.dp.toPx(), join = StrokeJoin.Round))
+                    }
+                    h.lines.firstOrNull { it.id == focusId }?.let { drawPath(path(it), colors[it.id] ?: ink, style = Stroke(2.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)) }
                     drawLine(ink, Offset(330f * k, 8f * ky), Offset(330f * k, 176f * ky), 1.2.dp.toPx())
                 }
                 listOf(0.0, 0.5, 1.0).forEach { f ->
@@ -218,7 +230,7 @@ private fun HistoryChart(h: HistoryModel, focusId: String, unit: DisplayUnit, nD
 }
 
 @Composable
-private fun HeatTable(h: HistoryModel, focusId: String, unit: DisplayUnit, onFocus: (String) -> Unit) {
+private fun HeatTable(h: HistoryModel, focusId: String, unit: DisplayUnit, colors: Map<String, Color>, onFocus: (String) -> Unit) {
     val theme = LocalTheme.current
     val n = h.dates.size
     val gap = if (n > 14) 1.dp else 2.dp
@@ -242,7 +254,7 @@ private fun HeatTable(h: HistoryModel, focusId: String, unit: DisplayUnit, onFoc
             val on = line.id == focusId
             Row(Modifier.padding(top = 3.dp).height(24.dp).clickable { onFocus(line.id) }, horizontalArrangement = Arrangement.spacedBy(gap)) {
                 Box(Modifier.width(46.dp).fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
-                    Text(historyName(line.id), style = style(12f, if (on) FontWeight.ExtraBold else FontWeight.SemiBold, if (on) theme.p.ink.toColor() else theme.p.muted.toColor()), maxLines = 1)
+                    Text(historyName(line.id), style = style(12f, if (on) FontWeight.ExtraBold else FontWeight.SemiBold, (colors[line.id] ?: theme.p.ink.toColor()).copy(alpha = if (on) 1f else 0.75f)), maxLines = 1)
                 }
                 line.daily.forEachIndexed { i, d ->
                     val date = NumberText.monthDay(h.dates[i].date)

@@ -3,7 +3,7 @@
 
 public enum Strings {
     public enum App {
-        public static let name = "ICN 주차"
+        public static let name = "ICN 공항 주차"
     }
     public enum Tab {
         public static let live = "실시간"
@@ -97,8 +97,8 @@ public enum Strings {
         public static let remaining = "남은"
         public static func ofTotal(cars: String) -> String { "/ 전체 \(cars)대" }
         public static func bandPercent(band: String, percent: String) -> String { "\(band) · \(percent)%" }
-        public static let legendActual = "지난 3시간 실측"
-        public static let legendForecast = "3시간 예상"
+        public static let legendActual = "지난 2시간 실측"
+        public static let legendForecast = "6시간 예상"
         public static let legendLastWeek = "지난주 같은 시각"
         public static func nowMarker(time: String) -> String { "지금 \(time)" }
         public static func explain(weeksAgo: String, weekday: String, date: String, diff: String) -> String { "\(weeksAgo) \(weekday)(\(date)) 같은 시각 흐름에 지금 차이(\(diff)대)를 더한 참고 예상이에요." }
@@ -106,7 +106,9 @@ public enum Strings {
         public static func weeksAgo(weeks: String) -> String { "\(weeks)주 전" }
         public static let explainGroup = "구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요."
         public static func footerGroup(updated: String) -> String { "\(updated) · 30분 간격" }
-        public static func a11yGraph(now: String, later: String) -> String { "지금 남은 \(now)대, 3시간 뒤 \(later)대 예상" }
+        public static func a11yGraph(now: String, later: String) -> String { "지금 남은 \(now)대, 6시간 뒤 \(later)대 예상" }
+        public static let timelineTitle = "시간대별 예상 남은 면수"
+        public static let timelineNote = "앞 열이 선택한 곳이에요. 칸을 누르면 그 주차장을 봐요."
         public static func footer(updated: String, date: String, weekday: String) -> String { "\(updated) · 30분 간격 · 비교 주 \(date)(\(weekday))" }
         public static let footerGroupSuffix = " · 운영 중단·현재값 없는 구역 제외"
     }
@@ -163,9 +165,21 @@ public enum Strings {
         public static let affiliationBody = "인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요."
         public static let forecastLimit = "예상의 한계"
         public static let forecastLimitBody = "지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요."
-        public static let openSource = "오픈소스"
+        public static let openSource = "소스 코드 (GitHub)"
         public static let openSourceLabel = "github.com/studydev/icn-parking"
         public static let openSourceUrl = "https://github.com/studydev/icn-parking"
+        public static let web = "웹에서 자세히 보기"
+        public static let webBaseUrl = "https://icn.igotobook.com/"
+        public static let webHome = "웹사이트 열기"
+        public static let webHomeBody = "icn.igotobook.com · 실제 운영 중인 서비스"
+        public static let webStatus = "주차장 현황·예측 그래프"
+        public static let webStatusBody = "구역별 그래프, 비교 주, IGoTo 예측"
+        public static let webHistory = "날짜별·기간별 기록"
+        public static let webHistoryBody = "지난 기록을 날짜·기간으로 비교"
+        public static let webShuttle = "터미널 이동·셔틀 노선도"
+        public static let webShuttleBody = "노선도와 정류장별 시간표"
+        public static let webFees = "주차요금 계산"
+        public static let webFeesBody = "주차 기간·차종별 요금 계산"
         public static func privacy(version: String) -> String { "로그인·위치 정보를 사용하지 않아요 · \(version)" }
     }
     public enum Error {
@@ -174,18 +188,23 @@ public enum Strings {
         public static let retry = "다시 시도"
     }
     public enum Widget {
-        public static let galleryName = "ICN 주차"
-        public static let galleryDescription = "터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상"
-        public static let smallName = "ICN 주차"
+        public static let galleryName = "ICN 공항 주차"
+        public static let galleryDescription = "주차장 남은 면수와 30분 간격 참고 예상"
+        public static let smallName = "주차장 남은 면수"
         public static let smallDescription = "주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상"
-        public static let mediumName = "ICN 주차 예상"
-        public static let mediumDescription = "터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤"
+        public static let mediumName = "3시간 예상 그래프"
+        public static let mediumDescription = "주차장 한 곳의 30분 간격 3시간 예상 남은 면수"
+        public static let largeName = "주차장별 예상"
+        public static let largeDescription = "터미널 단기·장기 주차장별 지금과 1·2·3시간 뒤"
+        public static let graphSubtitle = "3시간 예상 · 30분 간격"
+        public static let tableSubtitle = "지금 · 1·2·3시간 뒤"
+        public static let groupParameter = "주차장 묶음"
         public static let configTitle = "위젯에 보여 줄 주차장"
         public static let targetParameter = "주차장"
         public static let terminalParameter = "터미널"
         public static let inOneHourPrefix = "1시간 뒤"
         public static func inOneHour(delta: String) -> String { "1시간 뒤 \(delta)대" }
         public static func updatedAgo(ago: String) -> String { "\(ago) 기준" }
-        public static func mediumTitle(terminal: String) -> String { "\(terminal) 주차 · 1·2·3시간 뒤" }
+        public static let total = "전체"
     }
 }

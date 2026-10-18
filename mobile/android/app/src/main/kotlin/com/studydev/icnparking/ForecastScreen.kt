@@ -1,6 +1,9 @@
 package com.studydev.icnparking
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,13 +37,15 @@ import com.studydev.icnparking.core.presentation.NumberText
 import com.studydev.icnparking.core.settings.DisplayUnit
 import com.studydev.icnparking.core.time.SlotTime
 
-/** 예측(디자인 5d/5f/5h/5k/5o): 열 50 | 1.15fr | 1fr×6, 간격 3, 행 높이 최대 52 */
+/** 예측(디자인 5d/5f/5h/5k/5o): 이름 50 | 지금 62는 고정, 30분 × 12칸(6시간, 칸 48)은 가로로 넘긴다. 간격 3, 행 높이 최대 52 */
 @Composable
 fun ForecastScreen(state: AppViewModel.UiState, model: AppViewModel) {
     val theme = LocalTheme.current
     val table = remember(state.latest, state.days, state.now, state.terminal) { state.snapshot?.let { ForecastTable(it, state.terminal) } } ?: return
     BoxWithConstraints(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp)) {
-        val cols = Columns(maxWidth)
+        val cols = Columns
+        // 모든 행이 같은 가로 스크롤 상태를 써서 함께 넘어간다
+        val hscroll = rememberScrollState()
         val rowCount = table.items.count { it is ForecastTableItem.Row }
         val labelCount = table.items.size - rowCount
         val rowHeight = ((maxHeight - 26.dp - 32.dp * labelCount - 2.dp) / rowCount).coerceIn(30.dp, 52.dp)
@@ -48,13 +53,15 @@ fun ForecastScreen(state: AppViewModel.UiState, model: AppViewModel) {
             Row(Modifier.height(26.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(cols.name))
                 Text(Strings.Forecast.now, style = style(12f, FontWeight.ExtraBold, theme.p.ink.toColor()), textAlign = TextAlign.Center, modifier = Modifier.width(cols.now))
-                table.times.forEach { Text(it.label, style = style(12f, FontWeight.SemiBold, theme.p.muted.toColor(), tabular = true), textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(cols.cell)) }
+                Row(Modifier.weight(1f).horizontalScroll(hscroll), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    table.times.forEach { Text(it.label, style = style(12f, FontWeight.SemiBold, theme.p.muted.toColor(), tabular = true), textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.width(cols.cell)) }
+                }
             }
             table.items.forEach { item ->
                 when (item) {
                     is ForecastTableItem.Label -> Text(item.text, style = style(12f, FontWeight.Bold, theme.p.ink2.toColor()), modifier = Modifier.padding(start = 2.dp, end = 2.dp, top = 12.dp, bottom = 4.dp))
                     is ForecastTableItem.Row -> ForecastRowView(
-                        item.row, table.times, cols, state.unit, state.settings.showDelta,
+                        item.row, table.times, cols, hscroll, state.unit, state.settings.showDelta,
                         Modifier.height(rowHeight).padding(bottom = if (item.row.isTotal) 2.dp else 0.dp).clickable { model.openSheet(item.row.target) },
                     )
                 }
@@ -63,16 +70,16 @@ fun ForecastScreen(state: AppViewModel.UiState, model: AppViewModel) {
     }
 }
 
-/** 열 너비: 50 | 1.15fr | 1fr × 6, 간격 3 */
-class Columns(width: Dp) {
+/** 열 너비: 이름 50 | 지금 62 | 칸 48 × 12, 간격 3 */
+object Columns {
     val name = 50.dp
-    private val unit = ((width - 50.dp - 3.dp * 7) / 7.15f).coerceAtLeast(0.dp)
-    val now = unit * 1.15f
-    val cell = unit
+    val now = 62.dp
+    val cell = 48.dp
+    fun cells(count: Int): Dp = cell * count + 3.dp * (count - 1)
 }
 
 @Composable
-private fun ForecastRowView(row: ForecastRow, times: List<SlotTime>, cols: Columns, unit: DisplayUnit, showDelta: Boolean, modifier: Modifier) {
+private fun ForecastRowView(row: ForecastRow, times: List<SlotTime>, cols: Columns, hscroll: ScrollState, unit: DisplayUnit, showDelta: Boolean, modifier: Modifier) {
     val theme = LocalTheme.current
     val occ = unit == DisplayUnit.OCCUPANCY
     val shape = RoundedCornerShape(6.dp)
@@ -89,8 +96,10 @@ private fun ForecastRowView(row: ForecastRow, times: List<SlotTime>, cols: Colum
             Text(now?.text(unit) ?: "—", style = style(if (occ) 13.5f else 14.5f, FontWeight.ExtraBold, if (now == null) theme.p.muted.toColor() else theme.p.ink.toColor(), tabular = true).copy(letterSpacing = fs(-0.5f)), maxLines = 1)
         }
         val reason = row.reason
+        Row(Modifier.weight(1f).fillMaxHeight().horizontalScroll(hscroll), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         if (reason != null) {
-            Box(Modifier.weight(1f).fillMaxHeight().clip(shape).background(theme.p.chip.toColor()), contentAlignment = Alignment.Center) {
+            // 사유는 처음 보이는 칸에 맞춰 왼쪽 정렬
+            Box(Modifier.width(cols.cells(times.size)).fillMaxHeight().clip(shape).background(theme.p.chip.toColor()).padding(start = 12.dp), contentAlignment = Alignment.CenterStart) {
                 Text(reason.text, style = style(12f, FontWeight.SemiBold, theme.p.muted.toColor()), maxLines = 1)
             }
         } else if (now != null) {
@@ -107,6 +116,7 @@ private fun ForecastRowView(row: ForecastRow, times: List<SlotTime>, cols: Colum
                     if (showDelta) Text(NumberText.delta(d), style = style(9.5f, FontWeight.Bold, theme.deltaColor(d), tabular = true), maxLines = 1)
                 }
             }
+        }
         }
     }
 }

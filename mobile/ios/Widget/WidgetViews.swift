@@ -1,9 +1,9 @@
 import ICNParkingCore
 import SwiftUI
 
-// 위젯 화면(디자인 5m). 위젯 확장과 앱(디버그 미리보기)이 함께 쓴다.
+// 위젯 화면. 위젯 확장과 앱(디버그 미리보기)이 함께 쓴다.
 
-/// 소: 이름 · 숫자 34/700 · 점유율 막대(5pt, 상태색) · "1시간 뒤 ▲N대" · "2분 전 기준"
+/// 소: 이름 · 숫자 34/700 · 점유율 막대(5pt, 상태색) · "1시간 뒤 ▲N대" · "2분 전 기준"(디자인 5m)
 struct SmallWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
     let model: SmallWidgetModel?
@@ -40,9 +40,7 @@ struct SmallWidgetView: View {
                 }
                 Text(m.ago).font(.system(size: 11)).foregroundStyle(theme.p.faint.color).padding(.top, 2)
             } else {
-                Text(Strings.Widget.smallName).font(.system(size: 13, weight: .bold))
-                Spacer(minLength: 0)
-                Text(Strings.Error.unavailable).font(.system(size: 12)).foregroundStyle(theme.p.muted.color)
+                Unavailable(title: Strings.Widget.smallName)
             }
         }
         .foregroundStyle(theme.p.ink.color)
@@ -51,54 +49,148 @@ struct SmallWidgetView: View {
     }
 }
 
-/// 중: 터미널 단기·장기 2행 × (지금 + 1·2·3시간 뒤 3칸, 배경 tint)
-struct MediumWidgetView: View {
+/// 중: 주차장 한 곳의 3시간 그래프. 지금 + 30분 점 6개, 점마다 남은 대수
+struct GraphWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
-    let model: MediumWidgetModel?
+    let model: GraphWidgetModel?
 
     var body: some View {
         let theme = Theme(mode: colorScheme == .dark ? .dark : .light)
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             if let m = model {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(m.title).font(.system(size: 13, weight: .bold)).lineLimit(1)
+                    Text(Strings.Widget.graphSubtitle).font(.system(size: 11)).foregroundStyle(theme.p.muted.color).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(m.ago).font(.system(size: 11)).foregroundStyle(theme.p.faint.color)
+                    Text(m.ago).font(.system(size: 11)).foregroundStyle(theme.p.faint.color).lineLimit(1)
                 }
-                ForEach(m.rows, id: \.name) { row in
-                    HStack(spacing: 5) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(row.name).font(.system(size: 12)).foregroundStyle(theme.p.muted.color).lineLimit(1)
-                            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                                Text(row.available.map { NumberText.grouped($0) } ?? "—").font(.num(20, .bold)).tracking(-0.4)
-                                Text(Strings.Unit.cars).font(.system(size: 12, weight: .semibold))
-                            }
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        }
-                        .frame(width: 92, alignment: .leading)
-                        ForEach(row.cells, id: \.time) { c in
-                            VStack(spacing: 1) {
-                                Text(c.time).font(.num(9.5, .regular)).foregroundStyle(theme.p.ink2.color)
-                                Text(NumberText.grouped(c.available)).font(.num(14, .bold))
-                                Text(NumberText.delta(c.delta)).font(.num(9.5, .bold)).foregroundStyle(theme.deltaColor(c.delta))
-                            }
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 7).fill(theme.tint(c.occupancy)))
-                        }
-                    }
-                    .frame(maxHeight: .infinity)
-                }
+                WidgetGraph(points: m.points, theme: theme)
             } else {
-                Text(Strings.Widget.mediumName).font(.system(size: 13, weight: .bold))
-                Spacer(minLength: 0)
-                Text(Strings.Error.unavailable).font(.system(size: 12)).foregroundStyle(theme.p.muted.color)
+                Unavailable(title: Strings.Widget.mediumName)
             }
         }
         .foregroundStyle(theme.p.ink.color)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(model.map { m in ([m.title] + m.points.map { "\($0.label) \($0.available.map { NumberText.grouped($0) + Strings.Unit.cars } ?? "—")" }).joined(separator: ", ") } ?? Strings.Error.unavailable)
+    }
+}
+
+/// 위젯 그래프: 선 + 점 + 점 위 숫자 + 아래 시각. 변화가 보이도록 최소~최대 범위로 그린다
+struct WidgetGraph: View {
+    let points: [GraphWidgetModel.Point]
+    let theme: Theme
+
+    var body: some View {
+        Canvas { ctx, size in
+            let values = points.compactMap(\.available).map(Double.init)
+            guard let lo0 = values.min(), let hi0 = values.max() else { return }
+            let span = max(hi0 - lo0, max(hi0 * 0.05, 4))
+            let lo = lo0 - span * 0.25, hi = hi0 + span * 0.35
+            let top: CGFloat = 16, bottom: CGFloat = 16
+            let n = max(points.count - 1, 1)
+            let x = { (i: Int) in 14 + CGFloat(i) / CGFloat(n) * (size.width - 28) }
+            let y = { (v: Double) in top + (size.height - top - bottom) * (1 - CGFloat((v - lo) / (hi - lo))) }
+            var path = Path(), started = false
+            for (i, p) in points.enumerated() {
+                guard let a = p.available else { started = false; continue }
+                let pt = CGPoint(x: x(i), y: y(Double(a)))
+                if started { path.addLine(to: pt) } else { path.move(to: pt); started = true }
+            }
+            ctx.stroke(path, with: .color(theme.p.tint.color), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            for (i, p) in points.enumerated() {
+                let now = i == 0
+                let color = now ? theme.p.ink.color : theme.p.tint.color
+                if let a = p.available {
+                    let c = CGPoint(x: x(i), y: y(Double(a)))
+                    let r: CGFloat = now ? 4 : 3
+                    ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(p.occupancy.map { OccupancyBand.of($0).color.color } ?? color))
+                    // 숫자가 위젯 가장자리에서 잘리지 않게 안쪽으로 민다
+                    let text = ctx.resolve(Text(NumberText.grouped(a)).font(.num(now ? 12 : 10.5, .bold)).foregroundColor(color))
+                    let w = text.measure(in: size).width
+                    ctx.draw(text, at: CGPoint(x: min(max(c.x, w / 2), size.width - w / 2), y: c.y - 6), anchor: .bottom)
+                }
+                ctx.draw(Text(p.label).font(.num(9.5, now ? .bold : .regular)).foregroundColor(now ? theme.p.ink.color : theme.p.muted.color),
+                         at: CGPoint(x: x(i), y: size.height - 6), anchor: .center)
+            }
+        }
+    }
+}
+
+/// 대: 묶음 전체 + 주차장별 행 × (지금 + 1·2·3시간 뒤, 배경 tint)
+struct TableWidgetView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let model: TableWidgetModel?
+
+    var body: some View {
+        let theme = Theme(mode: colorScheme == .dark ? .dark : .light)
+        VStack(alignment: .leading, spacing: 6) {
+            if let m = model {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(m.title).font(.system(size: 14, weight: .bold)).lineLimit(1)
+                    Text(Strings.Widget.tableSubtitle).font(.system(size: 11)).foregroundStyle(theme.p.muted.color).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(m.ago).font(.system(size: 11)).foregroundStyle(theme.p.faint.color).lineLimit(1)
+                }
+                HStack(spacing: 5) {
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    Text(Strings.Forecast.now).frame(width: 58)
+                    ForEach(m.times, id: \.self) { Text($0).frame(maxWidth: .infinity) }
+                }
+                .font(.num(10.5, .semibold))
+                .foregroundStyle(theme.p.muted.color)
+                ForEach(Array(m.rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 5) {
+                        Text(row.name)
+                            .font(.system(size: 13, weight: row.isTotal ? .heavy : .semibold))
+                            .foregroundStyle(theme.p.ink2.color)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Group {
+                            if let a = row.available { Text(NumberText.grouped(a)).font(.num(16, .heavy)) }
+                            else { Text(row.word ?? "—").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.p.muted.color) }
+                        }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(width: 58)
+                        if row.cells.isEmpty {
+                            Text("—").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.p.muted.color)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(RoundedRectangle(cornerRadius: 7).fill(theme.p.chip.color))
+                        } else {
+                            ForEach(Array(row.cells.enumerated()), id: \.offset) { _, c in
+                                VStack(spacing: 0) {
+                                    Text(NumberText.grouped(c.available)).font(.num(13, .bold))
+                                    Text(NumberText.delta(c.delta)).font(.num(9, .bold)).foregroundStyle(theme.deltaColor(c.delta))
+                                }
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(RoundedRectangle(cornerRadius: 7).fill(theme.tint(c.occupancy)))
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 44)
+                }
+                Spacer(minLength: 0)
+            } else {
+                Unavailable(title: Strings.Widget.largeName)
+            }
+        }
+        .foregroundStyle(theme.p.ink.color)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct Unavailable: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let title: String
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(title).font(.system(size: 13, weight: .bold))
+            Spacer(minLength: 0)
+            Text(Strings.Error.unavailable).font(.system(size: 12)).foregroundStyle(Theme(mode: colorScheme == .dark ? .dark : .light).p.muted.color)
+        }
     }
 }

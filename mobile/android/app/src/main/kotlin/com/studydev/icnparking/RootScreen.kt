@@ -137,7 +137,7 @@ fun RootScreen(model: AppViewModel) {
             containerColor = theme.p.sheet.toColor(),
             scrimColor = theme.p.scrim.toColor(),
         ) {
-            SheetContent(target, state) { model.openSheet(null) }
+            SheetContent(target, state, onSelect = { model.openSheet(it) }) { model.openSheet(null) }
         }
     }
 }

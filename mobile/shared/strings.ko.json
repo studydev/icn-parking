@@ -1,7 +1,7 @@
 {
   "$comment": "화면 문구(mobile/design/README.md · ICN Parking App v5.dc.html). {name}은 생성 코드에서 String 매개변수가 된다. 숫자·시각 서식은 호출하는 쪽에서 맞춘다.",
   "app": {
-    "name": "ICN 주차"
+    "name": "ICN 공항 주차"
   },
   "tab": {
     "live": "실시간",
@@ -95,8 +95,8 @@
     "remaining": "남은",
     "ofTotal": "/ 전체 {cars}대",
     "bandPercent": "{band} · {percent}%",
-    "legendActual": "지난 3시간 실측",
-    "legendForecast": "3시간 예상",
+    "legendActual": "지난 2시간 실측",
+    "legendForecast": "6시간 예상",
     "legendLastWeek": "지난주 같은 시각",
     "nowMarker": "지금 {time}",
     "explain": "{weeksAgo} {weekday}({date}) 같은 시각 흐름에 지금 차이({diff}대)를 더한 참고 예상이에요.",
@@ -104,7 +104,9 @@
     "weeksAgo": "{weeks}주 전",
     "explainGroup": "구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요.",
     "footerGroup": "{updated} · 30분 간격",
-    "a11yGraph": "지금 남은 {now}대, 3시간 뒤 {later}대 예상",
+    "a11yGraph": "지금 남은 {now}대, 6시간 뒤 {later}대 예상",
+    "timelineTitle": "시간대별 예상 남은 면수",
+    "timelineNote": "앞 열이 선택한 곳이에요. 칸을 누르면 그 주차장을 봐요.",
     "footer": "{updated} · 30분 간격 · 비교 주 {date}({weekday})",
     "footerGroupSuffix": " · 운영 중단·현재값 없는 구역 제외"
   },
@@ -161,9 +163,21 @@
     "affiliationBody": "인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요.",
     "forecastLimit": "예상의 한계",
     "forecastLimitBody": "지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요.",
-    "openSource": "오픈소스",
+    "openSource": "소스 코드 (GitHub)",
     "openSourceLabel": "github.com/studydev/icn-parking",
     "openSourceUrl": "https://github.com/studydev/icn-parking",
+    "web": "웹에서 자세히 보기",
+    "webBaseUrl": "https://icn.igotobook.com/",
+    "webHome": "웹사이트 열기",
+    "webHomeBody": "icn.igotobook.com · 실제 운영 중인 서비스",
+    "webStatus": "주차장 현황·예측 그래프",
+    "webStatusBody": "구역별 그래프, 비교 주, IGoTo 예측",
+    "webHistory": "날짜별·기간별 기록",
+    "webHistoryBody": "지난 기록을 날짜·기간으로 비교",
+    "webShuttle": "터미널 이동·셔틀 노선도",
+    "webShuttleBody": "노선도와 정류장별 시간표",
+    "webFees": "주차요금 계산",
+    "webFeesBody": "주차 기간·차종별 요금 계산",
     "privacy": "로그인·위치 정보를 사용하지 않아요 · {version}"
   },
   "error": {
@@ -172,18 +186,23 @@
     "retry": "다시 시도"
   },
   "widget": {
-    "galleryName": "ICN 주차",
-    "galleryDescription": "터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상",
-    "smallName": "ICN 주차",
+    "galleryName": "ICN 공항 주차",
+    "galleryDescription": "주차장 남은 면수와 30분 간격 참고 예상",
+    "smallName": "주차장 남은 면수",
     "smallDescription": "주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상",
-    "mediumName": "ICN 주차 예상",
-    "mediumDescription": "터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤",
+    "mediumName": "3시간 예상 그래프",
+    "mediumDescription": "주차장 한 곳의 30분 간격 3시간 예상 남은 면수",
+    "largeName": "주차장별 예상",
+    "largeDescription": "터미널 단기·장기 주차장별 지금과 1·2·3시간 뒤",
+    "graphSubtitle": "3시간 예상 · 30분 간격",
+    "tableSubtitle": "지금 · 1·2·3시간 뒤",
+    "groupParameter": "주차장 묶음",
     "configTitle": "위젯에 보여 줄 주차장",
     "targetParameter": "주차장",
     "terminalParameter": "터미널",
     "inOneHourPrefix": "1시간 뒤",
     "inOneHour": "1시간 뒤 {delta}대",
     "updatedAgo": "{ago} 기준",
-    "mediumTitle": "{terminal} 주차 · 1·2·3시간 뒤"
+    "total": "전체"
   }
 }

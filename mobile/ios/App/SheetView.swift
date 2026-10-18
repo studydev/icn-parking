@@ -1,8 +1,7 @@
-import Charts
 import ICNParkingCore
 import SwiftUI
 
-/// 상세 시트(디자인 5i): .sheet + detents(88%)
+/// 상세 시트(디자인 5i): .sheet + detents(88%). 그래프 = 지난 2시간 실측 + 6시간 예상(30분 점마다 숫자), 아래 = 시간대별 세로 표
 struct SheetView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.theme) private var theme
@@ -37,7 +36,8 @@ struct SheetView: View {
                             .padding(.init(top: 12, leading: 14, bottom: 12, trailing: 14))
                             .background(RoundedRectangle(cornerRadius: 10).fill(theme.p.chip.color))
                             .padding(.top, 12)
-                        if !m.cells.isEmpty { cells(m).padding(.top, 12) }
+                        TimelineTable(timeline: m.timeline) { model.sheet = $0 }
+                            .padding(.top, 18)
                         Text(m.footer(model.freshness?.text ?? ""))
                             .font(.system(size: 12))
                             .foregroundStyle(theme.p.faint.color)
@@ -68,49 +68,12 @@ struct SheetView: View {
     }
 
     private func graph(_ m: SheetModel) -> some View {
-        let maxY = max(1, ([m.actual, m.forecast, m.base].flatMap { $0 }.map(\.available).max() ?? 1) * 1.08)
-        let nowY = m.forecast.first?.available ?? m.actual.last?.available
-        return VStack(alignment: .leading, spacing: 8) {
-            Chart {
-                RuleMark(y: .value("0", 0)).foregroundStyle(theme.p.line.color).lineStyle(StrokeStyle(lineWidth: 1))
-                RuleMark(x: .value("now", 0)).foregroundStyle(theme.p.faint.color).lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
-                ForEach(m.base, id: \.offset) { p in
-                    LineMark(x: .value("t", p.offset), y: .value("v", p.available), series: .value("s", "base"))
-                        .foregroundStyle(theme.p.faint.color)
-                        .lineStyle(StrokeStyle(lineWidth: 1.6, lineCap: .round, dash: [1, 4]))
-                }
-                ForEach(m.actual, id: \.offset) { p in
-                    LineMark(x: .value("t", p.offset), y: .value("v", p.available), series: .value("s", "actual"))
-                        .foregroundStyle(theme.p.ink.color)
-                        .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
-                }
-                ForEach(m.forecast, id: \.offset) { p in
-                    LineMark(x: .value("t", p.offset), y: .value("v", p.available), series: .value("s", "forecast"))
-                        .foregroundStyle(theme.p.tint.color)
-                        .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
-                }
-                if let nowY {
-                    PointMark(x: .value("t", 0), y: .value("v", nowY))
-                        .symbol { Circle().strokeBorder(theme.p.ink.color, lineWidth: 2).background(Circle().fill(theme.p.sheet.color)).frame(width: 9, height: 9) }
-                }
-            }
-            .chartXScale(domain: -36...36)
-            .chartYScale(domain: 0...maxY)
-            .chartXAxis(.hidden)
-            .chartYAxis(.hidden)
-            .chartLegend(.hidden)
-            .frame(height: 128)
-            HStack {
-                Text(m.startLabel).foregroundStyle(theme.p.faint.color)
-                Spacer()
-                Text(Strings.Sheet.nowMarker(time: m.nowLabel)).fontWeight(.semibold)
-                Spacer()
-                Text(m.endLabel).foregroundStyle(theme.p.faint.color)
-            }
-            .font(.num(10, .regular))
+        VStack(alignment: .leading, spacing: 8) {
+            SheetGraph(model: m)
+                .frame(height: 176)
             legend(m)
         }
-        .padding(.init(top: 12, leading: 12, bottom: 6, trailing: 12))
+        .padding(.init(top: 12, leading: 12, bottom: 8, trailing: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.p.line.color, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(graphLabel(m))
@@ -140,27 +103,150 @@ struct SheetView: View {
             Text(text)
         }
     }
+}
 
-    private func cells(_ m: SheetModel) -> some View {
-        let now = m.nowPair
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
-            ForEach(m.cells, id: \.time) { cell in
-                let d = now.map { NumberText.round(cell.value.available) - NumberText.round($0.available) } ?? 0
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(cell.time.label).font(.num(11.5, .regular)).foregroundStyle(theme.p.ink2.color)
-                    HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text(NumberText.grouped(cell.value.available)).font(.num(20, .bold))
-                        Text(Strings.Unit.cars).font(.system(size: 13, weight: .semibold))
-                    }
-                    Text(NumberText.delta(d)).font(.num(12, .bold)).foregroundStyle(theme.deltaColor(d))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.init(top: 10, leading: 10, bottom: 9, trailing: 10))
-                .background(RoundedRectangle(cornerRadius: 10).fill(theme.tint(cell.value.occupancy)))
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Strings.Forecast.a11yCell(time: cell.time.label, cars: NumberText.grouped(cell.value.available), change: NumberText.change(d)))
+/// −2시간 … +6시간 그래프. 30분 점마다 남은 대수(위·아래 번갈아 두어 겹치지 않게)
+struct SheetGraph: View {
+    @Environment(\.theme) private var theme
+    let model: SheetModel
+
+    var body: some View {
+        let m = model
+        let values = (m.actual + m.forecast + m.base).map(\.available)
+        let maxY = max(1, (values.max() ?? 1) * 1.12)
+        Canvas { ctx, size in
+            let top: CGFloat = 16, bottom: CGFloat = 36
+            let plotH = size.height - top - bottom
+            let x = { (o: Int) in CGFloat(o + 24) / 96 * (size.width - 24) + 12 }
+            let y = { (v: Double) in top + plotH * (1 - CGFloat(v / maxY)) }
+            func line(_ pts: [SeriesPoint]) -> Path {
+                Path { p in for (i, pt) in pts.enumerated() { i == 0 ? p.move(to: .init(x: x(pt.offset), y: y(pt.available))) : p.addLine(to: .init(x: x(pt.offset), y: y(pt.available))) } }
+            }
+            ctx.stroke(Path { p in p.move(to: .init(x: 0, y: top + plotH)); p.addLine(to: .init(x: size.width, y: top + plotH)) }, with: .color(theme.p.line.color), lineWidth: 1)
+            ctx.stroke(Path { p in p.move(to: .init(x: x(0), y: 2)); p.addLine(to: .init(x: x(0), y: top + plotH)) },
+                       with: .color(theme.p.faint.color), style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+            if !m.base.isEmpty {
+                ctx.stroke(line(m.base), with: .color(theme.p.faint.color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, dash: [1, 4]))
+            }
+            ctx.stroke(line(m.actual), with: .color(theme.p.ink.color), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            if !m.forecast.isEmpty {
+                ctx.stroke(line(m.forecast), with: .color(theme.p.tint.color), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            }
+            // 점 + 숫자: 실측(ink) → 예상(tint), 지금 점은 한 번만
+            let labeled = m.actual.filter { $0.offset != 0 }.map { ($0, theme.p.ink.color) }
+                + (m.forecast.isEmpty ? m.actual.filter { $0.offset == 0 } : m.forecast).map { ($0, $0.offset == 0 ? theme.p.ink.color : theme.p.tint.color) }
+            for (i, (pt, color)) in labeled.enumerated() {
+                let c = CGPoint(x: x(pt.offset), y: y(pt.available))
+                let r: CGFloat = pt.offset == 0 ? 4.5 : 2.6
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(pt.offset == 0 ? theme.p.sheet.color : color))
+                if pt.offset == 0 { ctx.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(color), lineWidth: 2) }
+                let above = i % 2 == 0
+                let text = Text(NumberText.grouped(pt.available)).font(.num(pt.offset == 0 ? 11 : 9.5, pt.offset == 0 ? .heavy : .semibold)).foregroundColor(color)
+                ctx.draw(text, at: CGPoint(x: c.x, y: above ? c.y - 7 : c.y + 7), anchor: above ? .bottom : .top)
+            }
+            // 시각 축: "지금" 먼저 놓고, 그와 겹치는 정시 칸은 건너뛴다
+            var taken: [ClosedRange<CGFloat>] = []
+            for a in m.axis.sorted(by: { $0.isNow && !$1.isNow }) {
+                let text = ctx.resolve(Text(a.label).font(.num(10, a.isNow ? .semibold : .regular)).foregroundColor(a.isNow ? theme.p.ink.color : theme.p.faint.color))
+                let w = text.measure(in: size).width
+                let cx = min(max(x(a.offset), w / 2), size.width - w / 2)
+                let span = (cx - w / 2 - 4)...(cx + w / 2 + 4)
+                if taken.contains(where: { $0.overlaps(span) }) { continue }
+                taken.append(span)
+                ctx.draw(text, at: CGPoint(x: cx, y: size.height - 14), anchor: .center)
             }
         }
+    }
+}
+
+/// 시간대별 세로 표: 왼쪽 = 시간 흐름(셔틀 정차 순서처럼 레일), 오른쪽 = 선택한 곳이 앞에 오는 주차장 열
+struct TimelineTable: View {
+    @Environment(\.theme) private var theme
+    let timeline: SheetTimeline
+    let onSelect: (SheetTarget) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Strings.Sheet.timelineTitle).font(.system(size: 13, weight: .bold))
+            Text(Strings.Sheet.timelineNote).font(.system(size: 11)).foregroundStyle(theme.p.muted.color).padding(.top, 2)
+            HStack(spacing: 4) {
+                Color.clear.frame(width: 70)
+                ForEach(timeline.columns, id: \.target) { col in
+                    Button { if !col.selected { onSelect(col.target) } } label: {
+                        Text(col.name)
+                            .font(.system(size: 12, weight: col.selected ? .heavy : .semibold))
+                            .foregroundStyle(col.selected ? theme.p.ink.color : theme.p.muted.color)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.init(top: 10, leading: 0, bottom: 4, trailing: 0))
+            ForEach(Array(timeline.rows.enumerated()), id: \.offset) { i, row in
+                HStack(spacing: 4) {
+                    rail(index: i, row: row)
+                    ForEach(Array(timeline.columns.enumerated()), id: \.offset) { c, col in
+                        cell(row.values[c], selected: col.selected)
+                            .onTapGesture { if !col.selected { onSelect(col.target) } }
+                    }
+                }
+                .frame(height: 34)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(rowLabel(row))
+            }
+        }
+    }
+
+    private func rail(index: Int, row: TimelineRow) -> some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Path { p in
+                    p.move(to: .init(x: 10, y: index == 0 ? 17 : 0))
+                    p.addLine(to: .init(x: 10, y: index == timeline.rows.count - 1 ? 17 : 34))
+                }
+                .stroke(theme.p.tint.color, lineWidth: 2)
+                Circle()
+                    .strokeBorder(theme.p.tint.color, lineWidth: 2.5)
+                    .background(Circle().fill(row.isNow ? theme.p.tint.color : theme.p.sheet.color))
+                    .frame(width: 11, height: 11)
+                    .position(x: 10, y: 17)
+            }
+            .frame(width: 20, height: 34)
+            Text(row.isNow ? Strings.Forecast.now : row.time.label)
+                .font(.num(12.5, row.isNow ? .heavy : .semibold))
+                .foregroundStyle(row.isNow ? theme.p.ink.color : theme.p.ink2.color)
+                .frame(width: 42, alignment: .leading)
+        }
+        .frame(width: 70, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func cell(_ v: ValuePair?, selected: Bool) -> some View {
+        if let v {
+            Text(NumberText.grouped(v.available))
+                .font(.num(selected ? 14 : 12.5, selected ? .heavy : .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 6).fill(theme.tint(v.occupancy)))
+                .overlay { if selected { RoundedRectangle(cornerRadius: 6).strokeBorder(theme.p.ink.color.opacity(0.55), lineWidth: 1.5) } }
+                .padding(.vertical, 2)
+        } else {
+            Text("—")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.p.muted.color)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 6).fill(theme.p.chip.color))
+                .padding(.vertical, 2)
+        }
+    }
+
+    private func rowLabel(_ row: TimelineRow) -> String {
+        let time = row.isNow ? Strings.Forecast.now : row.time.label
+        let parts = zip(timeline.columns, row.values).map { col, v in "\(col.name) \(v.map { NumberText.grouped($0.available) + Strings.Unit.cars } ?? "—")" }
+        return ([time] + parts).joined(separator: ", ")
     }
 }
 

@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.studydev.icnparking.core.generated.Strings
 import com.studydev.icnparking.core.generated.Terminal
 
-/** 설정: 기본 터미널 · 표시 · 안내 · "로그인·위치 정보를 사용하지 않아요 · 버전". Android 카드(r20, 1px line), 소제목 tint 14/600. 즐겨찾기 없음 */
+/** 설정: 기본 터미널 · 표시 · 웹에서 자세히 보기 · 안내 · "로그인·위치 정보를 사용하지 않아요 · 버전". Android 카드(r20, 1px line), 소제목 tint 14/600. 즐겨찾기 없음 */
 @Composable
 fun SettingsScreen(state: AppViewModel.UiState, model: AppViewModel) {
     val theme = LocalTheme.current
@@ -49,19 +49,21 @@ fun SettingsScreen(state: AppViewModel.UiState, model: AppViewModel) {
                 )
             }
         }
+        Caption(Strings.Settings.web)
+        Card {
+            val t = state.terminal.code
+            LinkRow(Strings.Settings.webHome, Strings.Settings.webHomeBody, divider = false) { uri.openUri(Strings.Settings.webBaseUrl) }
+            LinkRow(Strings.Settings.webStatus, Strings.Settings.webStatusBody) { uri.openUri(Strings.Settings.webBaseUrl + "#week/$t") }
+            LinkRow(Strings.Settings.webHistory, Strings.Settings.webHistoryBody) { uri.openUri(Strings.Settings.webBaseUrl + "#day/$t") }
+            LinkRow(Strings.Settings.webShuttle, Strings.Settings.webShuttleBody) { uri.openUri(Strings.Settings.webBaseUrl + "#access/$t") }
+            LinkRow(Strings.Settings.webFees, Strings.Settings.webFeesBody) { uri.openUri(Strings.Settings.webBaseUrl + "fees.html?terminal=$t") }
+        }
         Caption(Strings.Settings.info)
         Card {
             InfoRow(Strings.Settings.dataSource, Strings.Settings.dataSourceBody, divider = false)
             InfoRow(Strings.Settings.affiliation, Strings.Settings.affiliationBody)
             InfoRow(Strings.Settings.forecastLimit, Strings.Settings.forecastLimitBody)
-            Box(Modifier.fillMaxWidth().height(1.dp).background(theme.p.line.toColor()))
-            Row(Modifier.fillMaxWidth().clickable { uri.openUri(Strings.Settings.openSourceUrl) }.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(Strings.Settings.openSource, style = styleS(15f, color = theme.p.ink.toColor()))
-                    Text(Strings.Settings.openSourceLabel, style = styleS(13f, color = theme.p.muted.toColor()))
-                }
-                Text("↗", style = styleS(15f, color = theme.p.faint.toColor()))
-            }
+            LinkRow(Strings.Settings.openSource, Strings.Settings.openSourceLabel) { uri.openUri(Strings.Settings.openSourceUrl) }
         }
         Text(Strings.Settings.privacy(versionText()), style = styleS(12f, color = theme.p.faint.toColor()), modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp))
     }
@@ -89,5 +91,19 @@ private fun InfoRow(title: String, body: String, divider: Boolean = true) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, style = styleS(15f, color = theme.p.ink.toColor()))
         Text(body, style = styleS(13f, color = theme.p.muted.toColor()).copy(lineHeight = fs(19.5f)))
+    }
+}
+
+/** 바깥 링크 행(웹 페이지 바로 가기 · 오픈소스) */
+@Composable
+private fun LinkRow(title: String, body: String, divider: Boolean = true, onClick: () -> Unit) {
+    val theme = LocalTheme.current
+    if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(theme.p.line.toColor()))
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = styleS(15f, color = theme.p.ink.toColor()))
+            Text(body, style = styleS(13f, color = theme.p.muted.toColor()))
+        }
+        Text("↗", style = styleS(15f, color = theme.p.faint.toColor()))
     }
 }
