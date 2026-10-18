@@ -11,14 +11,14 @@ import kotlin.math.min
 
 /** 예측 칸 위치. 칸 하나의 계산은 웹 forecastOf와 같고 위치만 다르다. */
 enum class CellSchedule {
-    /** 앱: 지금 슬롯 + 30분씩 6칸(+30분 … +3시간) */
+    /** 앱: 지금 슬롯 + 30분씩 12칸(+30분 … +6시간) */
     HALF_HOURLY,
 
     /** 웹 forecastOf: 다음 정시부터 1시간씩 6칸 */
     WEB_HOURLY;
 
     fun slotsAfter(idx: Int): List<Int> = when (this) {
-        HALF_HOURLY -> (1..6).map { idx + 6 * it }
+        HALF_HOURLY -> (1..12).map { idx + 6 * it }
         WEB_HOURLY -> (0 until 6).map { (idx / 12 + 1 + it) * 12 }
     }
 }

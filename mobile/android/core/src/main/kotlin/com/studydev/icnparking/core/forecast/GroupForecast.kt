@@ -41,7 +41,8 @@ data class GroupForecast(
                 current[id] = p to cap
             }
             val hasForecast = included.any { results[it]?.forecast != null }
-            val cells = if (!hasForecast) emptyList() else (0 until 6).map { k ->
+            val n = included.mapNotNull { results[it]?.forecast?.cells?.size }.maxOrNull() ?: 0
+            val cells = if (!hasForecast) emptyList() else (0 until n).map { k ->
                 var sum = 0.0
                 for (id in included) {
                     val a = results[id]?.forecast?.cells?.get(k)?.available
