@@ -37,7 +37,8 @@ public struct GroupForecast: Hashable, Sendable {
         available = included.isEmpty ? nil : c - q
         occupancy = included.isEmpty ? nil : Double(q) / Double(c)
         hasForecast = included.contains { results[$0]?.forecast != nil }
-        cells = !hasForecast ? [] : (0..<6).map { k in
+        let n = included.compactMap { results[$0]?.forecast?.cells.count }.max() ?? 0
+        cells = !hasForecast ? [] : (0..<n).map { k in
             var sum = 0.0
             for id in included {
                 if let a = results[id]?.forecast?.cells[k].available { sum += a } else if let x = current[id] { sum += Double(x.c - min(x.p, x.c)) }

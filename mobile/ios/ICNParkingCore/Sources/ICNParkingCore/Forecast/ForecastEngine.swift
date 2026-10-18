@@ -1,13 +1,13 @@
 /// 예측 칸 위치. 칸 하나의 계산은 웹 forecastOf와 같고 위치만 다르다.
 public enum CellSchedule: Sendable {
-    /// 앱: 지금 슬롯 + 30분씩 6칸(+30분 … +3시간)
+    /// 앱: 지금 슬롯 + 30분씩 12칸(+30분 … +6시간)
     case halfHourly
     /// 웹 forecastOf: 다음 정시부터 1시간씩 6칸
     case webHourly
 
     func slots(after idx: Int) -> [Int] {
         switch self {
-        case .halfHourly: return (1...6).map { idx + 6 * $0 }
+        case .halfHourly: return (1...12).map { idx + 6 * $0 }
         case .webHourly: return (0..<6).map { (idx / 12 + 1 + $0) * 12 }
         }
     }
