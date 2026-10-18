@@ -2,6 +2,8 @@
 
 앱 이름 **ICN 공항 주차** · iOS 번들 ID `com.studydev.icnparking`(위젯 `.widget`) · Android 패키지 `com.studydev.icnparking` · 버전 1.0.0 (1)
 
+스크립트와 실행 순서는 [RELEASE.md](RELEASE.md)에 있다. 아래는 체크리스트다.
+
 ## 지금 끝난 것
 
 | 항목 | 상태 | 위치 |
@@ -19,7 +21,7 @@
 ## 개발자 계정이 생기면 할 것
 
 **Apple (Apple Developer Program, 연 99달러)**
-1. Xcode › Settings › Accounts에 Apple ID 추가 → `mobile/ios/project.yml`의 `settings.base`에 `DEVELOPMENT_TEAM: <팀 ID>` 추가 → `xcodegen`.
+1. Xcode › Settings › Accounts에 Apple ID 추가 → git 제외 파일 `mobile/ios/Config/Local.xcconfig`에 `DEVELOPMENT_TEAM = <팀 ID>` 추가(`xcodegen`을 다시 돌려도 유지된다).
 2. 실제 아이폰 연결해 설치·테스트(위젯 홈 화면 추가, 딥링크 포함).
 3. (선택) App Group `group.com.studydev.icnparking`을 앱·위젯에 추가해 캐시·설정 공유.
 4. App Store Connect에서 앱 생성 → 개인정보 Firebase Analytics 수집 항목 신고 → 스크린샷·문구(`listing.ko.md`) → TestFlight → 심사.
@@ -35,5 +37,5 @@
 
 - **개인정보처리방침 URL**: 두 스토어 모두 요구. `privacy-policy.ko.md`를 웹(예: 지금 사이트의 정적 페이지 또는 GitHub Pages)에 게시하고 문의 이메일을 채운다.
 - **지원 URL**: GitHub 저장소 또는 웹 사이트.
-- **스크린샷**: iPhone 6.9"(1320×2868 또는 1290×2796), Android 폰. 시뮬레이터·에뮬레이터에서 실데이터로 찍는다.
+- **스크린샷**: iPhone은 6.1인치급(1179×2556 또는 1206×2622) 한 세트가 필수이고 6.9인치(1320×2868 등)는 선택(앱이 iPhone 전용이라 iPad는 필요 없다). Android는 긴 변이 짧은 변의 2배를 넘으면 안 되므로 1080×1920으로 찍는다. `sh mobile/store/capture-screenshots.sh ios|android`로 실데이터를 찍고, 올리기 직전에 대표성 있는 시간대로 다시 찍는다.
 - 앱 이름·설명에 "인천국제공항공사 공식" 등 제휴로 오해할 표현을 쓰지 않는다(설정 › 운영 주체에 비제휴 안내가 있다).
