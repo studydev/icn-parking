@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 생성 파일 — 직접 고치지 마세요. 원본: mobile/shared/strings.ko.json · node mobile/shared/scripts/generate.mjs -->
+<resources>
+    <string name="app_name" formatted="false">ICN 주차</string>
+    <string name="tab_live" formatted="false">실시간</string>
+    <string name="tab_forecast" formatted="false">예측</string>
+    <string name="tab_history" formatted="false">히스토리</string>
+    <string name="tab_shuttle" formatted="false">셔틀</string>
+    <string name="tab_settings" formatted="false">설정</string>
+    <string name="title_live" formatted="false">실시간 현황</string>
+    <string name="title_forecast" formatted="false">시간별 예측</string>
+    <string name="title_history" formatted="false">히스토리</string>
+    <string name="title_shuttle" formatted="false">셔틀</string>
+    <string name="title_settings" formatted="false">설정</string>
+    <string name="header_unitOccupancy" formatted="false">점유율</string>
+    <string name="header_unitAvailable" formatted="false">주차면</string>
+    <string name="header_terminal1" formatted="false">T1</string>
+    <string name="header_terminal2" formatted="false">T2</string>
+    <string name="header_terminal1Long" formatted="false">제1터미널</string>
+    <string name="header_terminal2Long" formatted="false">제2터미널</string>
+    <string name="meta_justNow" formatted="false">방금</string>
+    <string name="meta_loading" formatted="false">불러오는 중…</string>
+    <string name="meta_refresh" formatted="false">↻ 새로고침</string>
+    <string name="meta_refreshing" formatted="false">갱신 중…</string>
+    <string name="meta_legendLow" formatted="false">여유</string>
+    <string name="meta_legendHigh" formatted="false">만차</string>
+    <string name="meta_legendA11y" formatted="false">색 범례: 여유에서 만차</string>
+    <string name="loading_parking" formatted="false">최신 주차 정보를 불러오고 있어요</string>
+    <string name="loading_shuttle" formatted="false">셔틀 시간표를 불러오고 있어요</string>
+    <string name="unit_cars" formatted="false">대</string>
+    <string name="unit_percent" formatted="false">%</string>
+    <string name="unit_carsLeft" formatted="false">대 남음</string>
+    <string name="unit_percentUsed" formatted="false">% 사용 중</string>
+    <string name="zone_closed" formatted="false">운영 중단</string>
+    <string name="zone_missing" formatted="false">확인 필요</string>
+    <string name="zone_full" formatted="false">만차</string>
+    <string name="zone_ground" formatted="false">지면</string>
+    <string name="live_groupShort" formatted="false">단기주차장</string>
+    <string name="live_groupLong" formatted="false">장기주차장 · 주차타워</string>
+    <string name="forecast_now" formatted="false">지금</string>
+    <string name="forecast_total" formatted="false">전체</string>
+    <string name="forecast_sectionShort" formatted="false">단기주차장</string>
+    <string name="forecast_sectionLong" formatted="false">장기주차장 · 주차타워</string>
+    <string name="forecast_reasonUnavailable" formatted="false">예측 불가</string>
+    <string name="forecast_reasonCapacityChanged" formatted="false">면수 변경 · 예상 중지</string>
+    <string name="forecast_reasonClosed" formatted="false">운영 중단</string>
+    <string name="forecast_reasonMissing" formatted="false">현재값 없음</string>
+    <string name="forecast_whyClosed" formatted="false">운영 중단 구역이에요. 지금은 주차할 수 없어요.</string>
+    <string name="forecast_whyMissing" formatted="false">현재값이 들어오지 않아 남은 대수와 예상을 보여드릴 수 없어요.</string>
+    <string name="forecast_whyNoHistory" formatted="false">예측 불가 · 지난 4주 같은 요일·시각 기록이 없어요.</string>
+    <string name="forecast_whyCapacityUnknown" formatted="false">지금 운영 면수를 확인할 수 없어 예상을 만들 수 없어요.</string>
+    <string name="forecast_deltaZero" formatted="false">±0</string>
+    <string name="forecast_changeNone" formatted="false">변화 없음</string>
+    <string name="sheet_close" formatted="false">닫기</string>
+    <string name="sheet_remaining" formatted="false">남은</string>
+    <string name="sheet_legendActual" formatted="false">지난 3시간 실측</string>
+    <string name="sheet_legendForecast" formatted="false">3시간 예상</string>
+    <string name="sheet_legendLastWeek" formatted="false">지난주 같은 시각</string>
+    <string name="sheet_lastWeek" formatted="false">지난주</string>
+    <string name="sheet_explainGroup" formatted="false">구역마다 지난 1~4주 같은 요일 흐름에 지금 차이를 더한 참고 예상을 합쳤어요. 예상이 없는 구역은 지금 값을 그대로 더해요.</string>
+    <string name="sheet_footerGroupSuffix" formatted="false"> · 운영 중단·현재값 없는 구역 제외</string>
+    <string name="history_groupShort" formatted="false">단기</string>
+    <string name="history_groupLong" formatted="false">장기</string>
+    <string name="history_groupReserved" formatted="false">예약</string>
+    <string name="history_all" formatted="false">전체</string>
+    <string name="history_now" formatted="false">지금</string>
+    <string name="history_dailyMaxOccupancy" formatted="false">일별 최고 점유율</string>
+    <string name="history_dailyMinAvailable" formatted="false">일별 최저 남은 면수</string>
+    <string name="history_noData" formatted="false">이 기간 기록이 없어요</string>
+    <string name="shuttle_arriving" formatted="false">곧 도착</string>
+    <string name="shuttle_tomorrow" formatted="false">내일</string>
+    <string name="shuttle_nextBus" formatted="false">그다음 차</string>
+    <string name="shuttle_allDay" formatted="false">24시간 운행 · 심야엔 배차가 길어요</string>
+    <string name="shuttle_nextArrival" formatted="false">다음 도착</string>
+    <string name="shuttle_none" formatted="false">—</string>
+    <string name="settings_defaultTerminal" formatted="false">기본 터미널</string>
+    <string name="settings_display" formatted="false">표시</string>
+    <string name="settings_showDelta" formatted="false">예측 칸에 ▲▼ 변화량 표시</string>
+    <string name="settings_info" formatted="false">안내</string>
+    <string name="settings_dataSource" formatted="false">데이터 출처</string>
+    <string name="settings_dataSourceBody" formatted="false">공공데이터포털 · 인천국제공항공사 주차장 정보 (5분 간격)</string>
+    <string name="settings_affiliation" formatted="false">운영 주체</string>
+    <string name="settings_affiliationBody" formatted="false">인천국제공항공사와 제휴하지 않은 독립 서비스예요. 공개된 공공데이터를 사용해요.</string>
+    <string name="settings_forecastLimit" formatted="false">예상의 한계</string>
+    <string name="settings_forecastLimitBody" formatted="false">지난주 같은 요일·시각 흐름에 지금 차이를 더한 참고값이에요. 항공편 지연·면수 조정·행사는 반영하지 못해요.</string>
+    <string name="settings_openSource" formatted="false">오픈소스</string>
+    <string name="settings_openSourceLabel" formatted="false">github.com/studydev/icn-parking</string>
+    <string name="settings_openSourceUrl" formatted="false">https://github.com/studydev/icn-parking</string>
+    <string name="error_notConfigured" formatted="false">데이터 주소가 설정되지 않았어요</string>
+    <string name="error_unavailable" formatted="false">주차 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_retry" formatted="false">다시 시도</string>
+    <string name="widget_galleryName" formatted="false">ICN 주차</string>
+    <string name="widget_galleryDescription" formatted="false">터미널 주차 남은 면수와 1·2·3시간 뒤 참고 예상</string>
+    <string name="widget_smallName" formatted="false">ICN 주차</string>
+    <string name="widget_smallDescription" formatted="false">주차장 한 곳의 남은 면수와 1시간 뒤 참고 예상</string>
+    <string name="widget_mediumName" formatted="false">ICN 주차 예상</string>
+    <string name="widget_mediumDescription" formatted="false">터미널 단기·장기 주차장의 지금과 1·2·3시간 뒤</string>
+    <string name="widget_configTitle" formatted="false">위젯에 보여 줄 주차장</string>
+    <string name="widget_targetParameter" formatted="false">주차장</string>
+    <string name="widget_terminalParameter" formatted="false">터미널</string>
+    <string name="widget_inOneHourPrefix" formatted="false">1시간 뒤</string>
+</resources>
