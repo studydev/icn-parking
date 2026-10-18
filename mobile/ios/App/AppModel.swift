@@ -75,6 +75,7 @@ final class AppModel {
 
     func refresh(force: Bool = false) async {
         guard let client, !refreshing else { return }
+        if force { AppAnalytics.event("manual_refresh", ["terminal": terminal.rawValue]) }
         refreshing = true
         defer { refreshing = false }
         do {

@@ -17,6 +17,9 @@ settings:
     TARGETED_DEVICE_FAMILY: "1"
     CODE_SIGN_STYLE: Automatic
 packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 12.4.0
   ICNParkingCore:
     path: ICNParkingCore
 targets:
@@ -33,6 +36,10 @@ targets:
       - path: ../shared/shuttle.json
         buildPhase: resources
     dependencies:
+      - package: Firebase
+        product: FirebaseAnalyticsCore
+      - package: Firebase
+        product: FirebaseCore
       - package: ICNParkingCore
       - target: ICNParkingWidget
     info:
@@ -43,6 +50,12 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ICNDataBaseURL: $(ICN_DATA_BASE_URL)
         ITSAppUsesNonExemptEncryption: false
+        FirebaseAppDelegateProxyEnabled: false
+        GOOGLE_ANALYTICS_REGISTRATION_WITH_AD_NETWORK_ENABLED: false
+        FirebaseAutomaticScreenReportingEnabled: false
+        GOOGLE_ANALYTICS_IDFV_COLLECTION_ENABLED: false
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS: false
+        GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA: false
         CFBundleURLTypes:
           - CFBundleURLName: com.studydev.icnparking
             CFBundleURLSchemes: [icnparking]
@@ -54,6 +67,7 @@ targets:
         # iPhone 전용. xcodegen이 타깃마다 "1,2"를 기본으로 넣어 최상단 값을 덮어쓰므로 타깃에도 적는다
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
   ICNParkingWidget:
     type: app-extension
     platform: iOS
