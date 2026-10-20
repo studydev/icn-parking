@@ -26,6 +26,24 @@
 
 예상값은 공식 예측이 아닙니다. 셔틀 출발 안내는 정적 시간표를 기준으로 하며 실시간 차량 위치가 아닙니다.
 
+## 모바일 앱 (iOS · Android)
+
+같은 공개 데이터 파일을 읽는 iOS(SwiftUI)와 Android(Jetpack Compose) 앱이 [`mobile/`](mobile/)에 있습니다. 실시간 현황, 30분 간격 6시간 예측, 주차장 상세(그래프·시간대별 표), 히스토리, 셔틀, 홈 화면 위젯(소·중·대)을 제공하고, 더 자세한 그래프와 기록은 설정의 링크로 웹에서 봅니다. 스토어 출시는 준비 중입니다.
+
+**iOS**
+
+| 실시간 | 예측 | 상세 | 히스토리 | 위젯 |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/images/mobile/ios-1-live.png" width="160" alt="iOS 실시간 현황: T1 단기·장기 주차장별 남은 면수"> | <img src="docs/images/mobile/ios-2-forecast.png" width="160" alt="iOS 시간별 예측: 30분 간격 6시간 예상 표"> | <img src="docs/images/mobile/ios-3-detail.png" width="160" alt="iOS 주차장 상세: 지난 2시간과 6시간 예상 그래프, 시간대별 표"> | <img src="docs/images/mobile/ios-4-history.png" width="160" alt="iOS 히스토리: 주차장별 색으로 구분한 선 그래프"> | <img src="docs/images/mobile/ios-5-widgets.png" width="160" alt="iOS 위젯 모음: 주차장별 표(대), 남은 면수(소), 3시간 예상 그래프(중)"> |
+
+**Android**
+
+| 실시간 | 예측 | 상세 | 히스토리 | 위젯 |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/images/mobile/android-1-live.png" width="160" alt="Android 실시간 현황: T1 단기·장기 주차장별 남은 면수"> | <img src="docs/images/mobile/android-2-forecast.png" width="160" alt="Android 시간별 예측: 30분 간격 6시간 예상 표"> | <img src="docs/images/mobile/android-3-detail.png" width="160" alt="Android 주차장 상세: 지난 2시간과 6시간 예상 그래프, 시간대별 표"> | <img src="docs/images/mobile/android-4-history.png" width="160" alt="Android 히스토리: 주차장별 색으로 구분한 선 그래프"> | <img src="docs/images/mobile/android-5-widgets.png" width="160" alt="Android 위젯 모음: 주차장별 표(대), 남은 면수(소), 3시간 예상 그래프(중)"> |
+
+스크린샷은 2026년 10월 18~20일 저녁에 실제 데이터로 찍은 예시이며 현재 값이나 예상의 정확도를 보장하지 않습니다. iOS 위젯 이미지는 앱 안의 위젯 미리보기 화면이고, Android 위젯 이미지는 에뮬레이터 홈 화면의 위젯을 한 장에 모은 것입니다.
+
 ## 문서
 
 | 문서 | 내용 |
