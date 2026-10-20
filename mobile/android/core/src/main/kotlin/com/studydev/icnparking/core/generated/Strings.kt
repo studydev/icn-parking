@@ -169,6 +169,9 @@ object Strings {
         const val openSource = "소스 코드 (GitHub)"
         const val openSourceLabel = "github.com/studydev/icn-parking"
         const val openSourceUrl = "https://github.com/studydev/icn-parking"
+        const val privacyPolicy = "개인정보처리방침"
+        const val privacyPolicyBody = "수집 정보와 보관 기간 확인"
+        const val privacyPolicyUrl = "https://icn.igotobook.com/privacy-policy.html"
         const val web = "웹에서 자세히 보기"
         const val webBaseUrl = "https://icn.igotobook.com/"
         const val webHome = "웹사이트 열기"
@@ -181,7 +184,7 @@ object Strings {
         const val webShuttleBody = "노선도와 정류장별 시간표"
         const val webFees = "주차요금 계산"
         const val webFeesBody = "주차 기간·차종별 요금 계산"
-        fun privacy(version: String): String = "로그인·위치 정보를 사용하지 않아요 · ${version}"
+        fun privacy(version: String): String = "로그인·정확한 위치 권한이 필요 없어요 · ${version}"
     }
     object Error {
         const val notConfigured = "데이터 주소가 설정되지 않았어요"

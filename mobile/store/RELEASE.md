@@ -27,7 +27,7 @@
 
 ## 채워야 할 값 (사용자 입력)
 
-- 개인정보처리방침의 **문의 이메일**과 **GA4 데이터 보관 기간**(`privacy-policy.ko.md`에 자리표시자가 남아 있음). 채운 뒤 웹에 게시해 URL을 만든다.
+- 개인정보처리방침을 웹에 배포하고 `https://icn.igotobook.com/privacy-policy.html`에서 공개 상태를 확인한다. 문의 이메일과 GA4 보관 기간은 2026년 10월 20일 설정값으로 작성되어 있으므로 출시 직전에 다시 확인한다.
 - Play 콘솔 **지원 이메일**(필수).
 - `GoogleService-Info.plist`, `google-services.json`(Firebase 콘솔에서 받는다. git 제외).
 

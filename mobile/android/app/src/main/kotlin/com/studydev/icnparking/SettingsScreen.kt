@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.studydev.icnparking.core.generated.Strings
 import com.studydev.icnparking.core.generated.Terminal
 
-/** 설정: 기본 터미널 · 표시 · 웹에서 자세히 보기 · 안내 · "로그인·위치 정보를 사용하지 않아요 · 버전". Android 카드(r20, 1px line), 소제목 tint 14/600. 즐겨찾기 없음 */
+/** 설정: 기본 터미널 · 표시 · 웹에서 자세히 보기 · 안내 · 개인정보처리방침. Android 카드(r20, 1px line), 소제목 tint 14/600. 즐겨찾기 없음 */
 @Composable
 fun SettingsScreen(state: AppViewModel.UiState, model: AppViewModel) {
     val theme = LocalTheme.current
@@ -64,6 +64,7 @@ fun SettingsScreen(state: AppViewModel.UiState, model: AppViewModel) {
             InfoRow(Strings.Settings.affiliation, Strings.Settings.affiliationBody)
             InfoRow(Strings.Settings.forecastLimit, Strings.Settings.forecastLimitBody)
             LinkRow(Strings.Settings.openSource, Strings.Settings.openSourceLabel) { uri.openUri(Strings.Settings.openSourceUrl) }
+            LinkRow(Strings.Settings.privacyPolicy, Strings.Settings.privacyPolicyBody) { uri.openUri(Strings.Settings.privacyPolicyUrl) }
         }
         Text(Strings.Settings.privacy(versionText()), style = styleS(12f, color = theme.p.faint.toColor()), modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp))
     }

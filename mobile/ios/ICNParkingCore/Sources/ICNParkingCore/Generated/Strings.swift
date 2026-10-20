@@ -168,6 +168,9 @@ public enum Strings {
         public static let openSource = "소스 코드 (GitHub)"
         public static let openSourceLabel = "github.com/studydev/icn-parking"
         public static let openSourceUrl = "https://github.com/studydev/icn-parking"
+        public static let privacyPolicy = "개인정보처리방침"
+        public static let privacyPolicyBody = "수집 정보와 보관 기간 확인"
+        public static let privacyPolicyUrl = "https://icn.igotobook.com/privacy-policy.html"
         public static let web = "웹에서 자세히 보기"
         public static let webBaseUrl = "https://icn.igotobook.com/"
         public static let webHome = "웹사이트 열기"
@@ -180,7 +183,7 @@ public enum Strings {
         public static let webShuttleBody = "노선도와 정류장별 시간표"
         public static let webFees = "주차요금 계산"
         public static let webFeesBody = "주차 기간·차종별 요금 계산"
-        public static func privacy(version: String) -> String { "로그인·위치 정보를 사용하지 않아요 · \(version)" }
+        public static func privacy(version: String) -> String { "로그인·정확한 위치 권한이 필요 없어요 · \(version)" }
     }
     public enum Error {
         public static let notConfigured = "데이터 주소가 설정되지 않았어요"

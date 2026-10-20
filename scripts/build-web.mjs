@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'web');
 const files = [
   'index.html', 'operations.html', 'operating-cost-reference.png', 'github.svg', 'config.js', 'analytics.js', 'occupancy.js', 'forecast.js', 'capacity.js', 'app.js', 'style.css', 'shuttle.js', 'shuttle-map.js',
-  'fees.html', 'parking-fees.js', 'fees.js',
+  'fees.html', 'parking-fees.js', 'fees.js', 'privacy-policy.html',
   'shuttle.json', 'staticwebapp.config.json', 'robots.txt', 'sitemap.xml'
 ];
 
