@@ -1,7 +1,7 @@
 import ICNParkingCore
 import SwiftUI
 
-/// 설정: 기본 터미널 · 표시 · 안내 · "로그인·위치 정보를 사용하지 않아요 · 버전". iOS 그룹 리스트(r12). 즐겨찾기 없음
+/// 설정: 기본 터미널 · 표시 · 안내 · 개인정보처리방침. iOS 그룹 리스트(r12). 즐겨찾기 없음
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.theme) private var theme
@@ -39,6 +39,18 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(Strings.Settings.openSource).scaledFont(15).foregroundStyle(theme.p.ink.color)
                                 Text(Strings.Settings.openSourceLabel).scaledFont(13).foregroundStyle(theme.p.muted.color)
+                            }
+                            Spacer()
+                            Text("↗").foregroundStyle(theme.p.faint.color)
+                        }
+                        .padding(.init(top: 13, leading: 16, bottom: 13, trailing: 16))
+                        .overlay(alignment: .top) { Rectangle().fill(theme.p.line.color).frame(height: 1) }
+                    }
+                    Link(destination: URL(string: Strings.Settings.privacyPolicyUrl)!) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(Strings.Settings.privacyPolicy).scaledFont(15).foregroundStyle(theme.p.ink.color)
+                                Text(Strings.Settings.privacyPolicyBody).scaledFont(13).foregroundStyle(theme.p.muted.color)
                             }
                             Spacer()
                             Text("↗").foregroundStyle(theme.p.faint.color)

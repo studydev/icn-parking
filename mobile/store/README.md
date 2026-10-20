@@ -35,7 +35,7 @@
 
 ## 공통으로 필요한 것
 
-- **개인정보처리방침 URL**: 두 스토어 모두 요구. `privacy-policy.ko.md`를 웹(예: 지금 사이트의 정적 페이지 또는 GitHub Pages)에 게시하고 문의 이메일을 채운다.
+- **개인정보처리방침 URL**: 두 스토어 모두 요구. `web/privacy-policy.html`을 배포한 뒤 `https://icn.igotobook.com/privacy-policy.html`에서 내용을 확인하고 두 스토어에 입력한다. 앱 설정 화면에도 링크가 있다.
 - **지원 URL**: GitHub 저장소 또는 웹 사이트.
 - **스크린샷**: iPhone은 6.1인치급(1179×2556 또는 1206×2622) 한 세트가 필수이고 6.9인치(1320×2868 등)는 선택(앱이 iPhone 전용이라 iPad는 필요 없다). Android는 긴 변이 짧은 변의 2배를 넘으면 안 되므로 1080×1920으로 찍는다. `sh mobile/store/capture-screenshots.sh ios|android`로 실데이터를 찍고, 올리기 직전에 대표성 있는 시간대로 다시 찍는다.
 - 앱 이름·설명에 "인천국제공항공사 공식" 등 제휴로 오해할 표현을 쓰지 않는다(설정 › 운영 주체에 비제휴 안내가 있다).
