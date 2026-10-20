@@ -10,6 +10,7 @@
 | `mobile/ios/scripts/archive.sh` | 아카이브 → `.ipa` 내보내기 또는 `--upload`로 TestFlight 업로드 | 릴리스 아카이브 성공(1.0.0, 빌드 1). 내보내기·업로드는 유료 팀 활성화 뒤에만 확인 가능 |
 | `mobile/shared/scripts/store-graphics.sh` | Play 아이콘 512×512, 그래픽 이미지 1024×500 → `mobile/store/assets/` | 크기·알파 확인 |
 | `mobile/store/capture-screenshots.sh` | iOS(1206×2622)·Android(1080×1920) 스크린샷 → `mobile/store/screenshots/`(git 제외) | 두 플랫폼 모두 실행, 알파 없음 |
+| `mobile/store/readme-images.sh` | 스크린샷에서 README용 대표 이미지(플랫폼별 5장, 폭 540px) → `docs/images/mobile/`. Android 위젯 모음은 에뮬레이터 홈 화면 두 페이지를 `compose-widgets.swift`로 합성 | 10장 생성, 내용 확인 |
 
 `archive.sh`는 빌드 전에 `ICN_DATA_BASE_URL`이 비어 있지 않은지, Firebase 설정 파일(`App/GoogleService-Info.plist`)이 있는지 검사한다(점검용은 `--no-analytics`).
 
