@@ -8,6 +8,8 @@
 - **카테고리**: 여행(iOS: Travel / Android: Travel & Local)
 - **연령 등급**: 전체 이용가(4+)
 - **가격**: 무료, 광고·인앱 결제 없음
+- **지원 이메일**: admin@studydev.com
+- **웹사이트**: https://icn.igotobook.com/
 
 ## 설명
 
