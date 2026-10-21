@@ -1,5 +1,11 @@
 # icn-parking
 
+## 공개 저장소 규칙
+
+- 이 저장소는 **공개**다. md·소스·커밋 메시지·PR 본문에 스토어·분석 콘솔 식별자(Play 앱 ID, GA4 속성·데이터 스트림 ID, Firebase 앱 ID), 테스트 초대 링크, 개인 메일, Apple 주문번호·팀 ID, 키 경로·비밀번호, 데이터 서버 주소를 적지 않는다.
+- 이런 진행 기록은 `*.private.md` 또는 `private/` 아래에 쓴다(git 제외. 예: `mobile/store/ANDROID_SUBMISSION.md`는 `mobile/store/*_SUBMISSION.md` 규칙으로 제외). 문서에 둘 수 있는 것은 처리방침·스토어 문구에 이미 실린 연락처(`admin@studydev.com`)와 서비스 주소 같은 공개 값뿐이다.
+- 문서를 커밋하기 전에 `gitleaks git --redact --config .gitleaks.toml --log-opts="--all" .`로 확인한다(CI가 같은 검사를 한다). 이력에 한 번 올라간 값은 지워도 남으므로 올리기 전에 막는다.
+
 ## 모바일 앱 (`mobile/`)
 
 - 디자인 기준은 `mobile/design/README.md`와 화면 id 5a~5s. 색·간격은 README 토큰표만 사용.

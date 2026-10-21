@@ -13,3 +13,38 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 paths = ['''(^|/)web/app\.js$''']
 regexes = ['''^icn\.forecastDays\.v2$''']
+
+# --- 문서에 적히기 쉬운 콘솔·계정 식별자 ----------------------------------------------------------
+# 기본 규칙은 API 키·토큰 모양만 잡는다. 스토어·분석 콘솔의 숫자 ID나 테스트 초대 링크, 개인 메일은 비밀번호처럼
+# 생기지 않아서 그대로 통과한다. 아래 규칙은 그런 값이 md·소스에 적히는 것을 CI에서 막는다.
+# 규칙에는 실제 값을 넣지 않고 형태만 적는다. 실수로 걸리면 값을 지우고, 꼭 필요한 기록은 *.private.md(git 제외)에 둔다.
+
+[[rules]]
+id = "play-internal-test-link"
+description = "Google Play 내부 테스트 초대 링크(테스터 전용)"
+regex = '''play\.google\.com/apps/internaltest/[0-9]{8,}'''
+keywords = ["internaltest"]
+
+[[rules]]
+id = "console-numeric-id"
+description = "Play 앱 ID, GA4 속성·데이터 스트림 ID 같은 콘솔의 숫자 식별자"
+regex = '''(?i)(play\s*앱\s*id|play\s*console\s*app\s*id|ga4\s*속성|데이터\s*스트림|analytics\s*property|property[ _-]?id|stream[ _-]?id)[^0-9\r\n]{0,24}[0-9]{9,}'''
+keywords = ["앱 id", "속성", "스트림", "property", "stream"]
+
+[[rules]]
+id = "firebase-app-id"
+description = "Firebase 앱 ID(1:프로젝트번호:플랫폼:해시)"
+regex = '''\b1:[0-9]{8,14}:(?:android|ios|web):[0-9a-f]{16,}\b'''
+keywords = [":android:", ":ios:", ":web:"]
+
+[[rules]]
+id = "personal-mailbox"
+description = "개인 메일 주소(운영 연락처는 자체 도메인 주소를 쓴다. 예시는 example.org)"
+regex = '''(?i)\b[a-z0-9._%+-]+@(?:gmail|googlemail|naver|daum|hanmail|kakao|nate|outlook|hotmail|icloud|yahoo)\.(?:com|net|co\.kr|kr)\b'''
+keywords = ["@gmail", "@googlemail", "@naver", "@daum", "@hanmail", "@kakao", "@nate", "@outlook", "@hotmail", "@icloud", "@yahoo"]
+
+[[rules]]
+id = "apple-order-number"
+description = "Apple 주문번호(구매 내역 식별자)"
+regex = '''(?i)(?:주문\s*번호|order\s*(?:number|no\.?|#))[^0-9a-z\r\n]{0,16}W[0-9]{9,12}\b'''
+keywords = ["주문", "order"]
