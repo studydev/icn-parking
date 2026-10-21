@@ -22,3 +22,9 @@ infra/*.json
 # Firebase mobile configuration (supply locally / CI before generating the Xcode project)
 mobile/android/app/google-services.json
 mobile/ios/App/GoogleService-Info.plist
+
+# 비공개 운영 기록(스토어 콘솔 ID, 테스트 초대 링크, 테스터 계정, 번들 해시·키 경로 등)은 공개 저장소에 올리지 않는다.
+# 로컬에만 두거나 저장소 밖에서 관리한다. 새 기록은 *.private.md 또는 private/ 아래에 만든다.
+private/
+*.private.md
+mobile/store/*_SUBMISSION.md
